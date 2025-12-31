@@ -1,4 +1,4 @@
-// ====== CREATE ACCOUNT PAGE SCRIPT - FIXED WITH PHONE AUTH ======
+// ====== CREATE ACCOUNT PAGE SCRIPT - FIXED WITH EMAIL AUTH ======
 // Modal functions
 function showTerms() {
     document.getElementById('termsModal').style.display = 'flex';
@@ -116,7 +116,7 @@ async function initSupabase() {
     }
 }
 
-// Handle form submission - FIXED WITH PHONE AUTH
+// Handle form submission - FIXED WITH EMAIL AUTH
 async function handleSignup(event) {
     event.preventDefault();
 
@@ -146,13 +146,13 @@ async function handleSignup(event) {
     submitBtn.disabled = true;
 
     try {
-        // 1. CREATE FAKE PHONE NUMBER (NO EMAIL RATE LIMITS!)
-        const fakePhone = `+1${Date.now().toString().slice(-10)}`;
-        console.log("Creating account with phone:", fakePhone);
+        // 1. CREATE EMAIL (EMAIL AUTH - NO PHONE!)
+        const internalEmail = `${username}@luster.test`;
+        console.log("Creating account with email:", internalEmail);
 
-        // 2. SIGN UP WITH SUPABASE (PHONE AUTH!)
+        // 2. SIGN UP WITH SUPABASE (EMAIL AUTH!)
         const { data: authData, error: authError } = await supabase.auth.signUp({
-            phone: fakePhone,  // PHONE, not email!
+            email: internalEmail,  // EMAIL, not phone!
             password: password,
             options: {
                 data: {
@@ -197,9 +197,9 @@ async function handleSignup(event) {
 
         console.log("✅ Profile created for:", username);
 
-        // 4. AUTO-LOGIN WITH PHONE
+        // 4. AUTO-LOGIN WITH EMAIL
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            phone: fakePhone,  // PHONE, not email!
+            email: internalEmail,  // EMAIL, not phone!
             password: password
         });
 
