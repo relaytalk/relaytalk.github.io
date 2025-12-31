@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Luster - Login</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Simple Header -->
+    <div class="login-header">
+        <a href="../../index.html" class="login-header-logo">✨ Luster</a>
+    </div>
+    
+    <!-- Login Container -->
+    <div class="login-container">
+        <div class="login-title-section">
+            <div class="login-logo">🔐</div>
+            <h1 class="login-title">Welcome Back</h1>
+            <p class="login-subtitle">Sign in to your Luster account</p>
+        </div>
+        
+        <form class="login-form" id="loginForm">
+            <!-- Username -->
+            <div class="form-group">
+                <label class="form-label" for="loginUsername">
+                    <span class="form-label-icon">👤</span>
+                    Username
+                </label>
+                <input type="text" id="loginUsername" class="form-input" 
+                       placeholder="Enter your username" required
+                       minlength="3" maxlength="20">
+                <div class="error-message" id="usernameError"></div>
+            </div>
+            
+            <!-- Password -->
+            <div class="form-group">
+                <label class="form-label" for="loginPassword">
+                    <span class="form-label-icon">🔒</span>
+                    Password
+                </label>
+                <div class="password-input">
+                    <input type="password" id="loginPassword" class="form-input" 
+                           placeholder="Enter your password" required
+                           minlength="6">
+                    <button type="button" class="password-toggle" id="passwordToggle">
+                        👁️
+                    </button>
+                </div>
+                <div class="error-message" id="passwordError"></div>
+            </div>
+            
+            <!-- Remember Me Only -->
+            <div class="login-options">
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Remember me</label>
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <button type="submit" class="login-btn" id="loginBtn">
+                Sign In
+            </button>
+        </form>
+        
+        <!-- Success Message (Hidden) -->
+        <div class="success-message" id="successMessage">
+            <!-- Content added by JS -->
+        </div>
+        
+        <!-- Divider -->
+        <div class="divider">or</div>
+        
+        <!-- Sign up link -->
+        <div class="signup-link">
+            Don't have an account?
+            <a href="../auth/index.html">Create Account</a>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="login-loader"></div>
+        <p class="loading-text">Signing you in...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
