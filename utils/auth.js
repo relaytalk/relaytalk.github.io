@@ -19,7 +19,7 @@ export const auth = {
       }
       
       // 2. Create auth account (hidden email: username@luster.local)
-      const email = `${username}@luster.local`;
+      const email = `${username}@luster.test`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password,
