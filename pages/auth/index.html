@@ -26,7 +26,7 @@
             <p class="auth-subtitle">Create your account to connect with friends</p>
         </div>
 
-        <form class="auth-form" id="signupForm">
+        <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
             <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="username">
@@ -48,7 +48,7 @@
                 <div class="password-input">
                     <input type="password" id="password" class="form-input"
                            placeholder="Create a strong password" required minlength="6">
-                    <button type="button" class="password-toggle" id="togglePassword">👁️</button>
+                    <button type="button" class="password-toggle" onclick="togglePassword()">👁️</button>
                 </div>
                 <div class="error-message" id="passwordError"></div>
             </div>
@@ -59,7 +59,8 @@
                     <span class="form-label-icon">✅</span>
                     Confirm Password
                 </label>
-                <input type="password" id="confirmPassword" class="form-input" required>
+                <input type="password" id="confirmPassword" class="form-input" 
+                       placeholder="Re-enter your password" required>
                 <div class="error-message" id="confirmError"></div>
             </div>
 
@@ -73,10 +74,10 @@
                 </div>
 
                 <div class="terms-buttons">
-                    <button type="button" class="terms-btn" id="showTerms">
+                    <button type="button" class="terms-btn" onclick="showTerms()">
                         📄 Terms & Conditions
                     </button>
-                    <button type="button" class="terms-btn" id="showPrivacy">
+                    <button type="button" class="terms-btn" onclick="showPrivacy()">
                         🔒 Privacy Policy
                     </button>
                 </div>
@@ -91,10 +92,90 @@
     </div>
 
     <!-- Terms Modal -->
-    <div class="modal-overlay" id="termsModal"></div>
+    <div class="modal-overlay" id="termsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📄 Terms & Conditions</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>Welcome to Luster!</h3>
+                <p>By creating an account, you agree to these simple terms:</p>
+
+                <h3>Your Account</h3>
+                <ul>
+                    <li>You must be at least 13 years old to use Luster</li>
+                    <li>Your username must be unique and appropriate</li>
+                    <li>You are responsible for keeping your password secure</li>
+                </ul>
+
+                <h3>Messaging Rules</h3>
+                <ul>
+                    <li>Be respectful to all users</li>
+                    <li>No harassment, bullying, or hate speech</li>
+                    <li>No spam or unsolicited messages</li>
+                    <li>Respect others' privacy</li>
+                </ul>
+
+                <div class="security-note">
+                    <strong>⚠️ Important Security Notice:</strong>
+                    <p>Your password cannot be recovered if forgotten. We don't store passwords in a way that allows recovery. Please write it down securely.</p>
+                </div>
+
+                <h3>Luster's Promise</h3>
+                <p>We provide a secure, simple messaging platform for everyone to connect safely.</p>
+
+                <p><em>Last updated: December 2024 | App Version: 1.0</em></p>
+            </div>
+        </div>
+    </div>
 
     <!-- Privacy Modal -->
-    <div class="modal-overlay" id="privacyModal"></div>
+    <div class="modal-overlay" id="privacyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🔒 Privacy Policy</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>Your Privacy Matters</h3>
+                <p>At Luster, we believe in simple, transparent privacy.</p>
+
+                <h3>What We Store</h3>
+                <ul>
+                    <li><strong>Username:</strong> Your chosen display name</li>
+                    <li><strong>Profile Information:</strong> Basic account details</li>
+                    <li><strong>Messages:</strong> Only between you and recipients</li>
+                </ul>
+
+                <h3>What We Don't Store</h3>
+                <ul>
+                    <li>❌ Email addresses</li>
+                    <li>❌ Phone numbers</li>
+                    <li>❌ Location data</li>
+                    <li>❌ Contact lists</li>
+                </ul>
+
+                <h3>Your Data is Yours</h3>
+                <ul>
+                    <li>Messages are stored only as long as needed</li>
+                    <li>We don't sell your data to anyone</li>
+                    <li>We don't show ads</li>
+                    <li>🔒 All data is currently stored locally in your browser for testing. When we connect Supabase, it will be encrypted and secured in the cloud.</li>
+                </ul>
+
+                <div class="security-note">
+                    <strong>🔐 Security First:</strong>
+                    <p>Luster is built with security in mind. Created by LusterChat to provide safe, private messaging for everyone.</p>
+                </div>
+
+                <h3>Contact</h3>
+                <p>Questions? We're here to help make Luster safe for you.</p>
+
+                <p><em>Privacy is not a feature – it's our foundation.</em></p>
+            </div>
+        </div>
+    </div>
 
     <!-- JS (moved from <script>) -->
     <script type="module" src="script.js"></script>
