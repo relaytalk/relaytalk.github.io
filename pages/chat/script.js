@@ -612,6 +612,10 @@ window.startVoiceCall = startVoiceCall;
 window.viewSharedMedia = viewSharedMedia;
 window.blockUser = blockUser;
 window.viewImage = viewImage;
+// Add these if not already there
+window.togglePassword = togglePassword;
+window.showTerms = showTerms;
+window.showPrivacy = showPrivacy;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initChatPage);
