@@ -556,9 +556,9 @@
     </div>
 
     <script>
-           // ====== AUTH PAGE SCRIPT - COMPLETE FIXED VERSION ======
+       // ====== AUTH PAGE SCRIPT - UPDATED FOR USERNAME-ONLY AUTH ======
 
-// Modal functions
+// Modal functions (unchanged)
 function showTerms() {
     document.getElementById('termsModal').style.display = 'flex';
 }
@@ -675,7 +675,28 @@ async function initSupabase() {
     }
 }
 
-// Handle form submission WITH SUPABASE & AUTO-LOGIN
+// NEW: Check if username exists using our SQL function
+async function checkUsernameExists(username) {
+    try {
+        // Use our SQL function (create this in Supabase)
+        const { data, error } = await supabase.rpc('get_user_email_by_username', {
+            username_param: username
+        });
+
+        if (error) {
+            console.warn("Username check error:", error);
+            return false; // Assume doesn't exist if error
+        }
+
+        // If data exists (returns an email), username is taken
+        return !!data;
+    } catch (error) {
+        console.error("Username check failed:", error);
+        return false;
+    }
+}
+
+// Handle form submission - UPDATED FOR USERNAME-ONLY
 async function handleSignup(event) {
     event.preventDefault();
 
@@ -705,118 +726,135 @@ async function handleSignup(event) {
     submitBtn.disabled = true;
 
     try {
-        // 1. Check if username already exists in Supabase
-        const { data: existingUser, error: checkError } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('username', username)
-            .maybeSingle(); // Use maybeSingle instead of single
-
-        if (existingUser) {
+        // 1. CHECK USERNAME USING OUR FUNCTION (not direct table query)
+        const usernameExists = await checkUsernameExists(username);
+        if (usernameExists) {
             showError('usernameError', 'Username already taken. Please choose another.');
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
             return;
         }
 
-        // 2. Create account in Supabase Auth
-        const email = `${username}@luster.app`;
-        console.log("Creating account with email:", email);
-        
+        // 2. CREATE UNIQUE EMAIL FOR INTERNAL USE
+        const internalEmail = `${username}@${username}.luster.local`;
+        console.log("Creating account with internal email:", internalEmail);
+
+        // 3. SIGN UP WITH SUPABASE
         const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: email,
+            email: internalEmail,
             password: password,
             options: {
                 data: {
                     username: username,
                     full_name: username
-                }
+                },
+                emailRedirectTo: `${window.location.origin}/login/index.html`
             }
         });
 
         if (authError) {
             console.error("Auth error:", authError);
-            throw authError;
+            if (authError.message.includes('already registered')) {
+                showError('usernameError', 'Username already taken. Please choose another.');
+            } else {
+                throw authError;
+            }
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            return;
         }
 
         console.log("✅ Auth created, user ID:", authData.user?.id);
 
-        // 3. Wait a moment for auth to propagate
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 4. CREATE PROFILE WITH A SMALL DELAY (let auth propagate)
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // 4. Create profile in database
         const { error: profileError } = await supabase
             .from('profiles')
             .insert({
                 id: authData.user.id,
                 username: username,
                 full_name: username,
-                avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`
+                avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
+                status: 'online',
+                created_at: new Date().toISOString()
             });
 
         if (profileError) {
             console.error("Profile error:", profileError);
-            throw profileError;
+            // Try again once
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const { error: retryError } = await supabase
+                .from('profiles')
+                .insert({
+                    id: authData.user.id,
+                    username: username,
+                    full_name: username,
+                    avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
+                    status: 'online'
+                });
+            
+            if (retryError) {
+                throw retryError;
+            }
         }
 
-        console.log("✅ Profile created");
+        console.log("✅ Profile created for:", username);
 
-        // 5. SIGN IN IMMEDIATELY after signup (FIXES THE BUG!)
+        // 5. AUTO-LOGIN (OPTIONAL BUT RECOMMENDED)
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: email,
+            email: internalEmail,
             password: password
         });
 
         if (signInError) {
-            console.warn("Auto-login failed (user can login manually):", signInError);
-            // Continue anyway - show message
-            alert("Account created! Please login with your credentials.");
+            console.warn("Auto-login failed:", signInError);
+            // Show success but tell user to login manually
+            showSuccessAndRedirect(username, false);
         } else {
-            console.log("✅ Auto-login successful, user:", signInData.user);
+            console.log("✅ Auto-login successful");
+            showSuccessAndRedirect(username, true);
         }
-
-        // 6. Show success and redirect
-        showSuccessAndRedirect(username);
 
     } catch (error) {
         console.error("Signup error:", error);
-        
+
         let errorMessage = 'Something went wrong. Please try again.';
-        
+
         if (error.message.includes('already registered') || error.message.includes('already exists')) {
             errorMessage = 'Username already taken. Please choose another.';
             showError('usernameError', errorMessage);
         } else if (error.message.includes('password')) {
             errorMessage = 'Password too weak. Try a stronger one.';
             showError('passwordError', errorMessage);
-        } else if (error.message.includes('email')) {
-            errorMessage = 'Invalid email format.';
-            showError('usernameError', errorMessage);
         } else {
             alert('Error: ' + error.message);
         }
-        
+
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     }
 }
 
 // Show success and redirect
-function showSuccessAndRedirect(username) {
+function showSuccessAndRedirect(username, autoLoggedIn = true) {
     // Hide form
     document.getElementById('signupForm').style.display = 'none';
 
     // Show success message
     const successContainer = document.getElementById('successContainer');
     successContainer.style.display = 'block';
+    
+    const message = autoLoggedIn 
+        ? `Welcome to Luster, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
+        : `Account created, <strong style="color: white;">${username}</strong>!<br>Please log in with your credentials.`;
+
     successContainer.innerHTML = `
         <div class="success-icon">✨</div>
-        <h2 style="color: #28a745; margin-bottom: 15px;">Account Created!</h2>
+        <h2 style="color: #28a745; margin-bottom: 15px;">${autoLoggedIn ? 'Account Created!' : 'Almost Done!'}</h2>
         <p style="color: #c0c0e0; margin-bottom: 10px;">
-            Welcome to Luster, <strong style="color: white;">${username}</strong>!
-        </p>
-        <p style="color: #a0a0c0; margin-bottom: 30px; font-size: 0.95rem;">
-            Your account is ready. Redirecting to home page...
+            ${message}
         </p>
         
         <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 15px; margin: 20px 0;">
@@ -824,7 +862,8 @@ function showSuccessAndRedirect(username) {
                 🔐 Remember your password securely
             </p>
             <p style="color: #667eea; font-size: 0.9rem;">
-                We cannot recover it if forgotten
+                Username: <strong>${username}</strong><br>
+                We cannot recover passwords if forgotten
             </p>
         </div>
         
@@ -833,7 +872,7 @@ function showSuccessAndRedirect(username) {
         </div>
     `;
 
-    // Start progress bar and redirect
+    // Start progress bar
     let progress = 0;
     const progressFill = document.getElementById('progressFill');
     const interval = setInterval(() => {
@@ -842,15 +881,19 @@ function showSuccessAndRedirect(username) {
 
         if (progress >= 100) {
             clearInterval(interval);
-            // Redirect to home page
-            window.location.href = '../home/index.html';
+            // Redirect
+            if (autoLoggedIn) {
+                window.location.href = '../home/index.html';
+            } else {
+                window.location.href = '../login/index.html';
+            }
         }
     }, 30);
 }
 
-// Initialize auth page WITH SUPABASE
+// Initialize auth page
 async function initAuthPage() {
-    console.log("✨ Luster Auth Page Initialized");
+    console.log("✨ Luster Signup Page Initialized");
 
     // Initialize Supabase
     const connected = await initSupabase();
@@ -889,8 +932,6 @@ async function initAuthPage() {
 document.addEventListener('DOMContentLoaded', initAuthPage);
 
 // ====== MAKE FUNCTIONS AVAILABLE TO HTML ======
-// Attach functions that HTML calls via onclick
-
 window.showTerms = showTerms;
 window.showPrivacy = showPrivacy;
 window.closeModal = closeModal;
