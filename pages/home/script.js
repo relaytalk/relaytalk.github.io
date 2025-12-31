@@ -50,7 +50,7 @@ async function loadUserProfile() {
         if (error) throw error;
 
         currentProfile = profile;
-        console.log("Profile loaded:", profile);
+        console.log("Profile loaded:", profile.username);
 
     } catch (error) {
         console.error("Error loading profile:", error);
@@ -74,59 +74,64 @@ function updateWelcomeMessage() {
     const userAvatar = document.getElementById('userAvatar');
     if (userAvatar && currentProfile.avatar_url) {
         userAvatar.src = currentProfile.avatar_url;
+        userAvatar.alt = currentProfile.username;
     }
 }
 
-// Load friends list
+// Load friends list - SIMPLIFIED (no joins)
 async function loadFriends() {
     if (!currentUser) return;
 
     console.log("Loading friends for user:", currentUser.id);
 
     const container = document.getElementById('friendsList');
-    if (!container) return;
+    if (!container) {
+        console.error("Friends list container not found!");
+        return;
+    }
 
     try {
-        // Get friends
+        // SIMPLE QUERY: Get friend IDs
         const { data: friends, error } = await supabase
             .from('friends')
-            .select(`
-                friend_id,
-                profiles:friend_id (
-                    username,
-                    full_name,
-                    avatar_url,
-                    status,
-                    last_seen
-                )
-            `)
+            .select('friend_id')
             .eq('user_id', currentUser.id);
 
         if (error) {
-            console.log("Friends query error (table might not exist yet):", error.message);
+            console.log("Friends table might not exist:", error.message);
             showEmptyFriends(container);
             return;
         }
 
-        console.log("Found friends:", friends?.length || 0);
+        console.log("Found friend IDs:", friends?.length || 0);
 
         if (!friends || friends.length === 0) {
             showEmptyFriends(container);
             return;
         }
 
-        let html = '';
-        friends.forEach(friend => {
-            const profile = friend.profiles;
-            if (!profile) return;
+        // Get profiles for each friend
+        const friendIds = friends.map(f => f.friend_id);
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, status, last_seen')
+            .in('id', friendIds);
 
+        if (profilesError) {
+            console.error("Error loading profiles:", profilesError);
+            showEmptyFriends(container);
+            return;
+        }
+
+        let html = '';
+        profiles.forEach(profile => {
             const isOnline = profile.status === 'online';
             const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
             const timeAgo = getTimeAgo(lastSeen);
             const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
 
             html += `
-                <div class="friend-card" onclick="openChat('${friend.friend_id}')">
+                <div class="friend-card" onclick="openChat('${profile.id}')">
                     <div class="friend-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">
                         ${firstLetter}
                     </div>
@@ -177,85 +182,23 @@ function getTimeAgo(date) {
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Open chat with friend - SIMPLIFIED VERSION
+// Open chat with friend
 async function openChat(friendId) {
     console.log("Opening chat with friend:", friendId);
-
-    try {
-        // SIMPLE: Create new conversation every time
-        const { data: newConversation, error: createError } = await supabase
-            .from('conversations')
-            .insert({ is_group: false })
-            .select()
-            .single();
-
-        if (createError) {
-            console.error("Error creating conversation:", createError);
-            
-            // Create conversations table if doesn't exist
-            if (createError.message.includes('relation "conversations" does not exist')) {
-                alert("Chat feature not set up yet. Creating tables...");
-                await setupChatTables();
-                openChat(friendId); // Retry
-                return;
-            }
-            throw createError;
-        }
-
-        const conversationId = newConversation.id;
-        console.log("Created conversation:", conversationId);
-
-        // Add participants
-        const { error: participantError } = await supabase
-            .from('participants')
-            .insert([
-                { conversation_id: conversationId, user_id: currentUser.id },
-                { conversation_id: conversationId, user_id: friendId }
-            ]);
-
-        if (participantError) throw participantError;
-
-        // Redirect to chat page
-        window.location.href = `../chats/index.html?conversation=${conversationId}`;
-
-    } catch (error) {
-        console.error("Error opening chat:", error);
-        alert("Chat feature not ready yet. Please try again later.");
-    }
+    alert("Chat feature coming soon! Friend ID: " + friendId);
 }
 
-// Setup chat tables if they don't exist
-async function setupChatTables() {
-    try {
-        // Create conversations table
-        const { error: convError } = await supabase.rpc('create_conversations_table');
-        if (convError && !convError.message.includes('already exists')) {
-            console.error("Error creating conversations table:", convError);
-        }
-
-        // Create participants table
-        const { error: partError } = await supabase.rpc('create_participants_table');
-        if (partError && !partError.message.includes('already exists')) {
-            console.error("Error creating participants table:", partError);
-        }
-
-        console.log("Chat tables created/verified");
-    } catch (error) {
-        console.error("Error setting up tables:", error);
-    }
-}
-
-// Update notifications badge
+// Update notifications badge - SIMPLIFIED
 async function updateNotificationsBadge() {
     try {
         const { data: notifications, error } = await supabase
             .from('friend_requests')
-            .select('*')
+            .select('id')
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
         if (error) {
-            console.log("Friend requests table might not exist:", error.message);
+            console.log("Friend requests error:", error.message);
             hideNotificationBadge();
             return;
         }
@@ -275,15 +218,20 @@ function updateBadgeDisplay(count) {
         if (count > 0) {
             badge.textContent = count > 9 ? '9+' : count;
             badge.style.display = 'block';
+            console.log("Badge updated:", count);
         } else {
             badge.style.display = 'none';
         }
+    } else {
+        console.error("Notification badge element not found!");
     }
 }
 
 function hideNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
-    if (badge) badge.style.display = 'none';
+    if (badge) {
+        badge.style.display = 'none';
+    }
 }
 
 // Open search modal
@@ -295,6 +243,7 @@ function openSearch() {
         loadSearchResults();
     } else {
         console.error("Search modal not found!");
+        alert("Search feature not available. Please check console.");
     }
 }
 
@@ -307,14 +256,18 @@ function openNotifications() {
         loadNotifications();
     } else {
         console.error("Notifications modal not found!");
+        alert("Notifications not available. Please check console.");
     }
 }
 
 // Close modal
 function closeModal() {
     console.log("Closing modal");
-    document.getElementById('searchModal').style.display = 'none';
-    document.getElementById('notificationsModal').style.display = 'none';
+    const searchModal = document.getElementById('searchModal');
+    const notificationsModal = document.getElementById('notificationsModal');
+    
+    if (searchModal) searchModal.style.display = 'none';
+    if (notificationsModal) notificationsModal.style.display = 'none';
 }
 
 // Load search results
@@ -330,7 +283,7 @@ async function loadSearchResults() {
     try {
         const { data: allUsers, error } = await supabase
             .from('profiles')
-            .select('id, username, full_name, avatar_url')
+            .select('id, username, full_name')
             .neq('id', currentUser.id);
 
         if (error) throw error;
@@ -371,6 +324,7 @@ async function loadSearchResults() {
             <div class="empty-state">
                 <div class="empty-icon">⚠️</div>
                 <p>Error loading users</p>
+                <p style="font-size: 0.9rem;">${error.message}</p>
             </div>
         `;
     }
@@ -396,32 +350,33 @@ async function displaySearchResults(users) {
     }
 
     try {
-        // Check friends
+        // Check friends (simple query)
         const { data: friends, error: friendError } = await supabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', currentUser.id);
 
-        const friendIds = friends?.map(f => f.friend_id) || [];
+        const friendIds = friendError ? [] : friends?.map(f => f.friend_id) || [];
 
-        // Check pending requests
+        // Check pending requests (simple query)
         const { data: pendingRequests, error: requestError } = await supabase
             .from('friend_requests')
-            .select('receiver_id, status')
+            .select('receiver_id')
             .eq('sender_id', currentUser.id)
             .eq('status', 'pending');
 
-        const pendingIds = pendingRequests?.map(r => r.receiver_id) || [];
+        const pendingIds = requestError ? [] : pendingRequests?.map(r => r.receiver_id) || [];
 
         let html = '';
         users.forEach(user => {
             const isFriend = friendIds.includes(user.id);
             const requestSent = pendingIds.includes(user.id);
+            const firstLetter = user.username.charAt(0).toUpperCase();
 
             html += `
                 <div class="search-result">
                     <div class="search-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">
-                        ${user.username.charAt(0).toUpperCase()}
+                        ${firstLetter}
                     </div>
                     <div class="search-info">
                         <div class="search-name">${user.username}</div>
@@ -447,11 +402,11 @@ async function displaySearchResults(users) {
         container.innerHTML = html;
 
     } catch (error) {
-        console.error("Error checking friend status:", error);
+        console.error("Error displaying results:", error);
     }
 }
 
-// Send friend request - FIXED VERSION
+// Send friend request
 async function sendFriendRequest(toUserId, toUsername) {
     if (!currentUser) return;
 
@@ -459,7 +414,7 @@ async function sendFriendRequest(toUserId, toUsername) {
         // Check if request already exists
         const { data: existingRequest, error: checkError } = await supabase
             .from('friend_requests')
-            .select('*')
+            .select('id')
             .eq('sender_id', currentUser.id)
             .eq('receiver_id', toUserId)
             .eq('status', 'pending')
@@ -481,13 +436,9 @@ async function sendFriendRequest(toUserId, toUsername) {
             });
 
         if (error) {
-            // If table doesn't exist, create it
-            if (error.message.includes('relation "friend_requests" does not exist')) {
-                await createFriendRequestsTable();
-                await sendFriendRequest(toUserId, toUsername); // Retry
-                return;
-            }
-            throw error;
+            console.error("Error sending request:", error);
+            alert("Could not send friend request. Database might need setup.");
+            return;
         }
 
         // Update UI
@@ -502,19 +453,6 @@ async function sendFriendRequest(toUserId, toUsername) {
     }
 }
 
-// Create friend_requests table if it doesn't exist
-async function createFriendRequestsTable() {
-    console.log("Creating friend_requests table...");
-    
-    // Run SQL to create table
-    const { error } = await supabase.rpc('create_friend_requests_table');
-    
-    if (error) {
-        console.error("Error creating table:", error);
-        alert("Setting up database... Please refresh and try again.");
-    }
-}
-
 // Load notifications - SIMPLIFIED
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
@@ -525,22 +463,16 @@ async function loadNotifications() {
     }
 
     try {
+        // Simple query without joins
         const { data: notifications, error } = await supabase
             .from('friend_requests')
-            .select(`
-                id,
-                sender_id,
-                created_at,
-                profiles:sender_id (
-                    username
-                )
-            `)
+            .select('id, sender_id, created_at')
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.log("Notifications error (table might not exist):", error.message);
+            console.log("Notifications error:", error.message);
             showEmptyNotifications(container);
             return;
         }
@@ -550,10 +482,22 @@ async function loadNotifications() {
             return;
         }
 
+        // Get usernames for each sender
+        const senderIds = notifications.map(n => n.sender_id);
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .in('id', senderIds);
+
+        const profileMap = {};
+        if (!profilesError && profiles) {
+            profiles.forEach(p => profileMap[p.id] = p.username);
+        }
+
         let html = '';
         notifications.forEach(notification => {
             const timeAgo = getTimeAgo(notification.created_at);
-            const senderName = notification.profiles?.username || 'Unknown User';
+            const senderName = profileMap[notification.sender_id] || 'Unknown User';
 
             html += `
                 <div class="notification-item">
@@ -593,7 +537,7 @@ function showEmptyNotifications(container) {
     `;
 }
 
-// Accept friend request - FIXED VERSION
+// Accept friend request
 async function acceptFriendRequest(requestId, senderId) {
     console.log("Accepting request:", requestId, "from:", senderId);
 
@@ -604,10 +548,7 @@ async function acceptFriendRequest(requestId, senderId) {
             .update({ status: 'accepted' })
             .eq('id', requestId);
 
-        if (updateError) {
-            console.error("Error updating request:", updateError);
-            throw updateError;
-        }
+        if (updateError) throw updateError;
 
         // 2. Add to friends table (both directions)
         const { error: friendError1 } = await supabase
@@ -626,18 +567,7 @@ async function acceptFriendRequest(requestId, senderId) {
                 created_at: new Date().toISOString()
             });
 
-        if (friendError1 || friendError2) {
-            console.error("Friend errors:", friendError1, friendError2);
-            
-            // If friends table doesn't exist, create it
-            if (friendError1?.message.includes('relation "friends" does not exist') ||
-                friendError2?.message.includes('relation "friends" does not exist')) {
-                await createFriendsTable();
-                await acceptFriendRequest(requestId, senderId); // Retry
-                return;
-            }
-            throw friendError1 || friendError2;
-        }
+        if (friendError1 || friendError2) throw friendError1 || friendError2;
 
         // 3. Update UI
         await loadNotifications();
@@ -648,16 +578,7 @@ async function acceptFriendRequest(requestId, senderId) {
 
     } catch (error) {
         console.error("Error accepting friend request:", error);
-        alert("Could not accept friend request. The database might need setup.");
-    }
-}
-
-// Create friends table if it doesn't exist
-async function createFriendsTable() {
-    console.log("Creating friends table...");
-    const { error } = await supabase.rpc('create_friends_table');
-    if (error) {
-        console.error("Error creating friends table:", error);
+        alert("Could not accept friend request. Database tables might need setup.");
     }
 }
 
@@ -682,9 +603,23 @@ async function declineFriendRequest(requestId) {
     }
 }
 
-// Set up event listeners - UPDATED WITH BUTTON LISTENERS
+// Set up event listeners - FIXED WITH DEBUGGING
 function setupEventListeners() {
     console.log("Setting up event listeners...");
+
+    // Debug: Check all button IDs
+    console.log("🔍 Button check:");
+    console.log("- logoutBtn:", document.getElementById('logoutBtn') ? "FOUND" : "NOT FOUND");
+    console.log("- searchBtn:", document.getElementById('searchBtn') ? "FOUND" : "NOT FOUND");
+    console.log("- notificationBtn:", document.getElementById('notificationBtn') ? "FOUND" : "NOT FOUND");
+    console.log("- notificationBadge:", document.getElementById('notificationBadge') ? "FOUND" : "NOT FOUND");
+
+    // Find ANY search/notification buttons (try different IDs)
+    const allButtons = document.querySelectorAll('button');
+    console.log("All buttons on page:", allButtons.length);
+    allButtons.forEach((btn, i) => {
+        console.log(`Button ${i}:`, btn.id || btn.className || btn.innerHTML.substring(0, 20));
+    });
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -701,20 +636,28 @@ function setupEventListeners() {
         console.log("✅ Logout button listener added");
     }
 
-    // Search button - ADD THIS
-    const searchBtn = document.getElementById('searchBtn');
+    // Find search button by ANY means
+    let searchBtn = document.getElementById('searchBtn');
+    if (!searchBtn) {
+        // Try to find by icon
+        searchBtn = document.querySelector('button[class*="search"], button:contains("🔍")');
+    }
     if (searchBtn) {
         searchBtn.addEventListener('click', openSearch);
-        console.log("✅ Search button listener added");
+        console.log("✅ Search button listener added to:", searchBtn.id || searchBtn.className);
     } else {
         console.log("❌ Search button not found!");
     }
 
-    // Notifications button - ADD THIS
-    const notificationBtn = document.getElementById('notificationBtn');
+    // Find notification button by ANY means
+    let notificationBtn = document.getElementById('notificationBtn');
+    if (!notificationBtn) {
+        // Try to find by icon
+        notificationBtn = document.querySelector('button[class*="notification"], button:contains("🔔")');
+    }
     if (notificationBtn) {
         notificationBtn.addEventListener('click', openNotifications);
-        console.log("✅ Notification button listener added");
+        console.log("✅ Notification button listener added to:", notificationBtn.id || notificationBtn.className);
     } else {
         console.log("❌ Notification button not found!");
     }
@@ -736,6 +679,15 @@ function setupEventListeners() {
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             closeModal();
+        }
+    });
+
+    // FORCE add onclick to any bell icon
+    const bellIcons = document.querySelectorAll('[class*="bell"], [class*="notification"]');
+    bellIcons.forEach(icon => {
+        if (!icon.onclick) {
+            icon.addEventListener('click', openNotifications);
+            console.log("🔔 Added click to bell icon");
         }
     });
 }
