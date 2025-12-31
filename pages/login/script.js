@@ -92,7 +92,7 @@ async function handleLogin(event) {
     try {
         // Use Supabase auth
         const result = await auth.signIn(username, password);
-        
+
         if (result.success) {
             // Show success
             showLoginSuccess(result.user.user_metadata.username || username);
@@ -100,7 +100,7 @@ async function handleLogin(event) {
             showError(passwordError, result.message || 'Login failed');
             hideLoading();
         }
-        
+
     } catch (error) {
         console.error('Login error:', error);
         showError(passwordError, error.message || 'Something went wrong');
@@ -184,7 +184,72 @@ async function initLoginPage() {
             }
         });
     }
+    
+    // Setup any other event listeners for buttons
+    setupButtonListeners();
 }
+
+// Setup button event listeners
+function setupButtonListeners() {
+    // If you have other buttons in your login page HTML
+    // Add their event listeners here
+    
+    // Example: Forgot password button
+    const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+    if (forgotPasswordBtn) {
+        forgotPasswordBtn.addEventListener('click', function() {
+            alert("Password reset feature coming soon!");
+        });
+    }
+    
+    // Example: Signup link button
+    const signupLinkBtn = document.getElementById('signupLinkBtn');
+    if (signupLinkBtn) {
+        signupLinkBtn.addEventListener('click', function() {
+            window.location.href = '../auth/index.html';
+        });
+    }
+}
+
+// ====== MAKE FUNCTIONS AVAILABLE TO HTML ======
+// If your HTML uses onclick="functionName()", add them here
+
+// Toggle password function (for HTML onclick)
+window.togglePassword = function() {
+    const passwordInput = document.getElementById('loginPassword');
+    const toggleBtn = document.querySelector('#passwordToggle');
+    
+    if (passwordInput && toggleBtn) {
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleBtn.textContent = '🙈';
+            toggleBtn.title = 'Hide password';
+        } else {
+            passwordInput.type = 'password';
+            toggleBtn.textContent = '👁️';
+            toggleBtn.title = 'Show password';
+        }
+    }
+};
+
+// Modal functions (if your login page has modals)
+window.showTerms = function() {
+    alert("Terms & Conditions modal would open here");
+};
+
+window.showPrivacy = function() {
+    alert("Privacy Policy modal would open here");
+};
+
+window.closeModal = function() {
+    // Close any open modals
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.style.display = 'none';
+    });
+};
+
+// Make handleLogin available if HTML form uses onsubmit
+window.handleLogin = handleLogin;
 
 // Run when page loads
 document.addEventListener('DOMContentLoaded', initLoginPage);
