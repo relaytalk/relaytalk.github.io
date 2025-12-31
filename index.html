@@ -18,30 +18,30 @@
         <div class="welcome-container">
             <div class="logo">✨</div>
             <h1 class="title">Welcome to Luster</h1>
-            <p class="subtitle">Simple messaging with personal links</p>
+            <p class="subtitle">Connect with friends using search & notifications</p>
             
             <div class="features">
                 <div class="feature-card">
-                    <div class="feature-icon">🔗</div>
-                    <h3>Personal Links</h3>
-                    <p>Create your unique chat link to share</p>
+                    <div class="feature-icon">🔍</div>
+                    <h3>Search & Connect</h3>
+                    <p>Find users by username and send requests</p>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Find Friends</h3>
-                    <p>Search users by username</p>
+                    <div class="feature-icon">🔔</div>
+                    <h3>Accept/Decline</h3>
+                    <p>Manage friend requests with notifications</p>
                 </div>
                 
                 <div class="feature-card">
                     <div class="feature-icon">💬</div>
                     <h3>Instant Chat</h3>
-                    <p>Message in real-time</p>
+                    <p>Message friends in real-time</p>
                 </div>
             </div>
             
             <div class="action-buttons">
-                <button class="btn-primary" onclick="goToSignup()">
+                <button class="btn-primary" onclick="window.location.href='pages/auth/index.html'">
                     Create Account
                 </button>
                 <button class="btn-secondary" onclick="goToLogin()">
@@ -50,11 +50,27 @@
             </div>
             
             <p class="footer-note">
-                
+                Simple messaging with personal connections
             </p>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        function goToLogin() {
+            // Redirect to login page (auth page handles both signup/login)
+            window.location.href = 'pages/login/index.html';
+        }
+        
+        // Check if user is already logged in
+        window.addEventListener('DOMContentLoaded', function() {
+            const user = JSON.parse(localStorage.getItem('luster_user'));
+            if (user) {
+                // User is logged in, redirect to home
+                setTimeout(() => {
+                    window.location.href = 'pages/home/index.html';
+                }, 2000);
+            }
+        });
+    </script>
 </body>
 </html>
