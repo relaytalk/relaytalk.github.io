@@ -84,7 +84,7 @@ export const auth = {
       console.log("🔐 Login attempt:", username);
       
       // Use .local domain
-      const email = `${username}@luster.local`;
+      const email = `${username}@luster.test`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
