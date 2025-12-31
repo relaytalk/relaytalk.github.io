@@ -1,169 +1,141 @@
-// Auth page script - UPDATED FOR SUPABASE
-import { auth } from '../../utils/auth.js'
+// ================================
+// LUSTER SIGNUP – script.js (MODULE)
+// ================================
 
-console.log("✨ Luster Auth Page Loaded (Supabase Version)");
+// -------- Supabase Init --------
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-// Show error message
-function showError(elementId, message) {
-    const errorEl = document.getElementById(elementId);
-    errorEl.textContent = message;
-    errorEl.style.display = 'block';
+const supabaseUrl = "https://blxtldgnssvasuinpyit.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// -------- Helpers --------
+const $ = (id) => document.getElementById(id);
+
+function showError(id, msg) {
+  $(id).textContent = msg;
+  $(id).style.display = "block";
 }
 
-// Hide error message
-function hideError(elementId) {
-    const errorEl = document.getElementById(elementId);
-    errorEl.style.display = 'none';
+function hideError(id) {
+  $(id).style.display = "none";
 }
 
-// Validate username
+// -------- Validation --------
 function validateUsername(username) {
-    if (username.length < 3) {
-        showError('usernameError', 'Username must be at least 3 characters');
-        return false;
-    }
-    if (username.length > 20) {
-        showError('usernameError', 'Username must be less than 20 characters');
-        return false;
-    }
-    if (!/^[a-zA-Z0-9_.]+$/.test(username)) {
-        showError('usernameError', 'Only letters, numbers, underscore, and dot allowed');
-        return false;
-    }
-    hideError('usernameError');
-    return true;
+  if (username.length < 3) {
+    showError("usernameError", "Username must be at least 3 characters");
+    return false;
+  }
+  if (!/^[a-zA-Z0-9_.]+$/.test(username)) {
+    showError("usernameError", "Only letters, numbers, _ and . allowed");
+    return false;
+  }
+  hideError("usernameError");
+  return true;
 }
 
-// Validate password
 function validatePassword(password) {
-    if (password.length < 6) {
-        showError('passwordError', 'Password must be at least 6 characters');
-        return false;
-    }
-    hideError('passwordError');
-    return true;
+  if (password.length < 6) {
+    showError("passwordError", "Password must be at least 6 characters");
+    return false;
+  }
+  hideError("passwordError");
+  return true;
 }
 
-// Validate password confirmation
-function validateConfirmPassword(password, confirmPassword) {
-    if (password !== confirmPassword) {
-        showError('confirmError', 'Passwords do not match');
-        return false;
-    }
-    hideError('confirmError');
-    return true;
+function validateConfirm(password, confirm) {
+  if (password !== confirm) {
+    showError("confirmError", "Passwords do not match");
+    return false;
+  }
+  hideError("confirmError");
+  return true;
 }
 
-// Handle form submission with SUPABASE
-async function handleSignup(event) {
-    event.preventDefault();
+// -------- Password Toggle --------
+$("togglePassword").addEventListener("click", () => {
+  const input = $("password");
+  input.type = input.type === "password" ? "text" : "password";
+});
 
-    // Get form values
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+// -------- Signup Handler --------
+$("signupForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-    // Validate inputs
-    const isUsernameValid = validateUsername(username);
-    const isPasswordValid = validatePassword(password);
-    const isConfirmValid = validateConfirmPassword(password, confirmPassword);
+  const username = $("username").value.trim();
+  const password = $("password").value;
+  const confirm = $("confirmPassword").value;
 
-    if (!isUsernameValid || !isPasswordValid || !isConfirmValid) {
-        return;
-    }
+  if (
+    !validateUsername(username) ||
+    !validatePassword(password) ||
+    !validateConfirm(password, confirm)
+  ) return;
 
-    if (!document.getElementById('terms').checked) {
-        alert('Please agree to Terms & Conditions');
-        return;
-    }
+  if (!$("terms").checked) {
+    alert("Please accept Terms & Privacy Policy");
+    return;
+  }
 
-    // Show loading
-    const submitBtn = document.getElementById('submitBtn');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Creating account...';
-    submitBtn.disabled = true;
+  const btn = $("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "Creating account...";
 
-    try {
-        // Use Supabase auth (from utils/auth.js)
-        const result = await auth.signUp(username, password, username);
-        
-        if (result.success) {
-            // Show success
-            showSuccessMessage(result.user.user_metadata.username);
-        } else {
-            showError('usernameError', result.message || 'Signup failed');
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showError('usernameError', error.message || 'Something went wrong');
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    }
-}
+  try {
+    const email = `${username}@example.com`;
 
-// Show success message
-function showSuccessMessage(username) {
-    // Hide form
-    document.getElementById('signupForm').style.display = 'none';
-
-    // Show success message
-    const successContainer = document.getElementById('successContainer');
-    successContainer.style.display = 'block';
-    successContainer.innerHTML = `
-        <span class="success-icon">✨</span>
-        <h2 style="color: white; margin-bottom: 15px;">Welcome to Luster, ${username}!</h2>
-        <p style="color: #a0a0c0; margin-bottom: 25px;">
-            Your account has been created successfully!
-        </p>
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <p style="color: #a0a0c0; margin-top: 10px; font-size: 0.9rem;">
-            Redirecting to home page...
-        </p>
-    `;
-    
-    // Animate progress bar
-    let width = 0;
-    const interval = setInterval(() => {
-        width += 2;
-        document.getElementById('progressFill').style.width = width + '%';
-        if (width >= 100) {
-            clearInterval(interval);
-            window.location.href = '../home/index.html';
-        }
-    }, 50);
-}
-
-// Initialize auth page
-async function initAuthPage() {
-    console.log("Auth page initialized with Supabase");
-    
-    // Check if user is already logged in
-    const { success } = await auth.getCurrentUser();
-    if (success) {
-        // Redirect to home page
-        window.location.href = '../home/index.html';
-        return;
-    }
-    
-    // Real-time validation
-    document.getElementById('username').addEventListener('input', function() {
-        validateUsername(this.value);
+    // 1️⃣ Create Auth User
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }
+      }
     });
 
-    document.getElementById('password').addEventListener('input', function() {
-        validatePassword(this.value);
+    if (error) throw error;
+
+    // 2️⃣ Create Profile
+    await supabase.from("profiles").insert({
+      id: data.user.id,
+      username,
+      full_name: username,
+      status: "online"
     });
 
-    document.getElementById('confirmPassword').addEventListener('input', function() {
-        const password = document.getElementById('password').value;
-        validateConfirmPassword(password, this.value);
-    });
+    // 3️⃣ Auto Login
+    await supabase.auth.signInWithPassword({ email, password });
+
+    showSuccess(username);
+
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+    btn.textContent = "Create Account";
+  }
+});
+
+// -------- Success UI --------
+function showSuccess(username) {
+  $("signupForm").style.display = "none";
+
+  $("successContainer").style.display = "block";
+  $("successContainer").innerHTML = `
+    <h2 style="color:#28a745">✨ Account Created!</h2>
+    <p>Welcome <strong>${username}</strong></p>
+    <p>Redirecting...</p>
+  `;
+
+  setTimeout(() => {
+    window.location.href = "../home/index.html";
+  }, 2000);
 }
 
-// Run when page loads
-document.addEventListener('DOMContentLoaded', initAuthPage);
+// -------- Already Logged In --------
+const { data } = await supabase.auth.getSession();
+if (data.session) {
+  window.location.href = "../home/index.html";
+}
