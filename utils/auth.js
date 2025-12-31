@@ -1,104 +1,17 @@
-// File: utils/auth.js - TRULY USERNAME-ONLY
+// File: utils/auth.js - SIMPLE USERNAME-ONLY AUTH SYSTEM
 import { supabase } from './supabase.js'
 
 export const auth = {
-  // Sign up new user
-  async signUp(username, password, fullName = null) {
-    try {
-      console.log("🔐 Creating account:", username);
-
-      // 1. Check if username exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (existingUser) {
-        throw new Error('Username already taken');
-      }
-
-      // 2. Create auth account with dummy email
-      const dummyEmail = `${username}@${username}.local`;
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: dummyEmail,
-        password: password,
-        options: {
-          data: { 
-            username: username, 
-            full_name: fullName || username 
-          }
-        }
-      });
-
-      if (authError) throw authError;
-      console.log("✅ Auth created for:", username);
-
-      // 3. Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          username: username,
-          full_name: fullName || username,
-          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
-          status: 'online'
-        });
-
-      if (profileError) throw profileError;
-      console.log("✅ Profile created for:", username);
-
-      // 4. Auto-login with our CUSTOM function
-      const loginResult = await this.signIn(username, password);
-      
-      if (!loginResult.success) {
-        console.log("⚠️ Auto-login failed:", loginResult.message);
-      } else {
-        console.log("✅ Auto-login successful");
-      }
-
-      return loginResult;
-
-    } catch (error) {
-      console.error('❌ Signup error:', error.message);
-      return {
-        success: false,
-        error: error.message,
-        message: this.getErrorMessage(error)
-      };
-    }
-  },
-
-  // Sign in existing user - NEW: Check username in profiles first
+  // Sign in existing user
   async signIn(username, password) {
     try {
       console.log("🔐 Login attempt:", username);
 
-      // 1. Find the user's email by username
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .eq('username', username)
-        .maybeSingle();
+      // Use @example.com domain (same as signup)
+      const internalEmail = `${username}@example.com`;
 
-      if (profileError || !profile) {
-        throw new Error('Invalid username or password');
-      }
-
-      // 2. Find the auth user to get their email
-      const { data: authUser, error: authError } = await supabase
-        .from('auth.users')
-        .select('email')
-        .eq('id', profile.id)
-        .maybeSingle();
-
-      if (authError || !authUser) {
-        throw new Error('Invalid username or password');
-      }
-
-      // 3. Login with the found email
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: authUser.email,
+        email: internalEmail,
         password: password
       });
 
@@ -121,7 +34,7 @@ export const auth = {
     }
   },
 
-  // Sign out (unchanged)
+  // Sign out
   async signOut() {
     try {
       await supabase.auth.signOut();
@@ -131,21 +44,41 @@ export const auth = {
     }
   },
 
-  // Get current user (unchanged)
+  // Get current user
   async getCurrentUser() {
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error) throw error;
-      return { success: true, user: data.user };
+      
+      // Also get profile data
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        
+        return { 
+          success: true, 
+          user: data.user,
+          profile: profile
+        };
+      }
+      
+      return { success: false, error: 'No user found' };
     } catch (error) {
       return { success: false, error: error.message };
     }
   },
 
-  // Check if logged in (unchanged)
+  // Check if logged in
   async isLoggedIn() {
-    const result = await this.getCurrentUser();
-    return result.success;
+    try {
+      const { data } = await supabase.auth.getSession();
+      return !!data.session;
+    } catch (error) {
+      return false;
+    }
   },
 
   // Simple error messages
