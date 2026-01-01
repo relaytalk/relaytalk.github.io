@@ -118,7 +118,7 @@ function showMessages(messages) {
         }
 
         html += `
-            <div class="message ${isSent ? 'sent' : 'received'}">
+            <div class="message ${isSent ? 'sent' : 'received'}" data-id="msg-${msg.id}">
                 <div class="message-content">${escapeHtml(msg.content || '')}</div>
                 <div class="message-time">${time}</div>
             </div>
@@ -127,10 +127,8 @@ function showMessages(messages) {
 
     container.innerHTML = html;
     
-    // Scroll to bottom with slight delay
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-    }, 50);
+    // Scroll to bottom
+    scrollToBottom();
 }
 
 // Helper: Format time
@@ -169,9 +167,9 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// REAL-TIME SETUP - OPTIMIZED
+// REAL-TIME SETUP - FIXED FILTER
 function setupRealtime(friendId) {
-    console.log("Setting up realtime...");
+    console.log("Setting up realtime for chat:", friendId);
 
     // Remove old channels if they exist
     if (chatChannel) {
@@ -181,37 +179,52 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // Create message channel with proper filter
-    chatChannel = supabase.channel(`dm-${currentUser.id}-${friendId}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `or(and(sender_id=eq.${currentUser.id},receiver_id=eq.${friendId}),and(sender_id=eq.${friendId},receiver_id=eq.${currentUser.id}))`
-        }, async (payload) => {
-            console.log("New message:", payload.new);
-            
-            // Remove empty state if present
-            const container = document.getElementById('messagesContainer');
-            const emptyChat = container.querySelector('.empty-chat');
-            if (emptyChat) emptyChat.remove();
-            
-            // Append new message
-            appendMessage(payload.new);
-            
-            // Flash title notification
-            if (payload.new.sender_id !== currentUser.id) {
-                const originalTitle = document.title;
-                document.title = "💬 " + originalTitle;
-                setTimeout(() => {
-                    document.title = originalTitle;
-                }, 1500);
-            }
-        })
-        .subscribe((status) => {
-            console.log("Message channel status:", status);
-            updateConnectionStatus(status);
-        });
+    // Create message channel with PROPER filter
+    chatChannel = supabase.channel(`dm-${currentUser.id}-${friendId}`, {
+        config: {
+            broadcast: { self: true }
+        }
+    })
+    .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `(sender_id=eq.${currentUser.id} and receiver_id=eq.${friendId}) or (sender_id=eq.${friendId} and receiver_id=eq.${currentUser.id})`
+    }, async (payload) => {
+        console.log("📨 Realtime: New message detected:", payload.new);
+        
+        // Check if this is our message (optimistic update already shown)
+        const container = document.getElementById('messagesContainer');
+        const tempMsg = container.querySelector(`[data-id="temp-${payload.new.content}"]`);
+        if (tempMsg) {
+            // Replace temp message with real one
+            tempMsg.setAttribute('data-id', `msg-${payload.new.id}`);
+            return;
+        }
+        
+        // Check if message already exists
+        const existingMsg = container.querySelector(`[data-id="msg-${payload.new.id}"]`);
+        if (existingMsg) {
+            console.log("Message already displayed, skipping");
+            return;
+        }
+        
+        // Remove empty state
+        const emptyChat = container.querySelector('.empty-chat');
+        if (emptyChat) emptyChat.remove();
+        
+        // Add new message
+        appendMessage(payload.new);
+        
+        // Notification if message is from friend
+        if (payload.new.sender_id !== currentUser.id) {
+            notifyNewMessage();
+        }
+    })
+    .subscribe((status) => {
+        console.log("📡 Realtime subscription status:", status);
+        updateConnectionStatus(status);
+    });
 
     // Create status channel
     statusChannel = supabase.channel(`status-${friendId}`)
@@ -231,38 +244,25 @@ function setupRealtime(friendId) {
         .subscribe();
 }
 
-// Append single message - OPTIMIZED
+// Append single message - FIXED SCROLLING
 function appendMessage(msg) {
     const container = document.getElementById('messagesContainer');
     const isSent = msg.sender_id === currentUser.id;
     const time = formatTime(msg.created_at);
     const date = formatDate(msg.created_at);
     
-    // Check if we need a date separator
-    const lastMessage = container.lastElementChild;
-    let needsDateSeparator = false;
+    // Get last message to check date
+    const messages = container.querySelectorAll('.message:not(.empty-chat)');
+    let lastDate = '';
     
-    if (lastMessage && lastMessage.classList.contains('date-separator')) {
-        const lastDate = lastMessage.textContent.trim();
-        if (lastDate !== date) {
-            needsDateSeparator = true;
-        }
-    } else if (!lastMessage || lastMessage.classList.contains('empty-chat')) {
-        needsDateSeparator = true;
-    } else {
-        // Find last actual message's date
-        const allMessages = container.querySelectorAll('.message');
-        if (allMessages.length > 0) {
-            const lastMsg = allMessages[allMessages.length - 1];
-            const lastMsgTime = lastMsg.querySelector('.message-time').textContent;
-            // This is simplified - in production you'd compare dates
-            needsDateSeparator = Math.random() < 0.1; // Just for demo
-        } else {
-            needsDateSeparator = true;
-        }
+    if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        const lastMsgDate = formatDate(msg.created_at); // Simplified for demo
+        lastDate = lastMsgDate;
     }
     
-    if (needsDateSeparator) {
+    // Add date separator if needed
+    if (date !== lastDate && messages.length > 0) {
         const dateSeparator = document.createElement('div');
         dateSeparator.className = 'date-separator';
         dateSeparator.innerHTML = `<span>${date}</span>`;
@@ -272,6 +272,7 @@ function appendMessage(msg) {
     // Create message element
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+    messageDiv.setAttribute('data-id', `msg-${msg.id || 'temp-' + Date.now()}`);
     messageDiv.innerHTML = `
         <div class="message-content">${escapeHtml(msg.content || '')}</div>
         <div class="message-time">${time}</div>
@@ -279,18 +280,42 @@ function appendMessage(msg) {
     
     container.appendChild(messageDiv);
     
-    // Smooth scroll to bottom
+    // Smart scroll: only if user is near bottom
+    const isNearBottom = container.scrollHeight - container.clientHeight - container.scrollTop < 100;
+    if (isNearBottom) {
+        scrollToBottom();
+    }
+}
+
+// Smart scroll to bottom
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+    
     setTimeout(() => {
         container.scrollTo({
             top: container.scrollHeight,
             behavior: 'smooth'
         });
-    }, 10);
+    }, 50);
+}
+
+// New message notification
+function notifyNewMessage() {
+    const originalTitle = document.title;
+    if (!document.title.startsWith("💬")) {
+        document.title = "💬 " + originalTitle;
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 2000);
+    }
 }
 
 // Update connection status
 function updateConnectionStatus(status) {
     const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+    
     const statusDot = statusEl.querySelector('.status-dot');
     const statusText = statusEl.querySelector('.status-text');
     
@@ -299,7 +324,7 @@ function updateConnectionStatus(status) {
     if (status === 'SUBSCRIBED') {
         statusEl.classList.add('connected');
         statusText.textContent = 'Connected';
-        statusDot.style.background = '#28a745';
+        if (statusDot) statusDot.style.background = '#28a745';
         
         // Hide after 2 seconds
         setTimeout(() => {
@@ -312,7 +337,7 @@ function updateConnectionStatus(status) {
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         statusEl.classList.add('error');
         statusText.textContent = 'Connection lost';
-        statusDot.style.background = '#dc3545';
+        if (statusDot) statusDot.style.background = '#dc3545';
         statusEl.style.display = 'flex';
         statusEl.style.opacity = '1';
         
@@ -325,7 +350,7 @@ function updateConnectionStatus(status) {
         
     } else {
         statusText.textContent = 'Connecting...';
-        statusDot.style.background = '#ffc107';
+        if (statusDot) statusDot.style.background = '#ffc107';
         statusEl.style.display = 'flex';
         statusEl.style.opacity = '1';
     }
@@ -349,8 +374,9 @@ async function sendMessage() {
     
     try {
         // Create optimistic message
+        const tempId = 'temp-' + Date.now();
         const tempMessage = {
-            id: 'temp-' + Date.now(),
+            id: tempId,
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
             content: originalText,
@@ -372,7 +398,7 @@ async function sendMessage() {
         
         if (error) throw error;
         
-        console.log("✅ Message sent");
+        console.log("✅ Message sent to server");
         
     } catch (error) {
         console.error("Send error:", error);
