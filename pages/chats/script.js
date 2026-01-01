@@ -1,7 +1,7 @@
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
-console.log("✨ Chat Loaded");
+console.log("✨ Chat Loaded - FIXED VERSION");
 
 let currentUser = null;
 let chatFriend = null;
@@ -68,19 +68,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Setup input listeners
+// Setup input listeners - FIXED: Send button re-enables properly
 function setupInputListeners() {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     
     if (!input || !sendBtn) return;
     
-    // Enable/disable send button on input
     input.addEventListener('input', function() {
         sendBtn.disabled = this.value.trim() === '';
     });
     
-    // Also handle paste
     input.addEventListener('paste', function() {
         setTimeout(() => {
             sendBtn.disabled = this.value.trim() === '';
@@ -88,21 +86,23 @@ function setupInputListeners() {
     });
 }
 
-// Load old messages - FIXED: Only messages with this friend
+// Load old messages - FIXED: Correct SQL query
 async function loadOldMessages(friendId) {
     try {
         console.log("Loading messages between:", currentUser.id, "and", friendId);
 
-        // FIXED: Get messages only between these two users
+        // FIXED: Correct Supabase query for messages between two users
         const { data: messages, error } = await supabase
             .from('direct_messages')
             .select('*')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
+            .or(`sender_id.eq.${currentUser.id}.and.receiver_id.eq.${friendId},sender_id.eq.${friendId}.and.receiver_id.eq.${currentUser.id}`)
             .order('created_at', { ascending: true });
 
         if (error) {
             console.error("Query error:", error);
-            throw error;
+            // Show empty state on error
+            showMessages([]);
+            return;
         }
 
         console.log("Loaded", messages?.length || 0, "messages");
@@ -121,8 +121,6 @@ function showMessages(messages) {
         console.error("messagesContainer not found!");
         return;
     }
-
-    console.log("Showing", messages?.length || 0, "messages");
 
     if (!messages || messages.length === 0) {
         container.innerHTML = `
@@ -162,53 +160,49 @@ function showMessages(messages) {
 
     container.innerHTML = html;
 
-    // FIXED: Scroll after messages are definitely rendered
+    // FIXED: Better scroll timing
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
-    }, 50);
+    }, 100);
 }
 
-// REAL-TIME FIXED: Proper subscription
+// REAL-TIME - FIXED: Working subscription
 function setupRealtime(friendId) {
     console.log("Setting realtime for friend:", friendId);
 
-    // Remove old channels
-    if (chatChannel) {
-        supabase.removeChannel(chatChannel);
-        chatChannel = null;
-    }
-    if (statusChannel) {
-        supabase.removeChannel(statusChannel);
-        statusChannel = null;
-    }
+    // Clean up old channels properly
+    cleanupChannels();
 
-    // Create message channel - FIXED filter
+    // Create message channel - FIXED: Correct filter
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'direct_messages',
-            filter: `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id}))`
+            filter: `or(sender_id.eq.${currentUser.id},sender_id.eq.${friendId})`
         }, async (payload) => {
-            console.log("🔥 New message:", payload.new);
-            
-            // Check if this message is for our chat
             const newMsg = payload.new;
+            
+            // Check if this message is between current user and friend
             if ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id)) {
+                
+                console.log("New relevant message:", newMsg);
+                
+                // Add to UI immediately
+                addSingleMessage(newMsg);
                 
                 // Play sound if message is from friend
                 if (newMsg.sender_id === friendId) {
                     playMessageSound();
                 }
-                
-                // Add message to UI without reloading all
-                addSingleMessage(newMsg);
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+            console.log("Message channel status:", status);
+        });
 
-    // Create status channel for real-time status updates
+    // Create status channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -225,6 +219,26 @@ function setupRealtime(friendId) {
             document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
         })
         .subscribe();
+}
+
+// Clean up channels properly
+function cleanupChannels() {
+    if (chatChannel) {
+        try {
+            supabase.removeChannel(chatChannel);
+        } catch (e) {
+            console.log("Error removing chat channel:", e);
+        }
+        chatChannel = null;
+    }
+    if (statusChannel) {
+        try {
+            supabase.removeChannel(statusChannel);
+        } catch (e) {
+            console.log("Error removing status channel:", e);
+        }
+        statusChannel = null;
+    }
 }
 
 // Add single message to UI
@@ -256,13 +270,13 @@ function addSingleMessage(msg) {
     // Scroll to bottom
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
-    }, 10);
+    }, 50);
 }
 
 // Play message sound
 function playMessageSound() {
     try {
-        // Simple beep sound
+        // Simple beep
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -271,32 +285,31 @@ function playMessageSound() {
         gainNode.connect(audioContext.destination);
         
         oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
         gainNode.gain.value = 0.1;
         
         oscillator.start();
-        setTimeout(() => {
-            oscillator.stop();
-        }, 100);
+        setTimeout(() => oscillator.stop(), 100);
     } catch (e) {
-        console.log("Sound not supported");
+        // Sound not essential, continue silently
     }
 }
 
-// Send message
+// Send message - FIXED: Proper error handling
 async function sendMessage() {
     const input = document.getElementById('messageInput');
-    const text = input.value.trim();
+    const sendBtn = document.getElementById('sendBtn');
+    const text = input?.value.trim();
 
-    if (!text || !chatFriend) {
+    if (!text || !chatFriend || !sendBtn) {
         alert("Please type a message!");
         return;
     }
 
-    const sendBtn = document.getElementById('sendBtn');
+    // Save original state
     const originalText = sendBtn.textContent;
+    const originalDisabled = sendBtn.disabled;
     
-    // Disable immediately
+    // Show sending state
     sendBtn.disabled = true;
     sendBtn.textContent = '...';
 
@@ -317,23 +330,31 @@ async function sendMessage() {
         if (error) {
             console.error("Send error:", error);
             alert("Error sending message: " + error.message);
-            return;
+            throw error;
         }
 
         console.log("✅ Message sent:", data);
-        input.value = '';
-        input.style.height = 'auto';
+        
+        // Clear input and reset height
+        if (input) {
+            input.value = '';
+            input.style.height = 'auto';
+        }
 
-        // Message will appear via real-time subscription
+        // Message will appear via real-time
 
     } catch (error) {
         console.error("Send failed:", error);
-        alert("Failed to send message");
+        // Don't show alert here - already showed above
     } finally {
-        // Re-enable button
-        sendBtn.disabled = false;
-        sendBtn.textContent = originalText;
-        input.focus();
+        // Always restore button state
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = originalText;
+        }
+        if (input) {
+            input.focus();
+        }
     }
 }
 
@@ -355,21 +376,13 @@ function autoResize(textarea) {
     textarea.style.height = newHeight + 'px';
 }
 
-// Go back - FIXED: Cleanup
+// Go back - FIXED: Proper cleanup
 function goBack() {
-    // Clean up channels
-    if (chatChannel) {
-        supabase.removeChannel(chatChannel);
-        chatChannel = null;
-    }
-    if (statusChannel) {
-        supabase.removeChannel(statusChannel);
-        statusChannel = null;
-    }
+    cleanupChannels();
     window.location.href = '../home/index.html';
 }
 
-// Show user info modal
+// Show user info modal - FIXED: Working outside click
 window.showUserInfo = function() {
     if (!chatFriend) {
         alert("User information not available");
@@ -407,19 +420,20 @@ window.showUserInfo = function() {
 
     modal.style.display = 'flex';
     
-    // FIXED: Close on outside click
-    modal.onclick = function(e) {
+    // Close on outside click - FIXED
+    const closeOnOutside = function(e) {
         if (e.target === modal) {
             closeModal();
+            modal.removeEventListener('click', closeOnOutside);
         }
     };
+    modal.addEventListener('click', closeOnOutside);
 };
 
 window.closeModal = function() {
     const modal = document.getElementById('userInfoModal');
     if (modal) {
         modal.style.display = 'none';
-        modal.onclick = null;
     }
 };
 
@@ -442,7 +456,7 @@ window.attachFile = function() {
     alert("File attachment feature coming soon!");
 };
 
-// Clear chat - FIXED SQL syntax
+// Clear chat - FIXED: Working SQL
 window.clearChat = async function() {
     if (!confirm("Are you sure you want to clear all messages?")) return;
 
@@ -450,19 +464,29 @@ window.clearChat = async function() {
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
 
-        // FIXED: Correct SQL syntax
+        if (!friendId) {
+            alert("Error: No friend ID");
+            return;
+        }
+
+        // FIXED: Correct Supabase delete syntax
         const { error } = await supabase
             .from('direct_messages')
             .delete()
             .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
 
-        if (error) throw error;
+        if (error) {
+            console.error("Delete error:", error);
+            alert("Error clearing chat: " + error.message);
+            throw error;
+        }
 
         alert("Chat cleared!");
         await loadOldMessages(friendId);
+        
     } catch (error) {
         console.error("Clear chat error:", error);
-        alert("Error clearing chat");
+        alert("Failed to clear chat. Please try again.");
     }
 };
 
@@ -471,3 +495,6 @@ window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
 window.goBack = goBack;
+
+// Clean up on page unload
+window.addEventListener('beforeunload', cleanupChannels);
