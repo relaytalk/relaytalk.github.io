@@ -2,7 +2,7 @@
 const CACHE_NAME = 'relaytalk-cache-v17';
 const APP_VERSION = '1.0.0';
 
-// Cache ALL files from these folders
+// Cache ALL files from these folder
 const FOLDERS_TO_CACHE = [
   // Root files
   '/app/',
