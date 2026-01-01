@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chatUserName').textContent = friend.username;
         document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
         
-        // FIX 1: Update friend status in UI - ADDED
+        // Update friend status in UI
         const isOnline = friend.status === 'online';
         document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
         document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
@@ -65,39 +65,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Load old messages
+// Load old messages - FIXED
 async function loadOldMessages(friendId) {
     try {
-        // Get messages between users
+        console.log("Loading messages between:", currentUser.id, "and", friendId);
+        
+        // Get messages using OR condition - SIMPLIFIED
         const { data: messages, error } = await supabase
             .from('direct_messages')
             .select('*')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
+            .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
             .order('created_at', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            console.error("Query error:", error);
+            throw error;
+        }
 
-        console.log("Loaded", messages?.length || 0, "old messages");
+        // Filter messages to only show messages between these two users
+        const filteredMessages = messages?.filter(msg => 
+            (msg.sender_id === currentUser.id && msg.receiver_id === friendId) ||
+            (msg.sender_id === friendId && msg.receiver_id === currentUser.id)
+        ) || [];
+
+        console.log("Loaded", filteredMessages.length, "messages");
 
         // Show them
-        showMessages(messages || []);
+        showMessages(filteredMessages);
 
     } catch (error) {
         console.error("Load error:", error);
+        // Show empty state
+        showMessages([]);
     }
 }
 
-// Show messages in UI
+// Show messages in UI - FIXED
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
-    if (!container) return;
+    if (!container) {
+        console.error("messagesContainer not found!");
+        return;
+    }
 
+    console.log("Showing", messages?.length || 0, "messages");
+    
     if (!messages || messages.length === 0) {
         container.innerHTML = `
             <div class="empty-chat">
                 <div class="empty-chat-icon">💬</div>
                 <h3>No messages yet</h3>
-                <p>Start the conversation!</p>
+                <p style="margin-top: 10px;">Say hello to start the conversation!</p>
             </div>
         `;
         return;
@@ -122,7 +140,7 @@ function showMessages(messages) {
 
         html += `
             <div class="message ${isSent ? 'sent' : 'received'}">
-                <div class="message-content">${msg.content}</div>
+                <div class="message-content">${msg.content || ''}</div>
                 <div class="message-time">${time}</div>
             </div>
         `;
@@ -148,31 +166,38 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // Create message channel
+    // Create message channel - SIMPLIFIED FILTER
     chatChannel = supabase.channel(`dm-${currentUser.id}-${friendId}`)
         .on('postgres_changes', {
-            event: 'INSERT',
+            event: '*',  // Listen to all events
             schema: 'public',
-            table: 'direct_messages',
-            filter: `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id}))`
+            table: 'direct_messages'
         }, async (payload) => {
-            console.log("🔥 New message:", payload.new);
+            console.log("🔥 Database change:", payload.event, payload.new);
             
-            // Reload messages
-            await loadOldMessages(friendId);
-            
-            // Flash title
-            document.title = "💬 New!";
-            setTimeout(() => {
-                document.title = "✨ Luster Chat";
-            }, 1000);
+            // Check if this message is for our chat
+            const newMsg = payload.new;
+            if (newMsg && 
+                ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
+                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id))) {
+                
+                console.log("✅ Relevant message, reloading...");
+                await loadOldMessages(friendId);
+                
+                // Flash title
+                const originalTitle = document.title;
+                document.title = "💬 New Message!";
+                setTimeout(() => {
+                    document.title = originalTitle;
+                }, 1000);
+            }
         })
         .subscribe((status) => {
             console.log("Message channel status:", status);
             updateRealtimeStatus(status);
         });
 
-    // FIX 4: Create status channel for real-time status updates - ADDED
+    // Create status channel for real-time status updates
     statusChannel = supabase.channel(`status-${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -237,7 +262,7 @@ function createStatus() {
     return div;
 }
 
-// Send message
+// Send message - FIXED
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
@@ -248,7 +273,7 @@ async function sendMessage() {
     }
 
     try {
-        console.log("Sending:", text);
+        console.log("Sending:", text, "to:", chatFriend.id);
 
         const { data, error } = await supabase
             .from('direct_messages')
@@ -267,13 +292,16 @@ async function sendMessage() {
             return;
         }
 
-        console.log("✅ Message sent!");
+        console.log("✅ Message sent:", data);
         input.value = '';
         input.style.height = 'auto';
         
         // Update send button
         const sendBtn = document.getElementById('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
+
+        // Update messages immediately
+        await loadOldMessages(chatFriend.id);
 
     } catch (error) {
         console.error("Send failed:", error);
@@ -321,7 +349,7 @@ function goBack() {
     window.location.href = '../home/index.html';
 }
 
-// FIX 3: Updated showUserInfo() function - FIXED
+// Show user info modal
 window.showUserInfo = function() {
     if (!chatFriend) {
         alert("User information not available");
@@ -399,11 +427,30 @@ window.clearChat = async function() {
         if (error) throw error;
         
         alert("Chat cleared!");
-        loadOldMessages(friendId);
+        await loadOldMessages(friendId);
     } catch (error) {
         console.error("Clear chat error:", error);
         alert("Error clearing chat");
     }
+};
+
+// Debug function to check if messages exist
+window.debugMessages = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const friendId = urlParams.get('friendId');
+    
+    const { data: allMessages } = await supabase
+        .from('direct_messages')
+        .select('*');
+    
+    console.log("All messages in DB:", allMessages);
+    
+    const { data: ourMessages } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+    
+    console.log("Our messages:", ourMessages);
 };
 
 // Make functions global
