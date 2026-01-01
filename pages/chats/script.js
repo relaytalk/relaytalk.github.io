@@ -7,7 +7,8 @@ let currentUser = null;
 let chatFriend = null;
 let chatChannel = null;
 let statusChannel = null;
-let isLoadingMessages = false; // PREVENT REPEATED REFRESH
+let isLoadingMessages = false;
+let currentMessages = []; // Store current messages to prevent full reload
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -15,8 +16,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Check auth
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            alert("Please login first!");
-            window.location.href = '../auth/index.html';
+            showCustomAlert("Please login first!", "⚠️", "Login Required", () => {
+                window.location.href = '../auth/index.html';
+            });
             return;
         }
 
@@ -28,8 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const friendId = urlParams.get('friendId');
 
         if (!friendId) {
-            alert("No friend selected!");
-            window.location.href = '../home/index.html';
+            showCustomAlert("No friend selected!", "😕", "Error", () => {
+                window.location.href = '../home/index.html';
+            });
             return;
         }
 
@@ -61,14 +64,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error("Init error:", error);
-        alert("Error loading chat: " + error.message);
-        window.location.href = '../home/index.html';
+        showCustomAlert("Error loading chat: " + error.message, "❌", "Error", () => {
+            window.location.href = '../home/index.html';
+        });
     }
 });
 
-// Load old messages - FIXED: PREVENT REPEATED REFRESH
+// Load old messages - FIXED: Store messages locally
 async function loadOldMessages(friendId) {
-    if (isLoadingMessages) return; // PREVENT MULTIPLE CALLS
+    if (isLoadingMessages) return;
     isLoadingMessages = true;
 
     try {
@@ -93,6 +97,7 @@ async function loadOldMessages(friendId) {
         ) || [];
 
         console.log("Loaded", filteredMessages.length, "messages");
+        currentMessages = filteredMessages; // Store locally
 
         // Show them
         showMessages(filteredMessages);
@@ -102,11 +107,11 @@ async function loadOldMessages(friendId) {
         // Show empty state
         showMessages([]);
     } finally {
-        isLoadingMessages = false; // RESET FLAG
+        isLoadingMessages = false;
     }
 }
 
-// Show messages in UI - FIXED: LAST MESSAGE VISIBLE
+// Show messages in UI - FIXED: Add message directly without full reload
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) {
@@ -156,19 +161,57 @@ function showMessages(messages) {
 
     // Scroll to bottom - FIXED: Ensure last message visible
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-        
-        // Double check after a moment
-        setTimeout(() => {
-            const lastMsg = container.lastElementChild;
-            if (lastMsg) {
-                lastMsg.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }
-        }, 100);
+        scrollToBottom();
     }, 100);
 }
 
-// REAL-TIME FIXED: Check if message is NEW before reloading
+// Scroll to bottom helper - FIXED
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+        
+        // Extra check for last message visibility
+        setTimeout(() => {
+            const lastChild = container.lastElementChild;
+            if (lastChild && lastChild.scrollIntoView) {
+                lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }, 50);
+    }
+}
+
+// Add single message without reloading all - NEW
+function addMessageToUI(message) {
+    const container = document.getElementById('messagesContainer');
+    if (!container || !message) return;
+
+    // Remove empty state if exists
+    if (container.querySelector('.empty-chat')) {
+        container.innerHTML = '';
+    }
+
+    const isSent = message.sender_id === currentUser.id;
+    const time = new Date(message.created_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const messageHTML = `
+        <div class="message ${isSent ? 'sent' : 'received'}">
+            <div class="message-content">${message.content || ''}</div>
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', messageHTML);
+    currentMessages.push(message); // Add to local store
+    
+    // Scroll to show new message
+    setTimeout(scrollToBottom, 50);
+}
+
+// REAL-TIME FIXED: Add messages directly without full reload
 function setupRealtime(friendId) {
     console.log("Setting realtime for friend:", friendId);
 
@@ -180,7 +223,7 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // Create message channel - FIXED: Only reload if NEW message
+    // Create message channel - FIXED: Add message directly
     chatChannel = supabase.channel(`dm-${currentUser.id}-${friendId}`)
         .on('postgres_changes', {
             event: '*',
@@ -189,25 +232,30 @@ function setupRealtime(friendId) {
         }, async (payload) => {
             console.log("🔥 Database change:", payload.event, payload.new);
 
-            // Check if this message is for our chat
             const newMsg = payload.new;
             if (newMsg && 
                 ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                  (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id))) {
 
-                console.log("✅ Relevant message, reloading...");
+                // Check if this is a new message we don't already have
+                const isDuplicate = currentMessages.some(msg => msg.id === newMsg.id);
                 
-                // Only reload if it's a NEW message (not update/delete)
-                if (payload.event === 'INSERT') {
-                    await loadOldMessages(friendId);
-                }
+                if (!isDuplicate && payload.event === 'INSERT') {
+                    console.log("✅ New message, adding to UI");
+                    addMessageToUI(newMsg);
 
-                // Flash title
-                const originalTitle = document.title;
-                document.title = "💬 New Message!";
-                setTimeout(() => {
-                    document.title = originalTitle;
-                }, 1000);
+                    // Flash title only if message is from friend
+                    if (newMsg.sender_id === friendId) {
+                        const originalTitle = document.title;
+                        document.title = "💬 New Message!";
+                        setTimeout(() => {
+                            document.title = originalTitle;
+                        }, 1000);
+                        
+                        // Show toast notification
+                        showToast(`New message from ${chatFriend.username}`, "💬");
+                    }
+                }
             }
         })
         .subscribe((status) => {
@@ -230,8 +278,125 @@ function setupRealtime(friendId) {
             const isOnline = payload.new.status === 'online';
             document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
             document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
+            
+            // Show toast for status change
+            if (isOnline) {
+                showToast(`${chatFriend.username} is now online`, "🟢");
+            }
         })
         .subscribe();
+}
+
+// Send message - FIXED: No full reload
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+
+    if (!text || !chatFriend) {
+        showToast("Please type a message!", "⚠️");
+        return;
+    }
+
+    try {
+        console.log("Sending:", text, "to:", chatFriend.id);
+
+        const { data, error } = await supabase
+            .from('direct_messages')
+            .insert({
+                sender_id: currentUser.id,
+                receiver_id: chatFriend.id,
+                content: text,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Send error:", error);
+            showCustomAlert("Error sending message: " + error.message, "❌", "Send Failed");
+            return;
+        }
+
+        console.log("✅ Message sent:", data);
+        input.value = '';
+        input.style.height = 'auto';
+
+        // Update send button
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) sendBtn.disabled = true;
+
+        // Add message to UI immediately (it will also come via realtime)
+        addMessageToUI(data);
+
+    } catch (error) {
+        console.error("Send failed:", error);
+        showCustomAlert("Failed to send message", "❌", "Error");
+    }
+}
+
+// CUSTOM ALERT SYSTEM - NEW
+function showCustomAlert(message, icon = "⚠️", title = "Alert", onConfirm = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'none';
+
+    alertConfirm.textContent = "OK";
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showConfirmAlert(message, icon = "❓", title = "Confirm", onConfirm, onCancel = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'inline-block';
+
+    alertConfirm.textContent = "Yes";
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertCancel.textContent = "No";
+    alertCancel.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onCancel) onCancel();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showToast(message, icon = "ℹ️") {
+    const toast = document.getElementById('customToast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastMessage = document.getElementById('toastMessage');
+
+    toastIcon.textContent = icon;
+    toastMessage.textContent = message;
+    toast.style.display = 'flex';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
 }
 
 // Update realtime status indicator
@@ -280,53 +445,6 @@ function createStatus() {
     return div;
 }
 
-// Send message - FIXED
-async function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-
-    if (!text || !chatFriend) {
-        alert("Please type a message!");
-        return;
-    }
-
-    try {
-        console.log("Sending:", text, "to:", chatFriend.id);
-
-        const { data, error } = await supabase
-            .from('direct_messages')
-            .insert({
-                sender_id: currentUser.id,
-                receiver_id: chatFriend.id,
-                content: text,
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Send error:", error);
-            alert("Error sending message: " + error.message);
-            return;
-        }
-
-        console.log("✅ Message sent:", data);
-        input.value = '';
-        input.style.height = 'auto';
-
-        // Update send button
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.disabled = true;
-
-        // Update messages immediately
-        await loadOldMessages(chatFriend.id);
-
-    } catch (error) {
-        console.error("Send failed:", error);
-        alert("Failed to send message");
-    }
-}
-
 // Handle Enter key
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
@@ -370,7 +488,7 @@ function goBack() {
 // Show user info modal
 window.showUserInfo = function() {
     if (!chatFriend) {
-        alert("User information not available");
+        showToast("User information not available", "⚠️");
         return;
     }
 
@@ -397,7 +515,7 @@ window.showUserInfo = function() {
             <button class="info-action-btn secondary" onclick="viewSharedMedia()">
                 📷 Shared Media
             </button>
-            <button class="info-action-btn danger" onclick="blockUser()">
+            <button class="info-action-btn danger" onclick="blockUserPrompt()">
                 🚫 Block User
             </button>
         </div>
@@ -412,44 +530,55 @@ window.closeModal = function() {
 };
 
 window.startVoiceCall = function() {
-    alert("Voice call feature coming soon!");
+    showToast("Voice call feature coming soon!", "🎤");
 };
 
 window.viewSharedMedia = function() {
-    alert("Shared media feature coming soon!");
+    showToast("Shared media feature coming soon!", "📷");
 };
 
-window.blockUser = function() {
-    if (confirm(`Are you sure you want to block ${chatFriend.username}?`)) {
-        alert("User blocked!");
-        goBack();
-    }
+window.blockUserPrompt = function() {
+    showConfirmAlert(
+        `Are you sure you want to block ${chatFriend.username}?`,
+        "🚫",
+        "Block User",
+        () => {
+            showToast("User blocked!", "✅");
+            setTimeout(goBack, 1000);
+        }
+    );
 };
 
 window.attachFile = function() {
-    alert("File attachment feature coming soon!");
+    showToast("File attachment feature coming soon!", "📎");
 };
 
-window.clearChat = async function() {
-    if (!confirm("Are you sure you want to clear all messages?")) return;
+window.clearChatPrompt = async function() {
+    showConfirmAlert(
+        "Are you sure you want to clear all messages?",
+        "🗑️",
+        "Clear Chat",
+        async () => {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const friendId = urlParams.get('friendId');
 
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const friendId = urlParams.get('friendId');
+                const { error } = await supabase
+                    .from('direct_messages')
+                    .delete()
+                    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
 
-        const { error } = await supabase
-            .from('direct_messages')
-            .delete()
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
+                if (error) throw error;
 
-        if (error) throw error;
-
-        alert("Chat cleared!");
-        await loadOldMessages(friendId);
-    } catch (error) {
-        console.error("Clear chat error:", error);
-        alert("Error clearing chat");
-    }
+                showToast("Chat cleared!", "✅");
+                currentMessages = [];
+                showMessages([]);
+            } catch (error) {
+                console.error("Clear chat error:", error);
+                showCustomAlert("Error clearing chat", "❌", "Error");
+            }
+        }
+    );
 };
 
 // Make functions global
@@ -457,3 +586,6 @@ window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
 window.goBack = goBack;
+window.showCustomAlert = showCustomAlert;
+window.showConfirmAlert = showConfirmAlert;
+window.showToast = showToast;
