@@ -4,8 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ Relay</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/relay.png">
+    <meta name="theme-color" content="#0a0a1a">
+    <meta name="description" content="RelayTalk - Instant messaging with friends">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RelayTalk">
+    <link rel="apple-touch-icon" href="icons/relay.png">
+    
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/app/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('❌ Service Worker registration failed:', error);
+                    });
+            });
+        }
+        
+        // PWA Installation Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button after 3 seconds
+            setTimeout(() => {
+                if (deferredPrompt) {
+                    showInstallButton();
+                }
+            }, 3000);
+        });
+        
+        function showInstallButton() {
+            // Remove existing install button
+            const existingBtn = document.getElementById('installPwaBtn');
+            if (existingBtn) existingBtn.remove();
+            
+            // Create install button
+            const installBtn = document.createElement('button');
+            installBtn.id = 'installPwaBtn';
+            installBtn.innerHTML = '📱 Install App';
+            installBtn.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                right: 20px;
+                background: linear-gradient(45deg, #4A90E2, #6B46C1);
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-weight: bold;
+                cursor: pointer;
+                z-index: 9999;
+                box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+                animation: fadeIn 0.5s ease;
+            `;
+            
+            installBtn.onclick = () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(choiceResult => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('✅ User installed the app');
+                        }
+                        deferredPrompt = null;
+                        installBtn.remove();
+                    });
+                }
+            };
+            
+            document.body.appendChild(installBtn);
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                if (installBtn.parentNode) {
+                    installBtn.style.opacity = '0';
+                    installBtn.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        if (installBtn.parentNode) installBtn.remove();
+                    }, 500);
+                }
+            }, 10000);
+        }
+        
+        // Check if app is running in standalone mode
+        function checkStandaloneMode() {
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                console.log('📱 App running in standalone mode');
+                document.documentElement.classList.add('standalone-mode');
+            }
+        }
+        
+        // Add CSS for standalone mode
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .standalone-mode .bottom-nav {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Check on load
+        window.addEventListener('load', checkStandaloneMode);
+    </script>
 </head>
 <body>
     <!-- Opening Animation -->
@@ -57,30 +177,30 @@
 
     <script type="module">
         import { auth } from './utils/auth.js';
-        
+
         async function checkUserAndRedirect() {
             try {
                 console.log("🔄 Checking login status...");
-                
+
                 const { success, user } = await auth.getCurrentUser();
-                
+
                 if (success && user) {
                     // User IS logged in → Skip landing, go to home
                     console.log("✅ User logged in, redirecting to home...");
                     window.location.href = 'pages/home/index.html';
                     return; // Stop here
                 }
-                
+
                 // User NOT logged in → Show landing page normally
                 console.log("❌ User not logged in, showing landing...");
                 showLandingPage();
-                
+
             } catch (error) {
                 console.error("Auth check error:", error);
                 showLandingPage(); // Show landing on error
             }
         }
-        
+
         function showLandingPage() {
             // Original landing page logic
             const user = JSON.parse(localStorage.getItem('luster_user'));
@@ -90,14 +210,14 @@
                 }, 2000);
             }
         }
-        
+
         function goToLogin() {
             window.location.href = 'pages/login/index.html';
         }
-        
+
         // Check on page load
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
-        
+
         // Make functions global
         window.goToLogin = goToLogin;
     </script>
