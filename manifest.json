@@ -8,7 +8,7 @@
   "theme_color": "#4A90E2",
   "icons": [
     {
-      "src": "icons/relay.png",
+      "src": "relay.png",
       "sizes": "192x192 512x512",
       "type": "image/png"
     }
