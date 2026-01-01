@@ -13,7 +13,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
             color: white;
@@ -21,7 +21,38 @@
             min-height: 100vh;
             padding-bottom: 80px; /* Space for bottom nav */
         }
-        
+
+        /* Loading Indicator */
+        .loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: #667eea;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-indicator.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-text {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
         /* Top Header */
         .top-header {
             display: flex;
@@ -32,7 +63,7 @@
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         /* Search Button - Top Left */
         .search-btn {
             background: rgba(102, 126, 234, 0.15);
@@ -46,14 +77,14 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .search-btn:hover {
             background: rgba(102, 126, 234, 0.25);
             transform: translateY(-2px);
         }
-        
+
         /* Logo - Top Right */
         .logo-top {
             font-size: 1.8rem;
@@ -63,14 +94,14 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         /* Main Content */
         .main-content {
             padding: 20px;
             max-width: 800px;
             margin: 0 auto;
         }
-        
+
         /* Welcome Section */
         .welcome-section {
             text-align: center;
@@ -80,12 +111,12 @@
             border-radius: 25px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         .welcome-icon {
             font-size: 3rem;
             margin-bottom: 15px;
         }
-        
+
         .welcome-title {
             font-size: 1.8rem;
             margin-bottom: 10px;
@@ -94,12 +125,12 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         /* Friends Section - MIDDLE */
         .friends-section {
             margin: 40px 0;
         }
-        
+
         .section-title {
             font-size: 1.4rem;
             margin-bottom: 20px;
@@ -108,16 +139,16 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         .section-title-icon {
             font-size: 1.5rem;
         }
-        
+
         .friends-list {
             display: grid;
             gap: 15px;
         }
-        
+
         .friend-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -127,14 +158,14 @@
             align-items: center;
             gap: 15px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .friend-card:hover {
             background: rgba(255, 255, 255, 0.1);
             transform: translateY(-3px);
         }
-        
+
         .friend-avatar {
             width: 50px;
             height: 50px;
@@ -146,17 +177,17 @@
             font-size: 1.2rem;
             font-weight: bold;
         }
-        
+
         .friend-info {
             flex: 1;
         }
-        
+
         .friend-name {
             font-size: 1.1rem;
             font-weight: 500;
             margin-bottom: 5px;
         }
-        
+
         .friend-status {
             display: flex;
             align-items: center;
@@ -164,18 +195,18 @@
             font-size: 0.9rem;
             color: #a0a0c0;
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background: #28a745;
         }
-        
+
         .status-dot.offline {
             background: #6c757d;
         }
-        
+
         /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
@@ -190,7 +221,7 @@
             padding: 15px 0;
             z-index: 100;
         }
-        
+
         .nav-btn {
             background: none;
             border: none;
@@ -203,23 +234,23 @@
             gap: 5px;
             padding: 10px 20px;
             border-radius: 15px;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .nav-btn.active {
             color: #667eea;
             background: rgba(102, 126, 234, 0.1);
         }
-        
+
         .nav-btn:hover {
             color: white;
             transform: translateY(-3px);
         }
-        
+
         .nav-icon {
             font-size: 1.3rem;
         }
-        
+
         .notification-badge {
             position: absolute;
             top: 5px;
@@ -235,20 +266,20 @@
             justify-content: center;
             font-weight: bold;
         }
-        
+
         /* Empty States */
         .empty-state {
             text-align: center;
             padding: 40px 20px;
             color: #a0a0c0;
         }
-        
+
         .empty-icon {
             font-size: 3rem;
             margin-bottom: 15px;
             opacity: 0.5;
         }
-        
+
         /* Modals */
         .modal-overlay {
             position: fixed;
@@ -263,7 +294,7 @@
             z-index: 1000;
             backdrop-filter: blur(10px);
         }
-        
+
         .modal-content {
             background: rgba(26, 26, 46, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -274,19 +305,19 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-        
+
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
         }
-        
+
         .modal-title {
             font-size: 1.5rem;
             color: white;
         }
-        
+
         .modal-close {
             background: none;
             border: none;
@@ -300,49 +331,49 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .modal-close:hover {
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
-        
+
         /* Friend Actions */
         .friend-actions {
             display: flex;
             gap: 10px;
         }
-        
+
         .action-btn {
             padding: 8px 15px;
             border-radius: 10px;
             border: none;
             font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .accept-btn {
             background: rgba(40, 167, 69, 0.2);
             color: #28a745;
             border: 1px solid rgba(40, 167, 69, 0.3);
         }
-        
+
         .accept-btn:hover {
             background: rgba(40, 167, 69, 0.3);
         }
-        
+
         .decline-btn {
             background: rgba(220, 53, 69, 0.2);
             color: #dc3545;
             border: 1px solid rgba(220, 53, 69, 0.3);
         }
-        
+
         .decline-btn:hover {
             background: rgba(220, 53, 69, 0.3);
         }
-        
+
         /* Search Results */
         .search-result {
             background: rgba(255, 255, 255, 0.05);
@@ -352,13 +383,13 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .search-result:hover {
             background: rgba(255, 255, 255, 0.1);
         }
-        
+
         .search-avatar {
             width: 40px;
             height: 40px;
@@ -370,21 +401,21 @@
             font-weight: bold;
             font-size: 1.1rem;
         }
-        
+
         .search-info {
             flex: 1;
         }
-        
+
         .search-name {
             font-weight: 500;
             margin-bottom: 3px;
         }
-        
+
         .search-username {
             color: #a0a0c0;
             font-size: 0.85rem;
         }
-        
+
         .send-request-btn {
             background: rgba(102, 126, 234, 0.2);
             color: #667eea;
@@ -393,53 +424,53 @@
             border-radius: 10px;
             cursor: pointer;
             font-size: 0.9rem;
-            transition: all 0.3s;
+            transition: all 0.15s;
         }
-        
+
         .send-request-btn:hover {
             background: rgba(102, 126, 234, 0.3);
         }
-        
+
         .send-request-btn.sent {
             background: rgba(40, 167, 69, 0.2);
             color: #28a745;
             border-color: rgba(40, 167, 69, 0.3);
         }
-        
+
         /* Responsive */
         @media (max-width: 600px) {
             .top-header {
                 padding: 15px;
             }
-            
+
             .search-btn {
                 padding: 8px 16px;
                 font-size: 0.9rem;
             }
-            
+
             .welcome-section {
                 padding: 20px;
                 margin: 20px 0 30px;
             }
-            
+
             .friend-card {
                 padding: 15px;
             }
-            
+
             .bottom-nav {
                 padding: 12px 0;
             }
-            
+
             .nav-btn {
                 padding: 8px 15px;
                 font-size: 0.8rem;
                 position: relative;
             }
-            
+
             .nav-icon {
                 font-size: 1.2rem;
             }
-            
+
             .notification-badge {
                 top: 3px;
                 right: 20px;
@@ -451,17 +482,22 @@
     </style>
 </head>
 <body>
+    <!-- Loading Indicator -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="loading-text">Loading...</div>
+    </div>
+
     <!-- Top Header -->
     <header class="top-header">
         <!-- Search Button - Top Left -->
         <button class="search-btn" onclick="openSearch()">
             🔍 Search
         </button>
-        
+
         <!-- Logo - Top Right -->
         <div class="logo-top">✨ Luster</div>
     </header>
-    
+
     <!-- Main Content -->
     <main class="main-content">
         <!-- Welcome Section -->
@@ -470,14 +506,14 @@
             <h1 class="welcome-title" id="welcomeTitle">Welcome</h1>
             <p style="color: #a0a0c0;">Connect with friends using search</p>
         </section>
-        
+
         <!-- Friends Section - MIDDLE -->
         <section class="friends-section">
             <h2 class="section-title">
                 <span class="section-title-icon">👥</span>
                 Friends
             </h2>
-            
+
             <div class="friends-list" id="friendsList">
                 <!-- Friends will be loaded here -->
                 <div class="empty-state">
@@ -488,26 +524,26 @@
             </div>
         </section>
     </main>
-    
+
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <button class="nav-btn active" onclick="goToHome()">
             <span class="nav-icon">🏠</span>
             Home
         </button>
-        
+
         <button class="nav-btn" onclick="openNotifications()">
             <span class="nav-icon">🔔</span>
             Notifications
             <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
         </button>
-        
+
         <button class="nav-btn" onclick="openSettings()">
             <span class="nav-icon">⚙️</span>
             Settings
         </button>
     </nav>
-    
+
     <!-- Search Modal -->
     <div class="modal-overlay" id="searchModal">
         <div class="modal-content">
@@ -530,7 +566,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Notifications Modal -->
     <div class="modal-overlay" id="notificationsModal">
         <div class="modal-content">
