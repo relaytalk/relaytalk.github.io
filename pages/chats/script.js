@@ -1,4 +1,4 @@
-// Chat Page Script - FOR direct_messages TABLE
+// Chat Page Script - WITH FIXED REALTIME UPDATES
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
@@ -7,6 +7,7 @@ console.log("✨ Luster Chat Page Loaded");
 let currentUser = null;
 let chatFriend = null;
 let messages = [];
+let chatChannel = null;
 
 // Initialize chat page
 async function initChatPage() {
@@ -107,30 +108,40 @@ async function loadMessages(friendId) {
     if (!currentUser || !friendId) return;
 
     try {
-        // Get messages I sent to friend
-        const { data: messagesToFriend } = await supabase
+        // Get all messages between current user and friend
+        const { data: allMessages, error } = await supabase
             .from('direct_messages')
             .select('*')
-            .eq('sender_id', currentUser.id)
-            .eq('receiver_id', friendId);
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
+            .order('created_at', { ascending: true });
 
-        // Get messages friend sent to me
-        const { data: messagesFromFriend } = await supabase
-            .from('direct_messages')
-            .select('*')
-            .eq('sender_id', friendId)
-            .eq('receiver_id', currentUser.id);
+        if (error) {
+            console.log("Using alternative query...");
+            // Fallback: two separate queries
+            const [messagesToFriend, messagesFromFriend] = await Promise.all([
+                supabase
+                    .from('direct_messages')
+                    .select('*')
+                    .eq('sender_id', currentUser.id)
+                    .eq('receiver_id', friendId),
+                supabase
+                    .from('direct_messages')
+                    .select('*')
+                    .eq('sender_id', friendId)
+                    .eq('receiver_id', currentUser.id)
+            ]);
 
-        // Combine and sort by created_at
-        const allMessages = [
-            ...(messagesToFriend || []),
-            ...(messagesFromFriend || [])
-        ];
-
-        // Sort by timestamp (newest first for display)
-        messages = allMessages.sort((a, b) => 
-            new Date(a.created_at) - new Date(b.created_at)
-        );
+            const combined = [
+                ...(messagesToFriend.data || []),
+                ...(messagesFromFriend.data || [])
+            ];
+            
+            messages = combined.sort((a, b) => 
+                new Date(a.created_at) - new Date(b.created_at)
+            );
+        } else {
+            messages = allMessages || [];
+        }
 
         console.log("Loaded", messages.length, "messages");
 
@@ -280,60 +291,67 @@ async function sendMessage() {
     }
 }
 
-// Setup real-time listener for new messages
+// Setup real-time listener for new messages - FIXED VERSION
 function setupRealtimeListener(friendId) {
     if (!friendId || !currentUser) return;
 
-    // Listen for messages sent TO current user
-    supabase
-        .channel(`chat:${currentUser.id}:${friendId}`)
-        .on('postgres_changes', 
-            { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'direct_messages',
-                filter: `sender_id=eq.${friendId}`
-            },
-            (payload) => {
-                // Check if message is for current user
-                if (payload.new.receiver_id === currentUser.id) {
-                    console.log("New message from friend:", payload.new);
-                    
-                    // Add if not already in messages
-                    if (!messages.some(m => m.id === payload.new.id)) {
-                        messages.push(payload.new);
-                        displayMessages();
-                        scrollToBottom();
-                    }
-                }
-            }
-        )
-        .subscribe();
+    console.log("Setting up real-time listener for friend:", friendId);
 
-    // Listen for messages we send (for immediate UI update)
-    supabase
-        .channel(`chat-sent:${currentUser.id}:${friendId}`)
+    // Clean up previous channel if exists
+    if (chatChannel) {
+        supabase.removeChannel(chatChannel);
+    }
+
+    // Create new channel - listen to ALL messages in direct_messages table
+    chatChannel = supabase
+        .channel('direct-messages-channel')
         .on('postgres_changes', 
             { 
                 event: 'INSERT', 
                 schema: 'public', 
-                table: 'direct_messages',
-                filter: `sender_id=eq.${currentUser.id}`
+                table: 'direct_messages'
             },
             (payload) => {
-                // Check if message is to this friend
-                if (payload.new.receiver_id === friendId) {
-                    console.log("Message sent confirmation:", payload.new);
-                    
-                    if (!messages.some(m => m.id === payload.new.id)) {
-                        messages.push(payload.new);
+                console.log("Realtime update received:", payload.new);
+                
+                const message = payload.new;
+                
+                // Check if this message is between current user and friend
+                const isMessageForThisChat = 
+                    (message.sender_id === currentUser.id && message.receiver_id === friendId) ||
+                    (message.sender_id === friendId && message.receiver_id === currentUser.id);
+                
+                if (isMessageForThisChat) {
+                    // Check if message is not already in array
+                    if (!messages.some(m => m.id === message.id)) {
+                        console.log("Adding new message to chat:", message);
+                        messages.push(message);
+                        
+                        // Sort messages by time
+                        messages.sort((a, b) => 
+                            new Date(a.created_at) - new Date(b.created_at)
+                        );
+                        
                         displayMessages();
                         scrollToBottom();
                     }
                 }
             }
         )
-        .subscribe();
+        .on('postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'direct_messages'
+            },
+            (payload) => {
+                // Handle message updates if needed
+                console.log("Message updated:", payload.new);
+            }
+        )
+        .subscribe((status) => {
+            console.log("Realtime subscription status:", status);
+        });
 }
 
 // Handle key press
@@ -374,10 +392,15 @@ function scrollToBottom() {
 
 // Go back to home
 function goBack() {
+    // Clean up realtime channel
+    if (chatChannel) {
+        supabase.removeChannel(chatChannel);
+        chatChannel = null;
+    }
     window.location.href = '../home/index.html';
 }
 
-// Show user info modal
+// Show user info modal - UPDATED WITHOUT VOICE CALL & SHARED MEDIA
 function showUserInfo() {
     if (!chatFriend) return;
 
@@ -402,14 +425,11 @@ function showUserInfo() {
         </div>
         
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-            <button onclick="startVoiceCall()" style="padding: 12px; background: rgba(102, 126, 234, 0.2); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 10px; color: #667eea; cursor: pointer;">
-                🎤 Voice Call
-            </button>
-            <button onclick="viewSharedMedia()" style="padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: white; cursor: pointer;">
-                📷 Shared Media
-            </button>
             <button onclick="blockUser()" style="padding: 12px; background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.3); border-radius: 10px; color: #dc3545; cursor: pointer;">
                 🚫 Block User
+            </button>
+            <button onclick="clearChat()" style="padding: 12px; background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 10px; color: #ffc107; cursor: pointer;">
+                🗑️ Clear Chat
             </button>
         </div>
     `;
@@ -448,6 +468,13 @@ function setupEventListeners() {
             input.value = '';
         }
     }, 500);
+
+    // Clean up channel on page unload
+    window.addEventListener('beforeunload', () => {
+        if (chatChannel) {
+            supabase.removeChannel(chatChannel);
+        }
+    });
 }
 
 // Placeholder functions
@@ -455,18 +482,8 @@ function attachFile() {
     alert("File attachment coming soon!");
 }
 
-function startVoiceCall() {
-    alert("Voice call coming soon!");
-    closeModal();
-}
-
-function viewSharedMedia() {
-    alert("Shared media coming soon!");
-    closeModal();
-}
-
 function blockUser() {
-    if (chatFriend && confirm(`Block ${chatFriend.username}?`)) {
+    if (chatFriend && confirm(`Block ${chatFriend.username}? You won't be able to message each other.`)) {
         alert(`${chatFriend.username} has been blocked.`);
         closeModal();
         goBack();
@@ -474,8 +491,15 @@ function blockUser() {
 }
 
 function clearChat() {
-    if (!chatFriend || !confirm("Clear all messages?")) return;
-    alert("Clear chat feature coming soon!");
+    if (!chatFriend || !confirm("Clear all messages in this chat? This cannot be undone.")) {
+        return;
+    }
+    
+    // Note: In production, you would delete from database
+    // For now, just clear local messages
+    messages = [];
+    displayMessages();
+    closeModal();
 }
 
 // Make functions available globally
@@ -487,8 +511,6 @@ window.showUserInfo = showUserInfo;
 window.closeModal = closeModal;
 window.attachFile = attachFile;
 window.clearChat = clearChat;
-window.startVoiceCall = startVoiceCall;
-window.viewSharedMedia = viewSharedMedia;
 window.blockUser = blockUser;
 
 // Initialize when page loads
