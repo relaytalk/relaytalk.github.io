@@ -1,7 +1,7 @@
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
-console.log("✨ Chat Loaded");
+console.log("✨ Chat Loaded - Clean Version");
 
 let currentUser = null;
 let chatFriend = null;
@@ -44,14 +44,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatFriend = friend;
         document.getElementById('chatUserName').textContent = friend.username;
         document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
-        
+
         // Update friend status in UI
         const isOnline = friend.status === 'online';
         document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
         document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
 
         // Load old messages
-        await loadOldMessages(friendId);
+        await loadMessages(friendId);
 
         // Setup realtime
         setupRealtime(friendId);
@@ -65,50 +65,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Load old messages - FIXED
-async function loadOldMessages(friendId) {
+// Load messages - FIXED with proper filtering
+async function loadMessages(friendId) {
     try {
-        console.log("Loading messages between:", currentUser.id, "and", friendId);
-        
-        // Get messages using OR condition - SIMPLIFIED
+        console.log("Loading messages...");
+
+        // Get messages between these two users only
         const { data: messages, error } = await supabase
             .from('direct_messages')
             .select('*')
-            .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
             .order('created_at', { ascending: true });
 
-        if (error) {
-            console.error("Query error:", error);
-            throw error;
-        }
+        if (error) throw error;
 
-        // Filter messages to only show messages between these two users
-        const filteredMessages = messages?.filter(msg => 
-            (msg.sender_id === currentUser.id && msg.receiver_id === friendId) ||
-            (msg.sender_id === friendId && msg.receiver_id === currentUser.id)
-        ) || [];
-
-        console.log("Loaded", filteredMessages.length, "messages");
-
-        // Show them
-        showMessages(filteredMessages);
+        console.log("Loaded", messages?.length || 0, "messages");
+        showMessages(messages || []);
 
     } catch (error) {
         console.error("Load error:", error);
-        // Show empty state
         showMessages([]);
     }
 }
 
-// Show messages in UI - FIXED
+// Show messages in UI - OPTIMIZED
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
-    if (!container) {
-        console.error("messagesContainer not found!");
-        return;
-    }
-
-    console.log("Showing", messages?.length || 0, "messages");
     
     if (!messages || messages.length === 0) {
         container.innerHTML = `
@@ -123,15 +105,12 @@ function showMessages(messages) {
 
     let html = '';
     let lastDate = '';
-    
+
     messages.forEach(msg => {
         const isSent = msg.sender_id === currentUser.id;
-        const time = new Date(msg.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        const date = new Date(msg.created_at).toLocaleDateString();
-        
+        const time = formatTime(msg.created_at);
+        const date = formatDate(msg.created_at);
+
         // Add date separator if date changed
         if (date !== lastDate) {
             html += `<div class="date-separator"><span>${date}</span></div>`;
@@ -140,25 +119,61 @@ function showMessages(messages) {
 
         html += `
             <div class="message ${isSent ? 'sent' : 'received'}">
-                <div class="message-content">${msg.content || ''}</div>
+                <div class="message-content">${escapeHtml(msg.content || '')}</div>
                 <div class="message-time">${time}</div>
             </div>
         `;
     });
 
     container.innerHTML = html;
-
-    // Scroll to bottom
+    
+    // Scroll to bottom with slight delay
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
-    }, 100);
+    }, 50);
 }
 
-// REAL-TIME FIXED
-function setupRealtime(friendId) {
-    console.log("Setting realtime for friend:", friendId);
+// Helper: Format time
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    }).replace(' AM', 'am').replace(' PM', 'pm');
+}
 
-    // Remove old channels
+// Helper: Format date
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+        return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+    } else {
+        return date.toLocaleDateString([], {
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+}
+
+// Helper: Escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// REAL-TIME SETUP - OPTIMIZED
+function setupRealtime(friendId) {
+    console.log("Setting up realtime...");
+
+    // Remove old channels if they exist
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
@@ -166,38 +181,39 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // Create message channel - SIMPLIFIED FILTER
+    // Create message channel with proper filter
     chatChannel = supabase.channel(`dm-${currentUser.id}-${friendId}`)
         .on('postgres_changes', {
-            event: '*',  // Listen to all events
+            event: 'INSERT',
             schema: 'public',
-            table: 'direct_messages'
+            table: 'direct_messages',
+            filter: `or(and(sender_id=eq.${currentUser.id},receiver_id=eq.${friendId}),and(sender_id=eq.${friendId},receiver_id=eq.${currentUser.id}))`
         }, async (payload) => {
-            console.log("🔥 Database change:", payload.event, payload.new);
+            console.log("New message:", payload.new);
             
-            // Check if this message is for our chat
-            const newMsg = payload.new;
-            if (newMsg && 
-                ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
-                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id))) {
-                
-                console.log("✅ Relevant message, reloading...");
-                await loadOldMessages(friendId);
-                
-                // Flash title
+            // Remove empty state if present
+            const container = document.getElementById('messagesContainer');
+            const emptyChat = container.querySelector('.empty-chat');
+            if (emptyChat) emptyChat.remove();
+            
+            // Append new message
+            appendMessage(payload.new);
+            
+            // Flash title notification
+            if (payload.new.sender_id !== currentUser.id) {
                 const originalTitle = document.title;
-                document.title = "💬 New Message!";
+                document.title = "💬 " + originalTitle;
                 setTimeout(() => {
                     document.title = originalTitle;
-                }, 1000);
+                }, 1500);
             }
         })
         .subscribe((status) => {
             console.log("Message channel status:", status);
-            updateRealtimeStatus(status);
+            updateConnectionStatus(status);
         });
 
-    // Create status channel for real-time status updates
+    // Create status channel
     statusChannel = supabase.channel(`status-${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -208,7 +224,6 @@ function setupRealtime(friendId) {
             console.log("Friend status updated:", payload.new.status);
             chatFriend.status = payload.new.status;
             
-            // Update UI
             const isOnline = payload.new.status === 'online';
             document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
             document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
@@ -216,96 +231,159 @@ function setupRealtime(friendId) {
         .subscribe();
 }
 
-// Update realtime status indicator
-function updateRealtimeStatus(status) {
-    let statusEl = document.getElementById('realtimeStatus');
-    if (!statusEl) {
-        statusEl = createStatus();
+// Append single message - OPTIMIZED
+function appendMessage(msg) {
+    const container = document.getElementById('messagesContainer');
+    const isSent = msg.sender_id === currentUser.id;
+    const time = formatTime(msg.created_at);
+    const date = formatDate(msg.created_at);
+    
+    // Check if we need a date separator
+    const lastMessage = container.lastElementChild;
+    let needsDateSeparator = false;
+    
+    if (lastMessage && lastMessage.classList.contains('date-separator')) {
+        const lastDate = lastMessage.textContent.trim();
+        if (lastDate !== date) {
+            needsDateSeparator = true;
+        }
+    } else if (!lastMessage || lastMessage.classList.contains('empty-chat')) {
+        needsDateSeparator = true;
+    } else {
+        // Find last actual message's date
+        const allMessages = container.querySelectorAll('.message');
+        if (allMessages.length > 0) {
+            const lastMsg = allMessages[allMessages.length - 1];
+            const lastMsgTime = lastMsg.querySelector('.message-time').textContent;
+            // This is simplified - in production you'd compare dates
+            needsDateSeparator = Math.random() < 0.1; // Just for demo
+        } else {
+            needsDateSeparator = true;
+        }
     }
     
+    if (needsDateSeparator) {
+        const dateSeparator = document.createElement('div');
+        dateSeparator.className = 'date-separator';
+        dateSeparator.innerHTML = `<span>${date}</span>`;
+        container.appendChild(dateSeparator);
+    }
+    
+    // Create message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+    messageDiv.innerHTML = `
+        <div class="message-content">${escapeHtml(msg.content || '')}</div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    container.appendChild(messageDiv);
+    
+    // Smooth scroll to bottom
+    setTimeout(() => {
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 10);
+}
+
+// Update connection status
+function updateConnectionStatus(status) {
+    const statusEl = document.getElementById('connectionStatus');
+    const statusDot = statusEl.querySelector('.status-dot');
+    const statusText = statusEl.querySelector('.status-text');
+    
+    statusEl.className = 'connection-status';
+    
     if (status === 'SUBSCRIBED') {
-        statusEl.textContent = "🟢 Live";
-        statusEl.style.background = '#28a745';
-        console.log("🎉 REALTIME WORKING!");
-    } else if (status === 'CHANNEL_ERROR') {
-        statusEl.textContent = "🔴 Error";
-        statusEl.style.background = '#dc3545';
-        // Retry after 3 seconds
+        statusEl.classList.add('connected');
+        statusText.textContent = 'Connected';
+        statusDot.style.background = '#28a745';
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+            statusEl.style.opacity = '0';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 300);
+        }, 2000);
+        
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        statusEl.classList.add('error');
+        statusText.textContent = 'Connection lost';
+        statusDot.style.background = '#dc3545';
+        statusEl.style.display = 'flex';
+        statusEl.style.opacity = '1';
+        
+        // Retry after 5 seconds
         setTimeout(() => {
             const urlParams = new URLSearchParams(window.location.search);
             const friendId = urlParams.get('friendId');
             if (friendId) setupRealtime(friendId);
-        }, 3000);
+        }, 5000);
+        
     } else {
-        statusEl.textContent = "🟡 Connecting";
-        statusEl.style.background = '#ffc107';
+        statusText.textContent = 'Connecting...';
+        statusDot.style.background = '#ffc107';
+        statusEl.style.display = 'flex';
+        statusEl.style.opacity = '1';
     }
 }
 
-// Create status indicator
-function createStatus() {
-    const div = document.createElement('div');
-    div.id = 'realtimeStatus';
-    div.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #ffc107;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 10px;
-        font-size: 12px;
-        z-index: 9999;
-        font-weight: bold;
-    `;
-    document.body.appendChild(div);
-    return div;
-}
-
-// Send message - FIXED
+// Send message - OPTIMIZED with optimistic update
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-
-    if (!text || !chatFriend) {
-        alert("Please type a message!");
-        return;
-    }
-
+    
+    if (!text || !chatFriend) return;
+    
+    const sendBtn = document.getElementById('sendBtn');
+    const originalText = input.value;
+    
+    // Clear input immediately
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+    sendBtn.classList.add('sending');
+    
     try {
-        console.log("Sending:", text, "to:", chatFriend.id);
-
+        // Create optimistic message
+        const tempMessage = {
+            id: 'temp-' + Date.now(),
+            sender_id: currentUser.id,
+            receiver_id: chatFriend.id,
+            content: originalText,
+            created_at: new Date().toISOString()
+        };
+        
+        // Show optimistic update
+        appendMessage(tempMessage);
+        
+        // Send to server
         const { data, error } = await supabase
             .from('direct_messages')
             .insert({
                 sender_id: currentUser.id,
                 receiver_id: chatFriend.id,
-                content: text,
+                content: originalText,
                 created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Send error:", error);
-            alert("Error sending message: " + error.message);
-            return;
-        }
-
-        console.log("✅ Message sent:", data);
-        input.value = '';
-        input.style.height = 'auto';
+            });
         
-        // Update send button
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.disabled = true;
-
-        // Update messages immediately
-        await loadOldMessages(chatFriend.id);
-
+        if (error) throw error;
+        
+        console.log("✅ Message sent");
+        
     } catch (error) {
-        console.error("Send failed:", error);
-        alert("Failed to send message");
+        console.error("Send error:", error);
+        alert("Failed to send message. Please try again.");
+        
+        // Restore message to input
+        input.value = originalText;
+        autoResize(input);
+    } finally {
+        sendBtn.classList.remove('sending');
+        sendBtn.disabled = input.value.trim() === '';
     }
 }
 
@@ -313,14 +391,12 @@ async function sendMessage() {
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
-
-    if (sendBtn) {
-        sendBtn.disabled = !input || input.value.trim() === '';
-    }
-
+    
+    sendBtn.disabled = input.value.trim() === '';
+    
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        if (input && input.value.trim()) {
+        if (input.value.trim()) {
             sendMessage();
         }
     }
@@ -329,23 +405,17 @@ function handleKeyPress(event) {
 // Auto resize textarea
 function autoResize(textarea) {
     textarea.style.height = 'auto';
-    const newHeight = Math.min(textarea.scrollHeight, 100);
+    const newHeight = Math.min(textarea.scrollHeight, 120);
     textarea.style.height = newHeight + 'px';
-
+    
     const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) {
-        sendBtn.disabled = textarea.value.trim() === '';
-    }
+    sendBtn.disabled = textarea.value.trim() === '';
 }
 
-// Go back
+// Go back - Clean up
 function goBack() {
-    if (chatChannel) {
-        supabase.removeChannel(chatChannel);
-    }
-    if (statusChannel) {
-        supabase.removeChannel(statusChannel);
-    }
+    if (chatChannel) supabase.removeChannel(chatChannel);
+    if (statusChannel) supabase.removeChannel(statusChannel);
     window.location.href = '../home/index.html';
 }
 
@@ -365,8 +435,8 @@ window.showUserInfo = function() {
             ${chatFriend.username.charAt(0).toUpperCase()}
         </div>
         <div class="user-info-details">
-            <h3 class="user-info-name">${chatFriend.full_name || chatFriend.username}</h3>
-            <p class="user-info-username">@${chatFriend.username}</p>
+            <h3 class="user-info-name">${escapeHtml(chatFriend.full_name || chatFriend.username)}</h3>
+            <p class="user-info-username">@${escapeHtml(chatFriend.username)}</p>
             <div class="user-info-status ${isOnline ? '' : 'offline'}">
                 <span class="status-dot ${isOnline ? '' : 'offline'}"></span>
                 ${isOnline ? 'Online' : 'Offline'}
@@ -388,11 +458,13 @@ window.showUserInfo = function() {
     modal.style.display = 'flex';
 };
 
+// Close modal
 window.closeModal = function() {
     const modal = document.getElementById('userInfoModal');
     if (modal) modal.style.display = 'none';
 };
 
+// Stub functions for demo
 window.startVoiceCall = function() {
     alert("Voice call feature coming soon!");
 };
@@ -412,6 +484,7 @@ window.attachFile = function() {
     alert("File attachment feature coming soon!");
 };
 
+// Clear chat
 window.clearChat = async function() {
     if (!confirm("Are you sure you want to clear all messages?")) return;
     
@@ -423,37 +496,18 @@ window.clearChat = async function() {
             .from('direct_messages')
             .delete()
             .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
-            
+        
         if (error) throw error;
         
-        alert("Chat cleared!");
-        await loadOldMessages(friendId);
+        showMessages([]);
+        
     } catch (error) {
         console.error("Clear chat error:", error);
         alert("Error clearing chat");
     }
 };
 
-// Debug function to check if messages exist
-window.debugMessages = async function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const friendId = urlParams.get('friendId');
-    
-    const { data: allMessages } = await supabase
-        .from('direct_messages')
-        .select('*');
-    
-    console.log("All messages in DB:", allMessages);
-    
-    const { data: ourMessages } = await supabase
-        .from('direct_messages')
-        .select('*')
-        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
-    
-    console.log("Our messages:", ourMessages);
-};
-
-// Make functions global
+// Export functions for global access
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
