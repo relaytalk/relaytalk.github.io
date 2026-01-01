@@ -1,262 +1,48 @@
-// Home Page Script - FIXED CORE FUNCTIONALITY
+// Home Page Script - FINAL WORKING VERSION
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
-console.log("✨ Home Page Loaded");
+console.log("✨ Luster Home Page Loaded");
 
+// Current user
 let currentUser = null;
 let currentProfile = null;
-let requestsChannel = null;
-
-// ====== FIX 1: Define functions BEFORE they're called ======
-function goToHome() {
-    console.log("Already on home page");
-}
-
-function openSettings() {
-    alert("Settings page coming soon!");
-}
-
-function openSearch() {
-    console.log("Opening search modal");
-    const modal = document.getElementById('searchModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        
-        // Clear search input
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.value = '';
-            searchInput.focus();
-        }
-        
-        loadSearchResults();
-        
-        // Close on outside click
-        modal.onclick = function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        };
-        
-        // ESC key to close
-        document.addEventListener('keydown', handleEscKey);
-    }
-}
-
-function openNotifications() {
-    console.log("Opening notifications modal");
-    const modal = document.getElementById('notificationsModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        loadNotifications();
-        
-        // Close on outside click
-        modal.onclick = function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        };
-        
-        // ESC key to close
-        document.addEventListener('keydown', handleEscKey);
-    }
-}
-
-function handleEscKey(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-    }
-}
-
-function closeModal() {
-    console.log("Closing modal");
-    const searchModal = document.getElementById('searchModal');
-    const notificationsModal = document.getElementById('notificationsModal');
-
-    if (searchModal) {
-        searchModal.style.display = 'none';
-        searchModal.onclick = null;
-    }
-    if (notificationsModal) {
-        notificationsModal.style.display = 'none';
-        notificationsModal.onclick = null;
-    }
-    
-    // Remove ESC key listener
-    document.removeEventListener('keydown', handleEscKey);
-}
-
-// ====== FIX 2: Attach to window IMMEDIATELY ======
-window.openSearch = openSearch;
-window.openNotifications = openNotifications;
-window.closeModal = closeModal;
-window.goToHome = goToHome;
-window.openSettings = openSettings;
-
-// ====== NOW the rest of your code ======
-// Initialize home page - FIXED: Better error handling
-async function initHomePage() {
-    console.log("Initializing home page...");
-
-    // Show loading indicator
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    
-    try {
-        // Check if user is logged in - WITH RETRY
-        let authCheckAttempts = 0;
-        let authSuccess = false;
-        let user = null;
-        
-        while (authCheckAttempts < 3 && !authSuccess) {
-            authCheckAttempts++;
-            
-            try {
-                const { success, user: authUser, error } = await auth.getCurrentUser();
-                
-                if (success && authUser) {
-                    authSuccess = true;
-                    user = authUser;
-                    console.log("✅ Auth successful on attempt", authCheckAttempts);
-                } else if (error) {
-                    console.log("Auth attempt", authCheckAttempts, "failed:", error.message);
-                    
-                    // Wait a bit before retrying
-                    if (authCheckAttempts < 3) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    }
-                }
-            } catch (authError) {
-                console.log("Auth error on attempt", authCheckAttempts, ":", authError.message);
-            }
-        }
-
-        if (!authSuccess || !user) {
-            console.error("❌ Could not authenticate after 3 attempts");
-            
-            // Check if there's a session in localStorage/sessionStorage as fallback
-            const storedUser = localStorage.getItem('supabase.auth.token') || 
-                              sessionStorage.getItem('supabase.auth.token');
-            
-            if (!storedUser) {
-                alert("Please login first!");
-                window.location.href = '../auth/index.html';
-                return;
-            } else {
-                console.log("Found stored auth token, but auth.getCurrentUser() failed");
-                // Try one more time with delay
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const { success: finalAttempt, user: finalUser } = await auth.getCurrentUser();
-                
-                if (!finalAttempt || !finalUser) {
-                    alert("Session expired. Please login again!");
-                    window.location.href = '../auth/index.html';
-                    return;
-                }
-                
-                user = finalUser;
-            }
-        }
-
-        currentUser = user;  
-        console.log("Logged in as:", currentUser.email);  
-
-        // Get user profile  
-        await loadUserProfile();  
-
-        // Update UI  
-        updateWelcomeMessage();  
-        await loadFriends();  
-        await updateNotificationsBadge();  
-
-        // Setup realtime for new friend requests
-        setupRealtime();
-
-        // Set up event listeners  
-        setupEventListeners();  
-
-        console.log("Home page initialized for:", currentProfile?.username);
-
-    } catch (error) {
-        console.error("❌ Critical init error:", error);
-        alert("Error loading home page: " + error.message);
-        
-        // Try to redirect to auth page
-        setTimeout(() => {
-            window.location.href = '../auth/index.html';
-        }, 2000);
-        
-        return;
-    } finally {
-        // Always hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.classList.add('hidden');
-            setTimeout(() => {
-                loadingIndicator.style.display = 'none';
-            }, 300);
-        }
-    }
-}
-
-// [REST OF THE CODE REMAINS EXACTLY THE SAME AS BEFORE...]
-// Home Page Script - FIXED CORE FUNCTIONALITY
-import { auth } from '../../utils/auth.js'
-import { supabase } from '../../utils/supabase.js'
-
-console.log("✨ Home Page Loaded");
-
-let currentUser = null;
-let currentProfile = null;
-let requestsChannel = null;
-
-// ====== FIXED: Function defined BEFORE use ======
-function goToHome() {
-    console.log("Already on home page");
-    // No action needed - we're already on home page
-}
-
-// ====== FIXED: Also define other functions that might be called early ======
-function openSettings() {
-    alert("Settings page coming soon!");
-}
 
 // Initialize home page
 async function initHomePage() {
     console.log("Initializing home page...");
-
+    
     // Check if user is logged in  
     const { success, user } = await auth.getCurrentUser();  
-
+    
     if (!success || !user) {  
         alert("Please login first!");  
         window.location.href = '../auth/index.html';  
         return;  
     }  
-
+    
     currentUser = user;  
     console.log("Logged in as:", currentUser.email);  
-
+    
     // Get user profile  
     await loadUserProfile();  
-
+    
     // Update UI  
     updateWelcomeMessage();  
     await loadFriends();  
     await updateNotificationsBadge();  
-
-    // Setup realtime for new friend requests
-    setupRealtime();
-
+    
     // Set up event listeners  
     setupEventListeners();  
-
+    
     console.log("Home page initialized for:", currentProfile?.username);
-
+    
     // Hide loading indicator
     setTimeout(() => {
         const loadingIndicator = document.getElementById('loadingIndicator');
         if (loadingIndicator) {
             loadingIndicator.classList.add('hidden');
+            // Remove from DOM after animation completes
             setTimeout(() => {
                 loadingIndicator.style.display = 'none';
             }, 300);
@@ -282,7 +68,8 @@ async function loadUserProfile() {
         console.error("Error loading profile:", error);  
         currentProfile = {  
             username: currentUser.user_metadata?.username || 'User',  
-            full_name: currentUser.user_metadata?.full_name || 'User'  
+            full_name: currentUser.user_metadata?.full_name || 'User',  
+            avatar_url: currentUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=User&background=random`  
         };  
     }
 }
@@ -295,9 +82,15 @@ function updateWelcomeMessage() {
     if (welcomeElement) {  
         welcomeElement.textContent = `Welcome, ${currentProfile.username}!`;  
     }  
+
+    const userAvatar = document.getElementById('userAvatar');  
+    if (userAvatar && currentProfile.avatar_url) {  
+        userAvatar.src = currentProfile.avatar_url;  
+        userAvatar.alt = currentProfile.username;  
+    }
 }
 
-// Load friends list - FIXED: Check your actual table name
+// Load friends list
 async function loadFriends() {
     if (!currentUser) return;
 
@@ -310,38 +103,17 @@ async function loadFriends() {
     }  
 
     try {  
-        // FIXED: Try common table names for friends
-        let friends = [];
-        
-        // Try 'friends' table first (most common)
-        const result1 = await supabase  
+        // Get friend IDs  
+        const { data: friends, error } = await supabase  
             .from('friends')  
             .select('friend_id')  
-            .eq('user_id', currentUser.id);
-            
-        if (!result1.error && result1.data && result1.data.length > 0) {
-            friends = result1.data;
-        } else {
-            // Try 'friendships' table
-            const result2 = await supabase
-                .from('friendships')
-                .select('user2_id as friend_id')
-                .eq('user1_id', currentUser.id);
-                
-            if (!result2.error && result2.data) {
-                friends = result2.data;
-            } else {
-                // Try reverse
-                const result3 = await supabase
-                    .from('friendships')
-                    .select('user1_id as friend_id')
-                    .eq('user2_id', currentUser.id);
-                    
-                if (!result3.error && result3.data) {
-                    friends = result3.data;
-                }
-            }
-        }
+            .eq('user_id', currentUser.id);  
+
+        if (error) {  
+            console.log("Error loading friends:", error.message);  
+            showEmptyFriends(container);  
+            return;  
+        }  
 
         console.log("Found friend IDs:", friends?.length || 0);  
 
@@ -371,8 +143,8 @@ async function loadFriends() {
             const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';  
 
             html += `  
-                <div class="friend-card" onclick="openChat('${profile.id}')">  
-                    <div class="friend-avatar">  
+                <div class="friend-card" onclick="window.openChat('${profile.id}', '${profile.username}')">  
+                    <div class="friend-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">  
                         ${firstLetter}  
                     </div>  
                     <div class="friend-info">  
@@ -404,7 +176,7 @@ function showEmptyFriends(container) {
     `;
 }
 
-// Get time ago string - FIXED: Better time handling
+// Get time ago string
 function getTimeAgo(date) {
     const now = new Date();
     const past = new Date(date);
@@ -419,55 +191,21 @@ function getTimeAgo(date) {
     if (diffDays === 1) return 'yesterday';  
     if (diffDays < 7) return `${diffDays}d ago`;  
     if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;  
-    return past.toLocaleDateString();
+    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Open chat with friend - FIXED: Simple redirect
-async function openChat(friendId) {
-    console.log("Opening chat with:", friendId);
+// Open chat with friend - UPDATED WITH CORRECT URL
+async function openChat(friendId, friendUsername = 'Friend') {
+    console.log("Opening chat with:", friendId, friendUsername);
+
+    // Store friend info in session storage for chat page  
+    sessionStorage.setItem('currentChatFriend', JSON.stringify({  
+        id: friendId,  
+        username: friendUsername  
+    }));  
+
+    // Redirect to chat page  
     window.location.href = `../chats/index.html?friendId=${friendId}`;
-}
-
-// Setup realtime for new friend requests
-function setupRealtime() {
-    if (!currentUser) return;
-    
-    // Remove old channel if exists
-    if (requestsChannel) {
-        supabase.removeChannel(requestsChannel);
-    }
-    
-    // Subscribe to new friend requests
-    requestsChannel = supabase.channel('friend-requests-' + currentUser.id)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'friend_requests',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, async () => {
-            // Update badge when new request arrives
-            await updateNotificationsBadge();
-            
-            // Reload notifications if modal is open
-            const modal = document.getElementById('notificationsModal');
-            if (modal && modal.style.display === 'flex') {
-                await loadNotifications();
-            }
-        })
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'friend_requests',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, async () => {
-            await updateNotificationsBadge();
-            
-            const modal = document.getElementById('notificationsModal');
-            if (modal && modal.style.display === 'flex') {
-                await loadNotifications();
-            }
-        })
-        .subscribe();
 }
 
 // Update notifications badge
@@ -500,9 +238,12 @@ function updateBadgeDisplay(count) {
         if (count > 0) {
             badge.textContent = count > 9 ? '9+' : count;
             badge.style.display = 'block';
+            console.log("Badge updated:", count);
         } else {
             badge.style.display = 'none';
         }
+    } else {
+        console.error("Notification badge element not found!");
     }
 }
 
@@ -513,31 +254,16 @@ function hideNotificationBadge() {
     }
 }
 
-// Open search modal - FIXED: Clear input on open
+// Open search modal
 function openSearch() {
     console.log("Opening search modal");
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
-        
-        // Clear search input
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.value = '';
-            searchInput.focus();
-        }
-        
         loadSearchResults();
-        
-        // Close on outside click
-        modal.onclick = function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        };
-        
-        // ESC key to close
-        document.addEventListener('keydown', handleEscKey);
+    } else {
+        console.error("Search modal not found!");
+        alert("Search feature not available. Please check console.");
     }
 }
 
@@ -548,47 +274,24 @@ function openNotifications() {
     if (modal) {
         modal.style.display = 'flex';
         loadNotifications();
-        
-        // Close on outside click
-        modal.onclick = function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        };
-        
-        // ESC key to close
-        document.addEventListener('keydown', handleEscKey);
+    } else {
+        console.error("Notifications modal not found!");
+        alert("Notifications not available. Please check console.");
     }
 }
 
-// Handle ESC key
-function handleEscKey(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-    }
-}
-
-// Close modal - FIXED: Proper cleanup
+// Close modal
 function closeModal() {
     console.log("Closing modal");
     const searchModal = document.getElementById('searchModal');
     const notificationsModal = document.getElementById('notificationsModal');
 
-    if (searchModal) {
-        searchModal.style.display = 'none';
-        searchModal.onclick = null;
-    }
-    if (notificationsModal) {
-        notificationsModal.style.display = 'none';
-        notificationsModal.onclick = null;
-    }
-    
-    // Remove ESC key listener
-    document.removeEventListener('keydown', handleEscKey);
+    if (searchModal) searchModal.style.display = 'none';  
+    if (notificationsModal) notificationsModal.style.display = 'none';
 }
 
-// Load search results - FIXED: Server-side search
-async function loadSearchResults(searchTerm = '') {
+// Load search results
+async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     const searchInput = document.getElementById('searchInput');
 
@@ -598,54 +301,41 @@ async function loadSearchResults(searchTerm = '') {
     }  
 
     try {  
-        let query = supabase  
+        const { data: allUsers, error } = await supabase  
             .from('profiles')  
             .select('id, username, full_name')  
-            .neq('id', currentUser.id);
-
-        // Server-side search if term provided
-        if (searchTerm.trim()) {
-            query = query.ilike('username', `%${searchTerm}%`);
-        } else {
-            container.innerHTML = `  
-                <div class="empty-state">  
-                    <div class="empty-icon">🔍</div>  
-                    <p>Type to search for users</p>  
-                </div>  
-            `;  
-            return;  
-        }
-
-        const { data: users, error } = await query.limit(20);
+            .neq('id', currentUser.id);  
 
         if (error) throw error;  
 
-        await displaySearchResults(users);  
+        if (!allUsers || allUsers.length === 0) {  
+            container.innerHTML = `  
+                <div class="empty-state">  
+                    <div class="empty-icon">👥</div>  
+                    <p>No other users found</p>  
+                </div>  
+            `;  
+            return;  
+        }  
+
+        await displaySearchResults(allUsers);  
 
         if (searchInput) {  
             searchInput.oninput = async function() {  
-                const term = this.value.toLowerCase().trim();  
-                if (term === '') {  
-                    container.innerHTML = `  
-                        <div class="empty-state">  
-                            <div class="empty-icon">🔍</div>  
-                            <p>Type to search for users</p>  
-                        </div>  
-                    `;  
+                const searchTerm = this.value.toLowerCase().trim();  
+                if (searchTerm === '') {  
+                    await displaySearchResults(allUsers);  
                     return;  
                 }  
 
-                const { data: filteredUsers, error: searchError } = await supabase  
-                    .from('profiles')  
-                    .select('id, username, full_name')  
-                    .neq('id', currentUser.id)  
-                    .ilike('username', `%${term}%`)  
-                    .limit(20);
-
-                if (!searchError) {  
-                    await displaySearchResults(filteredUsers || []);  
-                }  
+                const filteredUsers = allUsers.filter(user =>   
+                    user.username.toLowerCase().includes(searchTerm) ||  
+                    (user.full_name && user.full_name.toLowerCase().includes(searchTerm))  
+                );  
+                await displaySearchResults(filteredUsers);  
             };  
+
+            searchInput.focus();  
         }  
 
     } catch (error) {  
@@ -654,12 +344,13 @@ async function loadSearchResults(searchTerm = '') {
             <div class="empty-state">  
                 <div class="empty-icon">⚠️</div>  
                 <p>Error loading users</p>  
+                <p style="font-size: 0.9rem;">${error.message}</p>  
             </div>  
         `;  
     }
 }
 
-// Display search results - FIXED: Better friend checking
+// Display search results
 async function displaySearchResults(users) {
     const container = document.getElementById('searchResults');
 
@@ -679,21 +370,22 @@ async function displaySearchResults(users) {
     }  
 
     try {  
-        // Get current friends
-        const { data: friends } = await supabase  
+        // Check friends  
+        const { data: friends, error: friendError } = await supabase  
             .from('friends')  
             .select('friend_id')  
-            .eq('user_id', currentUser.id);
+            .eq('user_id', currentUser.id);  
 
-        const friendIds = friends?.map(f => f.friend_id) || [];
+        const friendIds = friendError ? [] : friends?.map(f => f.friend_id) || [];  
 
-        // Get pending requests
-        const { data: pendingRequests } = await supabase  
+        // Check pending requests  
+        const { data: pendingRequests, error: requestError } = await supabase  
             .from('friend_requests')  
-            .select('receiver_id, status')  
-            .eq('sender_id', currentUser.id);
+            .select('receiver_id')  
+            .eq('sender_id', currentUser.id)  
+            .eq('status', 'pending');  
 
-        const pendingIds = pendingRequests?.map(r => r.receiver_id) || [];
+        const pendingIds = requestError ? [] : pendingRequests?.map(r => r.receiver_id) || [];  
 
         let html = '';  
         users.forEach(user => {  
@@ -703,7 +395,7 @@ async function displaySearchResults(users) {
 
             html += `  
                 <div class="search-result">  
-                    <div class="search-avatar">  
+                    <div class="search-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">  
                         ${firstLetter}  
                     </div>  
                     <div class="search-info">  
@@ -719,7 +411,7 @@ async function displaySearchResults(users) {
                             ✓ Sent  
                         </button>  
                     ` : `  
-                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}')">  
+                        <button class="send-request-btn" onclick="window.sendFriendRequest('${user.id}', '${user.username}')">  
                             Add Friend  
                         </button>  
                     `}  
@@ -734,7 +426,7 @@ async function displaySearchResults(users) {
     }
 }
 
-// Send friend request - FIXED: Better error handling
+// Send friend request
 async function sendFriendRequest(toUserId, toUsername) {
     if (!currentUser) return;
 
@@ -770,10 +462,8 @@ async function sendFriendRequest(toUserId, toUsername) {
         }  
 
         // Update UI  
-        const searchInput = document.getElementById('searchInput');
-        const searchTerm = searchInput ? searchInput.value : '';
-        await loadSearchResults(searchTerm);
-        await updateNotificationsBadge();  
+        loadSearchResults();  
+        updateNotificationsBadge();  
 
         alert(`Friend request sent to ${toUsername}!`);  
 
@@ -783,7 +473,7 @@ async function sendFriendRequest(toUserId, toUsername) {
     }
 }
 
-// Load notifications - FIXED: Simple query without complex join
+// Load notifications
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
 
@@ -840,10 +530,10 @@ async function loadNotifications() {
                         <small>${timeAgo}</small>  
                     </div>  
                     <div class="notification-actions">  
-                        <button class="accept-btn" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}')">  
+                        <button class="btn-small btn-success" onclick="window.acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}')">  
                             ✓  
                         </button>  
-                        <button class="decline-btn" onclick="declineFriendRequest('${notification.id}')">  
+                        <button class="btn-small btn-danger" onclick="window.declineFriendRequest('${notification.id}')">  
                             ✗  
                         </button>  
                     </div>  
@@ -868,7 +558,7 @@ function showEmptyNotifications(container) {
     `;
 }
 
-// Accept friend request with transaction
+// Accept friend request
 async function acceptFriendRequest(requestId, senderId, senderName = 'User') {
     console.log("Accepting request:", requestId, "from:", senderId);
 
@@ -899,7 +589,7 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User') {
             });  
 
         if (friendError1 || friendError2) {  
-            console.log("Friend insertion errors (might already exist):", friendError1?.message, friendError2?.message);  
+            console.log("Friend errors (might already exist):", friendError1?.message, friendError2?.message);  
             // Continue anyway - might already exist  
         }  
 
@@ -941,12 +631,31 @@ async function declineFriendRequest(requestId) {
 function setupEventListeners() {
     console.log("Setting up event listeners...");
 
-    // Clean up on page unload
-    window.addEventListener('beforeunload', () => {
-        if (requestsChannel) {
-            supabase.removeChannel(requestsChannel);
-        }
-    });
+    // Logout button (if exists)  
+    const logoutBtn = document.getElementById('logoutBtn');  
+    if (logoutBtn) {  
+        logoutBtn.addEventListener('click', async () => {  
+            try {  
+                await auth.signOut();  
+                window.location.href = '../auth/index.html';  
+            } catch (error) {  
+                console.error("Error logging out:", error);  
+                alert("Error logging out. Please try again.");  
+            }  
+        });  
+    }  
+
+    console.log("✅ Event listeners setup complete");
+}
+
+// Navigation functions
+function goToHome() {
+    console.log("Already on home page");
+}
+
+function openSettings() {
+    alert("Settings page coming soon!");
+    // window.location.href = '../profile/index.html';
 }
 
 // Make functions available globally
@@ -959,20 +668,6 @@ window.acceptFriendRequest = acceptFriendRequest;
 window.declineFriendRequest = declineFriendRequest;
 window.goToHome = goToHome;
 window.openSettings = openSettings;
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', initHomePage);
-
-
-
-// Load user profile, loadFriends, etc. - all the same functions
-// ... 
-
-// ====== FIX 3: Attach remaining functions to window ======
-window.openChat = openChat;
-window.sendFriendRequest = sendFriendRequest;
-window.acceptFriendRequest = acceptFriendRequest;
-window.declineFriendRequest = declineFriendRequest;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initHomePage);
