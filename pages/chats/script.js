@@ -1,122 +1,102 @@
-// GUARANTEED WORKING CHAT SCRIPT
+// WORKING CHAT SCRIPT - GUARANTEED
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
-console.log("🚀 CHAT STARTING...");
+console.log("✨ Chat Loaded");
 
 let currentUser = null;
 let chatFriend = null;
 let chatChannel = null;
 
 // Initialize
-async function initChat() {
-    console.log("Initializing chat...");
-    
-    // Get current user
-    const { success, user } = await auth.getCurrentUser();
-    if (!success) {
-        alert("Please login first!");
-        window.location.href = '../auth/index.html';
-        return;
-    }
-    
-    currentUser = user;
-    console.log("User:", currentUser.email);
-    
-    // Get friend ID from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const friendId = urlParams.get('friendId');
-    
-    if (!friendId) {
-        alert("No friend selected!");
-        window.location.href = '../home/index.html';
-        return;
-    }
-    
-    console.log("Chatting with friend ID:", friendId);
-    
-    // Load friend data
-    await loadFriend(friendId);
-    
-    // Load existing messages
-    await loadMessages(friendId);
-    
-    // Setup realtime
-    setupRealtime(friendId);
-    
-    console.log("✅ Chat initialized");
-}
-
-// Load friend data
-async function loadFriend(friendId) {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const { data, error } = await supabase
+        // Check auth
+        const { success, user } = await auth.getCurrentUser();
+        if (!success || !user) {
+            alert("Login first!");
+            window.location.href = '../auth/index.html';
+            return;
+        }
+        
+        currentUser = user;
+        console.log("User:", user.email);
+        
+        // Get friend ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const friendId = urlParams.get('friendId');
+        
+        if (!friendId) {
+            alert("No friend!");
+            window.location.href = '../home/index.html';
+            return;
+        }
+        
+        // Load friend
+        const { data: friend, error: friendError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', friendId)
             .single();
             
-        if (error) throw error;
+        if (friendError) throw friendError;
         
-        chatFriend = data;
-        console.log("Friend:", data.username);
+        chatFriend = friend;
+        document.getElementById('chatUserName').textContent = friend.username;
+        document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
         
-        // Update UI
-        document.getElementById('chatUserName').textContent = data.username;
-        document.getElementById('chatUserAvatar').textContent = data.username.charAt(0).toUpperCase();
+        // Load old messages
+        await loadOldMessages(friendId);
+        
+        // Setup realtime
+        setupRealtime(friendId);
+        
+        console.log("✅ Chat ready");
         
     } catch (error) {
-        console.error("Error loading friend:", error);
-        alert("Error loading friend!");
+        console.error("Init error:", error);
+        alert("Error: " + error.message);
         window.location.href = '../home/index.html';
     }
-}
+});
 
-// Load messages
-async function loadMessages(friendId) {
+// Load old messages
+async function loadOldMessages(friendId) {
     try {
-        console.log("Loading messages...");
-        
-        // Get messages in both directions
-        const { data: sentMessages, error: sentError } = await supabase
+        // Get messages I sent
+        const { data: sent } = await supabase
             .from('direct_messages')
             .select('*')
             .eq('sender_id', currentUser.id)
-            .eq('receiver_id', friendId);
-            
-        const { data: receivedMessages, error: receivedError } = await supabase
+            .eq('receiver_id', friendId)
+            .order('created_at', { ascending: true });
+        
+        // Get messages I received
+        const { data: received } = await supabase
             .from('direct_messages')
             .select('*')
             .eq('sender_id', friendId)
-            .eq('receiver_id', currentUser.id);
+            .eq('receiver_id', currentUser.id)
+            .order('created_at', { ascending: true });
         
-        if (sentError) console.error("Sent error:", sentError);
-        if (receivedError) console.error("Received error:", receivedError);
-        
-        // Combine and sort
+        // Combine
         const allMessages = [
-            ...(sentMessages || []),
-            ...(receivedMessages || [])
+            ...(sent || []),
+            ...(received || [])
         ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         
-        console.log("Loaded", allMessages.length, "messages");
+        console.log("Loaded", allMessages.length, "old messages");
         
-        // Display
-        displayMessages(allMessages);
-        
-        // Scroll to bottom
-        setTimeout(() => {
-            const container = document.getElementById('messagesContainer');
-            if (container) container.scrollTop = container.scrollHeight;
-        }, 100);
+        // Show them
+        showMessages(allMessages);
         
     } catch (error) {
-        console.error("Error loading messages:", error);
+        console.error("Load error:", error);
     }
 }
 
-// Display messages
-function displayMessages(messages) {
+// Show messages in UI
+function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
     
@@ -124,8 +104,8 @@ function displayMessages(messages) {
         container.innerHTML = `
             <div class="empty-chat">
                 <div class="empty-chat-icon">💬</div>
-                <h3>No messages yet</h3>
-                <p>Start the conversation!</p>
+                <h3>No messages</h3>
+                <p>Say hello!</p>
             </div>
         `;
         return;
@@ -148,61 +128,87 @@ function displayMessages(messages) {
     });
     
     container.innerHTML = html;
+    
+    // Scroll to bottom
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 100);
 }
 
-// REALTIME SETUP - GUARANTEED WORKING
+// REAL-TIME THAT WORKS
 function setupRealtime(friendId) {
-    console.log("🔧 Setting up realtime...");
+    console.log("Setting realtime for friend:", friendId);
     
-    // Clean previous channel
+    // Remove old
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
     
-    // Create new channel - LISTEN TO ALL INSERTS
-    chatChannel = supabase.channel('realtime-messages')
+    // Create new - LISTEN TO ALL INSERTS
+    chatChannel = supabase.channel('any-messages')
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'direct_messages'
         }, async (payload) => {
-            console.log("🎯 REALTIME EVENT RECEIVED!");
-            console.log("Payload:", payload.new);
+            console.log("🔥 REALTIME GOT:", payload.new);
             
-            const newMessage = payload.new;
+            const newMsg = payload.new;
             
-            // Check if message belongs to this chat
-            const belongsToThisChat = 
-                (newMessage.sender_id === currentUser.id && newMessage.receiver_id === friendId) ||
-                (newMessage.sender_id === friendId && newMessage.receiver_id === currentUser.id);
-            
-            if (belongsToThisChat) {
-                console.log("✅ This message is for our chat!");
+            // Is this for our chat?
+            if ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
+                (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id)) {
                 
-                // Reload messages to show new one
-                await loadMessages(friendId);
+                console.log("✅ This is our message!");
                 
-                // Visual notification
-                flashTitle("💬 New message!");
-            } else {
-                console.log("❌ Message not for this chat");
+                // Reload all messages
+                await loadOldMessages(friendId);
+                
+                // Flash title
+                document.title = "💬 New!";
+                setTimeout(() => {
+                    document.title = "✨ Luster Chat";
+                }, 1000);
             }
         })
         .subscribe((status) => {
-            console.log("📡 Realtime subscription status:", status);
+            console.log("Realtime status:", status);
             
+            // Show status
+            const statusEl = document.getElementById('realtimeStatus') || createStatus();
             if (status === 'SUBSCRIBED') {
-                console.log("🎉 SUCCESS! Realtime is CONNECTED!");
-                showStatus("🟢 Live", "#28a745");
+                statusEl.textContent = "🟢 Live";
+                statusEl.style.background = '#28a745';
+                console.log("🎉 REALTIME WORKING!");
             } else if (status === 'CHANNEL_ERROR') {
-                console.error("❌ Realtime error");
-                showStatus("🔴 Error", "#dc3545");
-                // Retry after 3 seconds
+                statusEl.textContent = "🔴 Error";
+                statusEl.style.background = '#dc3545';
+                // Retry
                 setTimeout(() => setupRealtime(friendId), 3000);
             } else {
-                showStatus("🟡 Connecting...", "#ffc107");
+                statusEl.textContent = "🟡 Connecting";
+                statusEl.style.background = '#ffc107';
             }
         });
+}
+
+// Create status indicator
+function createStatus() {
+    const div = document.createElement('div');
+    div.id = 'realtimeStatus';
+    div.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ffc107;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        z-index: 9999;
+    `;
+    document.body.appendChild(div);
+    return div;
 }
 
 // Send message
@@ -211,12 +217,12 @@ async function sendMessage() {
     const text = input.value.trim();
     
     if (!text || !chatFriend) {
-        alert("Please enter a message!");
+        alert("Type something!");
         return;
     }
     
     try {
-        console.log("Sending message:", text);
+        console.log("Sending:", text);
         
         const { data, error } = await supabase
             .from('direct_messages')
@@ -235,63 +241,28 @@ async function sendMessage() {
             return;
         }
         
-        console.log("✅ Message sent successfully!");
-        
-        // Clear input
+        console.log("✅ Sent!");
         input.value = '';
-        input.style.height = 'auto';
         
-        // Disable send button
+        // Update send button
         const sendBtn = document.getElementById('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
         
     } catch (error) {
         console.error("Send failed:", error);
-        alert("Failed to send message");
+        alert("Failed to send");
     }
 }
 
-// Helper functions
-function flashTitle(text) {
-    const original = document.title;
-    document.title = text;
-    setTimeout(() => document.title = original, 2000);
-}
-
-function showStatus(text, color) {
-    // Create or update status indicator
-    let status = document.getElementById('realtimeStatus');
-    if (!status) {
-        status = document.createElement('div');
-        status.id = 'realtimeStatus';
-        status.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: ${color};
-            color: white;
-            padding: 5px 10px;
-            border-radius: 10px;
-            font-size: 12px;
-            z-index: 9999;
-        `;
-        document.body.appendChild(status);
-    }
-    status.textContent = text;
-    status.style.background = color;
-}
-
-// Handle input
+// Handle Enter key
 function handleKeyPress(event) {
-    const sendBtn = document.getElementById('sendBtn');
     const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
     
-    // Enable/disable send button
     if (sendBtn) {
         sendBtn.disabled = !input || input.value.trim() === '';
     }
     
-    // Enter to send (without shift)
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         if (input && input.value.trim()) {
@@ -300,18 +271,18 @@ function handleKeyPress(event) {
     }
 }
 
+// Auto resize textarea
 function autoResize(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
     
-    // Update send button
     const sendBtn = document.getElementById('sendBtn');
     if (sendBtn) {
         sendBtn.disabled = textarea.value.trim() === '';
     }
 }
 
-// Navigation
+// Go back
 function goBack() {
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -324,19 +295,16 @@ window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
 window.goBack = goBack;
-window.showUserInfo = () => alert("User info feature coming soon!");
+window.showUserInfo = () => alert("Info");
 window.closeModal = () => {
     const modal = document.getElementById('userInfoModal');
     if (modal) modal.style.display = 'none';
 };
-window.attachFile = () => alert("File attachment coming soon!");
-window.clearChat = () => alert("Clear chat coming soon!");
+window.attachFile = () => alert("File");
+window.clearChat = () => alert("Clear");
 window.blockUser = () => {
-    if (confirm("Block this user?")) {
-        alert("User blocked");
+    if (confirm("Block?")) {
+        alert("Blocked");
         goBack();
     }
 };
-
-// Initialize
-document.addEventListener('DOMContentLoaded', initChat);
