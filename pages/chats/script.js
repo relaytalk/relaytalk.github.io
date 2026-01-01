@@ -1,4 +1,4 @@
-// Chat Page Script - SIMPLIFIED FOR FRIENDS MESSAGING
+// Chat Page Script - FOR direct_messages TABLE
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
@@ -86,14 +86,9 @@ function updateChatHeader() {
     // Update avatar
     const chatUserAvatar = document.getElementById('chatUserAvatar');
     if (chatUserAvatar) {
-        if (chatFriend.avatar_url) {
-            chatUserAvatar.innerHTML = `<img src="${chatFriend.avatar_url}" alt="${chatFriend.username}" style="width:100%;height:100%;border-radius:50%;">`;
-        } else {
-            // Fallback: first letter
-            const firstLetter = chatFriend.username.charAt(0).toUpperCase();
-            chatUserAvatar.textContent = firstLetter;
-            chatUserAvatar.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
-        }
+        const firstLetter = chatFriend.username.charAt(0).toUpperCase();
+        chatUserAvatar.textContent = firstLetter;
+        chatUserAvatar.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
     }
 
     // Update status
@@ -107,21 +102,36 @@ function updateChatHeader() {
     }
 }
 
-// Load messages (direct messages between two users)
+// Load messages from direct_messages table
 async function loadMessages(friendId) {
     if (!currentUser || !friendId) return;
 
     try {
-        // Get messages where current user is sender OR receiver
-        const { data: allMessages, error } = await supabase
-            .from('messages')
+        // Get messages I sent to friend
+        const { data: messagesToFriend } = await supabase
+            .from('direct_messages')
             .select('*')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
-            .order('created_at', { ascending: true });
+            .eq('sender_id', currentUser.id)
+            .eq('receiver_id', friendId);
 
-        if (error) throw error;
+        // Get messages friend sent to me
+        const { data: messagesFromFriend } = await supabase
+            .from('direct_messages')
+            .select('*')
+            .eq('sender_id', friendId)
+            .eq('receiver_id', currentUser.id);
 
-        messages = allMessages || [];
+        // Combine and sort by created_at
+        const allMessages = [
+            ...(messagesToFriend || []),
+            ...(messagesFromFriend || [])
+        ];
+
+        // Sort by timestamp (newest first for display)
+        messages = allMessages.sort((a, b) => 
+            new Date(a.created_at) - new Date(b.created_at)
+        );
+
         console.log("Loaded", messages.length, "messages");
 
         // Display messages
@@ -131,9 +141,6 @@ async function loadMessages(friendId) {
         setTimeout(() => {
             scrollToBottom();
         }, 100);
-
-        // Mark unread messages as read
-        markMessagesAsRead(friendId);
 
     } catch (error) {
         console.error("Error loading messages:", error);
@@ -160,13 +167,15 @@ function displayMessages() {
 
     let html = '';
     let lastDate = null;
-
+    
     messages.forEach((message) => {
+        // Date separator
         const messageDate = new Date(message.created_at).toDateString();
         if (messageDate !== lastDate) {
+            const dateStr = formatDate(message.created_at);
             html += `
                 <div class="date-separator">
-                    <span>${formatDate(message.created_at)}</span>
+                    <span>${dateStr}</span>
                 </div>
             `;
             lastDate = messageDate;
@@ -182,11 +191,6 @@ function displayMessages() {
                 </div>
                 <div class="message-time">
                     ${time}
-                    ${isSent ? `
-                        <div class="message-status">
-                            ${message.is_read ? '✓✓' : '✓'}
-                        </div>
-                    ` : ''}
                 </div>
             </div>
         `;
@@ -225,28 +229,33 @@ function formatTime(timestamp) {
     }).toLowerCase();
 }
 
-// Send message
+// Send message to direct_messages table
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
 
-    if (!text || !chatFriend) return;
+    if (!text || !chatFriend) {
+        alert("Please enter a message!");
+        return;
+    }
 
     try {
-        // Create message in Supabase
+        // Create message in direct_messages table
         const { data: newMessage, error } = await supabase
-            .from('messages')
+            .from('direct_messages')
             .insert({
                 sender_id: currentUser.id,
                 receiver_id: chatFriend.id,
                 content: text,
-                is_read: false,
                 created_at: new Date().toISOString()
             })
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase error:", error);
+            throw error;
+        }
 
         // Add to local messages array
         messages.push(newMessage);
@@ -263,7 +272,7 @@ async function sendMessage() {
         // Scroll to bottom
         scrollToBottom();
 
-        console.log("Message sent");
+        console.log("Message sent successfully!");
 
     } catch (error) {
         console.error("Error sending message:", error);
@@ -271,51 +280,55 @@ async function sendMessage() {
     }
 }
 
-// Mark messages as read
-async function markMessagesAsRead(friendId) {
-    try {
-        // Mark all unread messages from this friend as read
-        await supabase
-            .from('messages')
-            .update({ is_read: true })
-            .eq('sender_id', friendId)
-            .eq('receiver_id', currentUser.id)
-            .eq('is_read', false);
-
-    } catch (error) {
-        console.error("Error marking messages as read:", error);
-    }
-}
-
 // Setup real-time listener for new messages
 function setupRealtimeListener(friendId) {
     if (!friendId || !currentUser) return;
 
-    // Listen for new messages
+    // Listen for messages sent TO current user
     supabase
         .channel(`chat:${currentUser.id}:${friendId}`)
         .on('postgres_changes', 
             { 
                 event: 'INSERT', 
                 schema: 'public', 
-                table: 'messages',
-                filter: `or(and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id}),and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}))`
+                table: 'direct_messages',
+                filter: `sender_id=eq.${friendId}`
             },
             (payload) => {
-                console.log("New message:", payload.new);
+                // Check if message is for current user
+                if (payload.new.receiver_id === currentUser.id) {
+                    console.log("New message from friend:", payload.new);
+                    
+                    // Add if not already in messages
+                    if (!messages.some(m => m.id === payload.new.id)) {
+                        messages.push(payload.new);
+                        displayMessages();
+                        scrollToBottom();
+                    }
+                }
+            }
+        )
+        .subscribe();
 
-                // Add to messages array if not already there
-                if (!messages.some(m => m.id === payload.new.id)) {
-                    messages.push(payload.new);
-                    displayMessages();
-                    scrollToBottom();
-
-                    // Mark as read if it's from friend
-                    if (payload.new.sender_id === friendId) {
-                        supabase
-                            .from('messages')
-                            .update({ is_read: true })
-                            .eq('id', payload.new.id);
+    // Listen for messages we send (for immediate UI update)
+    supabase
+        .channel(`chat-sent:${currentUser.id}:${friendId}`)
+        .on('postgres_changes', 
+            { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'direct_messages',
+                filter: `sender_id=eq.${currentUser.id}`
+            },
+            (payload) => {
+                // Check if message is to this friend
+                if (payload.new.receiver_id === friendId) {
+                    console.log("Message sent confirmation:", payload.new);
+                    
+                    if (!messages.some(m => m.id === payload.new.id)) {
+                        messages.push(payload.new);
+                        displayMessages();
+                        scrollToBottom();
                     }
                 }
             }
@@ -389,13 +402,13 @@ function showUserInfo() {
         </div>
         
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-            <button class="action-btn accept-btn" onclick="startVoiceCall()" style="width: 100%;">
+            <button onclick="startVoiceCall()" style="padding: 12px; background: rgba(102, 126, 234, 0.2); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 10px; color: #667eea; cursor: pointer;">
                 🎤 Voice Call
             </button>
-            <button class="action-btn secondary" onclick="viewSharedMedia()" style="width: 100%;">
+            <button onclick="viewSharedMedia()" style="padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: white; cursor: pointer;">
                 📷 Shared Media
             </button>
-            <button class="action-btn decline-btn" onclick="blockUser()" style="width: 100%;">
+            <button onclick="blockUser()" style="padding: 12px; background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.3); border-radius: 10px; color: #dc3545; cursor: pointer;">
                 🚫 Block User
             </button>
         </div>
@@ -430,7 +443,10 @@ function setupEventListeners() {
     // Auto-focus on message input
     setTimeout(() => {
         const input = document.getElementById('messageInput');
-        if (input) input.focus();
+        if (input) {
+            input.focus();
+            input.value = '';
+        }
     }, 500);
 }
 
