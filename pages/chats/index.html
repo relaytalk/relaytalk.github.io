@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Chat Page Styles - PERFECT SCROLL LAYOUT */
+        /* Chat Page Styles - PERFECT SCROLL FIXED */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
             color: white;
@@ -29,7 +29,7 @@
             display: flex;
             align-items: center;
             padding: 15px 20px;
-            background: rgba(26, 26, 46, 0.95);
+            background: rgba(26, 26, 46, 0.98);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             position: fixed;
@@ -55,6 +55,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            flex-shrink: 0;
         }
 
         .back-btn:hover {
@@ -64,26 +65,33 @@
         .chat-user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             flex: 1;
             min-width: 0;
+            overflow: hidden;
         }
 
         .chat-user-avatar {
-            width: 45px;
-            height: 45px;
+            width: 42px;
+            height: 42px;
             background: linear-gradient(45deg, #667eea, #764ba2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .chat-user-details {
+            flex: 1;
+            min-width: 0;
         }
 
         .chat-user-details h3 {
-            font-size: 1.2rem;
-            margin: 0 0 3px 0;
+            font-size: 1.1rem;
+            margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -92,30 +100,32 @@
         .chat-user-status {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
+            gap: 6px;
+            font-size: 0.85rem;
             color: #a0a0c0;
         }
 
         .chat-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .chat-action-btn {
             background: none;
             border: none;
             color: #a0a0c0;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
             padding: 8px;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            flex-shrink: 0;
         }
 
         .chat-action-btn:hover {
@@ -123,41 +133,49 @@
             color: white;
         }
 
-        /* MAIN CONTENT AREA - SCROLLABLE MESSAGES */
+        /* MAIN CONTENT AREA - FIXED SCROLL */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             position: relative;
+            margin-top: 70px; /* Header height */
+            margin-bottom: 70px; /* Input height */
         }
 
-        /* Messages Container - ONLY THIS SCROLLS */
+        /* Messages Container - PERFECT SCROLL FIX */
         .messages-container {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: 70px; /* Space for fixed header */
-            margin-bottom: 80px; /* Space for fixed input */
-            min-height: calc(100vh - 150px); /* Viewport minus header+input */
+            gap: 10px;
+            min-height: 0; /* Crucial for flex scroll */
+        }
+
+        /* Ensure messages fill container */
+        .messages-container:empty::before {
+            content: '';
+            flex: 1;
+            min-height: 100px;
         }
 
         /* Message Bubbles */
         .message {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 20px;
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 18px;
             position: relative;
-            animation: fadeIn 0.3s ease;
+            animation: fadeIn 0.25s ease;
             word-wrap: break-word;
             line-height: 1.4;
+            word-break: break-word;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -165,24 +183,26 @@
             align-self: flex-end;
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 4px;
             margin-left: auto;
         }
 
         .message.received {
             align-self: flex-start;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: white;
-            border-bottom-left-radius: 5px;
+            border-bottom-left-radius: 4px;
             margin-right: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .message-time {
             font-size: 0.7rem;
-            opacity: 0.7;
+            opacity: 0.6;
             margin-top: 4px;
             text-align: right;
             font-weight: 300;
+            display: block;
         }
 
         .message.received .message-time {
@@ -192,16 +212,16 @@
         /* Date Separator */
         .date-separator {
             text-align: center;
-            margin: 16px 0;
+            margin: 12px 0;
             position: relative;
         }
 
         .date-separator span {
-            background: rgba(255, 255, 255, 0.08);
-            padding: 5px 15px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            color: #a0a0c0;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 12px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            color: #8a8aa8;
             font-weight: 300;
         }
 
@@ -211,33 +231,35 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(26, 26, 46, 0.95);
+            background: rgba(26, 26, 46, 0.98);
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 100;
-            padding: 15px 20px;
+            padding: 12px 20px;
+            height: 70px;
+            box-sizing: border-box;
         }
 
         .message-input-container {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: flex-end;
-            max-width: 100%;
+            height: 46px;
         }
 
         .message-input {
             flex: 1;
-            padding: 14px 18px;
-            background: rgba(255, 255, 255, 0.08);
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 25px;
+            border-radius: 23px;
             color: white;
-            font-size: 1rem;
+            font-size: 0.95rem;
             resize: none;
             font-family: inherit;
             line-height: 1.4;
-            min-height: 50px;
-            max-height: 150px;
+            min-height: 46px;
+            max-height: 120px;
             box-sizing: border-box;
             transition: all 0.2s ease;
             overflow-y: auto;
@@ -246,311 +268,294 @@
         .message-input:focus {
             outline: none;
             border-color: #667eea;
-            background: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .message-input::placeholder {
-            color: rgba(160, 160, 192, 0.7);
+            color: rgba(160, 160, 192, 0.5);
         }
 
         .send-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
             color: white;
-            width: 50px;
-            height: 50px;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            transition: all 0.2s;
             flex-shrink: 0;
-            margin-bottom: 5px;
         }
 
-        .send-btn:hover {
-            transform: scale(1.08);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
         }
 
         .send-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+            background: #666;
         }
 
         .attach-btn {
             background: none;
             border: none;
             color: #a0a0c0;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             cursor: pointer;
             padding: 10px;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 46px;
+            height: 46px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
             flex-shrink: 0;
-            margin-bottom: 5px;
         }
 
         .attach-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             color: white;
         }
 
-        /* Empty Chat State */
+        /* Empty Chat State - FIXED POSITION */
         .empty-chat {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
             padding: 40px 20px;
-            color: #a0a0c0;
-            margin-top: 70px; /* Match header height */
-            margin-bottom: 80px; /* Match input height */
-            height: calc(100vh - 150px);
+            color: #8a8aa8;
+            flex: 1;
         }
 
         .empty-chat-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            opacity: 0.5;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.3;
         }
 
         .empty-chat h3 {
-            font-size: 1.4rem;
-            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            margin: 0 0 8px 0;
+            font-weight: 400;
         }
 
         .empty-chat p {
-            font-size: 1rem;
+            font-size: 0.9rem;
             margin: 0;
-            opacity: 0.7;
+            opacity: 0.5;
         }
 
-        /* Typing Indicator */
+        /* Typing Indicator - REMOVED (not functional) */
         .typing-indicator {
-            align-self: flex-start;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px 15px;
-            border-radius: 20px;
-            border-bottom-left-radius: 5px;
-            display: none;
-            margin-bottom: 10px;
-        }
-
-        .typing-dots {
-            display: flex;
-            gap: 4px;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background: #a0a0c0;
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-5px); }
+            display: none !important;
         }
 
         /* Scrollbar Styling */
         .messages-container::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         .messages-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 4px;
+            background: transparent;
         }
 
         .messages-container::-webkit-scrollbar-thumb {
-            background: rgba(102, 126, 234, 0.5);
-            border-radius: 4px;
+            background: rgba(102, 126, 234, 0.3);
+            border-radius: 3px;
         }
 
         .messages-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(102, 126, 234, 0.7);
+            background: rgba(102, 126, 234, 0.5);
         }
 
-        /* Message Status */
+        /* Message Status - REMOVED (not functional) */
         .message-status {
-            font-size: 0.7rem;
-            margin-top: 3px;
+            display: none;
+        }
+
+        /* Connection Status Indicator */
+        .connection-status {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: 6px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0.9;
+        }
+
+        .connection-status .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ffc107;
+        }
+
+        .connection-status.connected .status-dot {
+            background: #28a745;
+        }
+
+        .connection-status.error .status-dot {
+            background: #dc3545;
+        }
+
+        /* Sending State */
+        .sending {
+            opacity: 0.7;
+        }
+
+        /* Message Animation */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .message.sent {
+            animation: slideInRight 0.25s ease;
+        }
+
+        .message.received {
+            animation: slideInLeft 0.25s ease;
         }
 
         /* Responsive Adjustments */
         @media (max-width: 768px) {
             .chat-header {
-                padding: 12px 16px;
-                height: 65px;
-            }
-            
-            .messages-container {
-                margin-top: 65px;
-                margin-bottom: 75px;
-                padding: 15px 16px;
-            }
-            
-            .empty-chat {
-                margin-top: 65px;
-                margin-bottom: 75px;
-            }
-            
-            .message-input-wrapper {
-                padding: 12px 16px;
-            }
-            
-            .message-input {
-                padding: 12px 16px;
-                min-height: 45px;
-            }
-            
-            .send-btn,
-            .attach-btn {
-                width: 46px;
-                height: 46px;
-                font-size: 1.1rem;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .chat-header {
-                padding: 10px 14px;
+                padding: 12px 15px;
                 height: 60px;
             }
-            
-            .messages-container {
+
+            .main-content {
                 margin-top: 60px;
-                margin-bottom: 70px;
-                padding: 12px 14px;
+                margin-bottom: 60px;
             }
-            
-            .empty-chat {
-                margin-top: 60px;
-                margin-bottom: 70px;
-            }
-            
+
             .message-input-wrapper {
-                padding: 10px 14px;
+                padding: 10px 15px;
+                height: 60px;
             }
-            
+
+            .messages-container {
+                padding: 12px 15px;
+            }
+
             .message-input-container {
-                gap: 10px;
+                height: 40px;
             }
-            
-            .message {
-                max-width: 80%;
+
+            .message-input {
+                min-height: 40px;
                 padding: 10px 14px;
+                font-size: 0.9rem;
             }
-            
-            .chat-user-avatar {
+
+            .send-btn,
+            .attach-btn {
                 width: 40px;
                 height: 40px;
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
-            
-            .back-btn,
-            .chat-action-btn {
-                width: 36px;
-                height: 36px;
-            }
-            
-            .message-input {
-                font-size: 0.95rem;
-            }
-            
-            .send-btn,
-            .attach-btn {
-                width: 44px;
-                height: 44px;
-            }
-        }
 
-        @media (max-width: 400px) {
-            .chat-header {
-                padding: 8px 12px;
-                height: 56px;
-            }
-            
-            .messages-container {
-                margin-top: 56px;
-                margin-bottom: 66px;
-                padding: 10px 12px;
-            }
-            
-            .empty-chat {
-                margin-top: 56px;
-                margin-bottom: 66px;
-            }
-            
-            .message-input-wrapper {
-                padding: 8px 12px;
-            }
-            
-            .message {
-                max-width: 85%;
-            }
-            
             .chat-user-avatar {
                 width: 36px;
                 height: 36px;
                 font-size: 1rem;
             }
-            
+
+            .message {
+                max-width: 80%;
+                padding: 9px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chat-header {
+                padding: 10px 12px;
+                height: 55px;
+            }
+
+            .main-content {
+                margin-top: 55px;
+                margin-bottom: 55px;
+            }
+
+            .message-input-wrapper {
+                padding: 8px 12px;
+                height: 55px;
+            }
+
+            .messages-container {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+
+            .message {
+                max-width: 85%;
+                padding: 8px 11px;
+            }
+
+            .message-input-container {
+                gap: 8px;
+            }
+
+            .back-btn,
+            .chat-action-btn {
+                width: 34px;
+                height: 34px;
+            }
+
+            .chat-user-avatar {
+                width: 32px;
+                height: 32px;
+            }
+
             .chat-user-details h3 {
-                font-size: 1.1rem;
-            }
-            
-            .chat-user-status {
-                font-size: 0.8rem;
-            }
-            
-            .send-btn,
-            .attach-btn {
-                width: 42px;
-                height: 42px;
                 font-size: 1rem;
             }
+
+            .connection-status {
+                top: 10px;
+                right: 10px;
+                font-size: 0.7rem;
+                padding: 4px 8px;
+            }
         }
 
-        /* Auto-scroll to bottom when new messages arrive */
-        .auto-scroll {
-            scroll-behavior: smooth;
-        }
-
-        /* Ensure proper spacing for last message */
-        .messages-container > *:last-child {
-            margin-bottom: 5px;
-        }
-
-        /* Hide scrollbar when not needed */
+        /* Hide textarea scrollbar when not needed */
         .message-input::-webkit-scrollbar {
-            width: 4px;
+            width: 3px;
         }
 
         .message-input::-webkit-scrollbar-track {
@@ -558,15 +563,27 @@
         }
 
         .message-input::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 1.5px;
+        }
+
+        /* Ensure smooth scroll */
+        .messages-container {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
 <body>
-    <!-- Chat Header - FIXED AT TOP -->
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+    </div>
+
+    <!-- Chat Header -->
     <header class="chat-header">
-        <button class="back-btn" onclick="goBack()">←</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">←</button>
 
         <div class="chat-user-info">
             <div class="chat-user-avatar" id="chatUserAvatar">F</div>
@@ -580,41 +597,26 @@
         </div>
 
         <div class="chat-actions">
-            <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">
+            <button class="chat-action-btn" onclick="showUserInfo()" title="User Info" aria-label="User info">
                 ⓘ
             </button>
-            <button class="chat-action-btn" onclick="clearChat()" title="Clear Chat">
+            <button class="chat-action-btn" onclick="clearChat()" title="Clear Chat" aria-label="Clear chat">
                 🗑️
             </button>
         </div>
     </header>
 
-    <!-- MAIN CONTENT - ONLY THIS SCROLLS -->
+    <!-- Main Content -->
     <main class="main-content">
-        <!-- Messages Container - SCROLLABLE -->
         <div class="messages-container" id="messagesContainer">
             <!-- Messages will be loaded here -->
-            <div class="empty-chat">
-                <div class="empty-chat-icon">💬</div>
-                <h3>No messages yet</h3>
-                <p style="margin-top: 10px;">Start the conversation!</p>
-            </div>
-        </div>
-
-        <!-- Typing Indicator -->
-        <div class="typing-indicator" id="typingIndicator">
-            <div class="typing-dots">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-            </div>
         </div>
     </main>
 
-    <!-- Message Input - FIXED AT BOTTOM -->
+    <!-- Message Input -->
     <div class="message-input-wrapper">
         <div class="message-input-container">
-            <button class="attach-btn" onclick="attachFile()" title="Attach File">
+            <button class="attach-btn" onclick="attachFile()" title="Attach File" aria-label="Attach file">
                 📎
             </button>
 
@@ -624,7 +626,7 @@
                       onkeydown="handleKeyPress(event)"
                       oninput="autoResize(this)"></textarea>
 
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled aria-label="Send message">
                 ➤
             </button>
         </div>
@@ -635,7 +637,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">User Info</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div id="userInfoContent">
                 <!-- User info will be loaded here -->
@@ -643,6 +645,6 @@
         </div>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script src="script.js" type="module"></script>
 </body>
 </html>
