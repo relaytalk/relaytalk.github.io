@@ -79,7 +79,7 @@ function playSentSound() {
 
 function playReceivedSound() {
     try {
-        const audio = new Audio('received.mp3');
+        const audio = new Audio('recieve.mp3'); // Fixed spelling
         audio.volume = 0.3;
         audio.play().catch(e => console.log("Sound play failed:", e));
     } catch (error) {
@@ -230,7 +230,6 @@ function addMessageToUI(message) {
     setTimeout(scrollToBottom, 50);
 }
 
-// UPDATED: Better online/offline status with clear visibility
 function updateFriendStatus(status) {
     const isOnline = status === 'online';
     const statusText = document.getElementById('statusText');
@@ -238,18 +237,17 @@ function updateFriendStatus(status) {
     
     if (isOnline) {
         statusText.textContent = "Online";
-        statusText.style.color = "#28a745"; // Green for online
+        statusText.style.color = "#28a745";
         statusDot.className = "status-dot";
-        statusDot.style.boxShadow = "0 0 8px #28a745"; // Glow effect
+        statusDot.style.boxShadow = "0 0 8px #28a745";
     } else {
         statusText.textContent = "Offline";
-        statusText.style.color = "#6c757d"; // Gray for offline
+        statusText.style.color = "#6c757d";
         statusDot.className = "status-dot offline";
         statusDot.style.boxShadow = "none";
     }
 }
 
-// UPDATED: No live status indicator
 function setupRealtime(friendId) {
     console.log("🔧 Setting up realtime for friend:", friendId);
 
@@ -284,10 +282,11 @@ function setupRealtime(friendId) {
                     // Play received sound if message is from friend
                     if (newMsg.sender_id === friendId) {
                         playReceivedSound();
+                        // REMOVED: "New message from..." notification
+                        // Only flash title
                         const originalTitle = document.title;
                         document.title = "💬 New Message!";
                         setTimeout(() => document.title = originalTitle, 1000);
-                        showToast(`New message from ${chatFriend.username}`, "💬");
                     }
                 }
             }
@@ -307,7 +306,7 @@ function setupRealtime(friendId) {
                 chatFriend.status = payload.new.status;
                 updateFriendStatus(payload.new.status);
                 
-                // Show clear notification
+                // Show status change notification
                 if (payload.new.status === 'online') {
                     showToast(`${chatFriend.username} is now online`, "🟢", 2000);
                 } else {
@@ -320,7 +319,6 @@ function setupRealtime(friendId) {
     console.log("✅ Realtime active");
 }
 
-// Send message with sound
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
@@ -491,7 +489,7 @@ window.showUserInfo = function() {
         </div>
         <div class="user-info-actions">
             <button class="info-action-btn primary" onclick="startVoiceCall()">
-                📞 Voice Call
+                🎤 Voice Call
             </button>
             <button class="info-action-btn secondary" onclick="viewSharedMedia()">
                 📷 Shared Media
@@ -510,7 +508,7 @@ window.closeModal = function() {
 };
 
 window.startVoiceCall = function() {
-    showToast("Voice call feature coming soon!", "🎤");
+    showToast("Voice call feature coming soon!", "📞");
 };
 
 window.viewSharedMedia = function() {
