@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
     <!-- Loading Indicator -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-text">✨ Loading Friends...</div>
@@ -19,7 +22,7 @@
         <button class="back-btn" onclick="goToHome()">
             <i class="fas fa-arrow-left"></i> Back
         </button>
-        <div class="page-title">✨ Friends</div>
+        <div class="logo-top">✨ Relay</div> <!-- Changed from page-title to logo-top -->
     </header>
 
     <!-- Main Content -->
@@ -29,7 +32,7 @@
             <h1 class="friends-title">Your Friends Circle</h1>
             <p class="friends-subtitle">Connect, chat, and stay close with the people who matter most</p>
             
-            <!-- Stats -->
+            <!-- Stats - Updated without pending -->
             <div class="friends-stats">
                 <div class="stat-card">
                     <div class="stat-number" id="totalFriends">0</div>
@@ -38,10 +41,6 @@
                 <div class="stat-card">
                     <div class="stat-number" id="onlineFriends">0</div>
                     <div class="stat-label">Online Now</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="pendingRequests">0</div>
-                    <div class="stat-label">Pending</div>
                 </div>
             </div>
         </section>
@@ -55,43 +54,7 @@
             </div>
         </div>
 
-        <!-- Filter Options -->
-        <div class="filter-options">
-            <button class="filter-btn active" onclick="filterFriends('all')">
-                <i class="fas fa-users"></i> All Friends
-            </button>
-            <button class="filter-btn" onclick="filterFriends('online')">
-                <i class="fas fa-circle online"></i> Online
-            </button>
-            <button class="filter-btn" onclick="filterFriends('recent')">
-                <i class="fas fa-clock"></i> Recently Added
-            </button>
-            <button class="filter-btn" onclick="filterFriends('close')">
-                <i class="fas fa-heart"></i> Close Friends
-            </button>
-        </div>
-
-        <!-- Friends Tabs -->
-        <div class="friends-tabs">
-            <button class="tab-btn active" onclick="switchTab('all')" id="tabAll">
-                All Friends
-                <span class="tab-badge" id="badgeAll">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('online')" id="tabOnline">
-                Online
-                <span class="tab-badge" id="badgeOnline">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('requests')" id="tabRequests">
-                Requests
-                <span class="tab-badge" id="badgeRequests">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('sent')" id="tabSent">
-                Sent
-                <span class="tab-badge" id="badgeSent">0</span>
-            </button>
-        </div>
-
-        <!-- Friends Container -->
+        <!-- Friends Container - Removed tabs and filters -->
         <div class="friends-container" id="friendsContainer">
             <!-- Friends will be loaded here -->
             <div class="empty-state">
@@ -118,7 +81,7 @@
             <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
         </button>
 
-        <button class="nav-btn active" onclick="viewFriendsPage()">
+        <button class="nav-btn active" onclick="goToFriends()">
             <span class="nav-icon"><i class="fas fa-users"></i></span>
             Friends
         </button>
@@ -148,6 +111,25 @@
         </div>
     </div>
 
-    <script type="module" src="../script.js"></script>
+    <!-- Notifications Modal -->
+    <div class="modal-overlay" id="notificationsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            
+            <div id="notificationsList">
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-icon">🔔</div>
+                    <h3 class="empty-title">No Notifications</h3>
+                    <p class="empty-desc">You're all caught up! New notifications will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Friends Page Script -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
