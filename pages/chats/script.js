@@ -16,9 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Check auth
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            showCustomAlert("Please login first!", "⚠️", "Login Required", () => {
-                window.location.href = '../auth/index.html';
-            });
+            // NEW: Better login alert with Login/Signup buttons
+            showLoginAlert();
             return;
         }
 
@@ -55,10 +54,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load old messages
         await loadOldMessages(friendId);
 
-        // Setup realtime - SIMPLIFIED & FIXED
+        // Setup realtime
         setupRealtime(friendId);
 
-        console.log("✅ Chat ready - Realtime active!");
+        console.log("✅ Chat ready!");
 
     } catch (error) {
         console.error("Init error:", error);
@@ -68,7 +67,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Load old messages - FIXED QUERY
+// NEW: Better login alert with Login/Signup options
+function showLoginAlert() {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = "🔐";
+    alertTitle.textContent = "Login Required";
+    alertMessage.textContent = "Please login or signup to continue chatting!";
+    
+    // Show both buttons
+    alertCancel.style.display = 'inline-block';
+    
+    // Login button
+    alertConfirm.textContent = "Login";
+    alertConfirm.className = "alert-btn confirm";
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        window.location.href = '../auth/index.html'; // Login page
+    };
+
+    // Signup button
+    alertCancel.textContent = "Signup";
+    alertCancel.className = "alert-btn cancel";
+    alertCancel.onclick = () => {
+        alertOverlay.style.display = 'none';
+        window.location.href = '../auth/index.html?signup=true'; // Signup page
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+// Load old messages
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -76,7 +110,6 @@ async function loadOldMessages(friendId) {
     try {
         console.log("Loading messages for friend:", friendId);
 
-        // FIXED: Get messages between ONLY these two users
         const { data: messages, error } = await supabase
             .from('direct_messages')
             .select('*')
@@ -193,22 +226,19 @@ function updateFriendStatus(status) {
     document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
 }
 
-// REAL-TIME - SIMPLIFIED & WORKING
+// REAL-TIME
 function setupRealtime(friendId) {
     console.log("🔧 Setting up realtime for friend:", friendId);
 
     // Clean up old channels
     if (chatChannel) {
-        console.log("Removing old chat channel");
         supabase.removeChannel(chatChannel);
     }
     if (statusChannel) {
-        console.log("Removing old status channel");
         supabase.removeChannel(statusChannel);
     }
 
-    // ========== MESSAGE CHANNEL - SIMPLIFIED ==========
-    // Listen to ALL inserts in direct_messages, then filter manually
+    // Message channel
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
@@ -247,8 +277,7 @@ function setupRealtime(friendId) {
             updateRealtimeStatus(status, 'message');
         });
 
-    // ========== STATUS CHANNEL - SIMPLIFIED ==========
-    // Listen to ALL updates in profiles, then filter
+    // Status channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -287,24 +316,21 @@ function updateRealtimeStatus(status, type = 'message') {
     const now = new Date().toLocaleTimeString();
     
     if (status === 'SUBSCRIBED') {
-        statusEl.innerHTML = `🟢 Live (${type}) - ${now}`;
+        statusEl.innerHTML = `🟢 Live`;
         statusEl.style.background = '#28a745';
-        console.log(`✅ ${type.toUpperCase()} CHANNEL SUBSCRIBED!`);
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        statusEl.innerHTML = `🔴 ${type} Error - ${now}`;
+        statusEl.innerHTML = `🔴 Error`;
         statusEl.style.background = '#dc3545';
-        console.error(`${type} channel error, retrying...`);
         
         // Retry after 5 seconds
         setTimeout(() => {
             const friendId = new URLSearchParams(window.location.search).get('friendId');
             if (friendId) {
-                console.log(`🔄 Retrying ${type} channel...`);
                 setupRealtime(friendId);
             }
         }, 5000);
     } else {
-        statusEl.innerHTML = `🟡 ${type} Connecting... - ${now}`;
+        statusEl.innerHTML = `🟡 Connecting`;
         statusEl.style.background = '#ffc107';
     }
 }
@@ -332,7 +358,7 @@ function createStatus() {
     return div;
 }
 
-// Send message
+// Send message - FIXED: Keyboard doesn't close
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
@@ -360,19 +386,20 @@ async function sendMessage() {
 
         console.log("✅ Message sent to database:", data.id);
         
-        // Clear input but keep focus
+        // FIX: Clear input WITHOUT losing focus (keyboard stays open)
         input.value = '';
         input.style.height = 'auto';
-        input.focus();
+        
+        // IMPORTANT: Schedule focus for next event cycle to prevent keyboard flash
+        setTimeout(() => {
+            input.focus();
+        }, 0);
         
         // Update send button
         document.getElementById('sendBtn').disabled = true;
 
-        // Add message instantly (realtime will also add it)
+        // Add message instantly
         addMessageToUI(data);
-
-        // Debug: Check if message was inserted
-        console.log("Message inserted, waiting for realtime...");
 
     } catch (error) {
         console.error("Send failed:", error);
@@ -475,11 +502,9 @@ function showToast(message, icon = "ℹ️") {
 // Go back
 function goBack() {
     if (chatChannel) {
-        console.log("Closing chat channel");
         supabase.removeChannel(chatChannel);
     }
     if (statusChannel) {
-        console.log("Closing status channel");
         supabase.removeChannel(statusChannel);
     }
     window.location.href = '../home/index.html';
@@ -548,9 +573,7 @@ window.blockUserPrompt = function() {
     );
 };
 
-window.attachFile = function() {
-    showToast("File attachment feature coming soon!", "📎");
-};
+// REMOVED: attachFile function
 
 window.clearChatPrompt = async function() {
     showConfirmAlert(
@@ -576,37 +599,6 @@ window.clearChatPrompt = async function() {
             }
         }
     );
-};
-
-// DEBUG FUNCTION: Test realtime manually
-window.testRealtime = async function() {
-    console.log("=== REALTIME DEBUG ===");
-    console.log("Current User:", currentUser?.id);
-    console.log("Friend:", chatFriend?.id);
-    console.log("Chat Channel:", chatChannel?.topic);
-    console.log("Status Channel:", statusChannel?.topic);
-    console.log("Current Messages:", currentMessages.length);
-    
-    // Test insert
-    const testMsg = {
-        sender_id: currentUser.id,
-        receiver_id: chatFriend.id,
-        content: "Test message at " + new Date().toLocaleTimeString(),
-        created_at: new Date().toISOString()
-    };
-    
-    const { data, error } = await supabase
-        .from('direct_messages')
-        .insert(testMsg)
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Test insert failed:", error);
-    } else {
-        console.log("Test insert successful:", data);
-        showToast("Test message sent!", "🧪");
-    }
 };
 
 // Make functions global
