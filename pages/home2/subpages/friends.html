@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friends - RelayTalk ✨</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .friends-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #a0a0c0;
+            padding: 15px 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-btn.active {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #8a2be2);
+            border-radius: 3px;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 0 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .friend-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .friend-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(10px);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+        
+        .friend-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            padding: 8px 15px;
+            border-radius: 15px;
+            border: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .message-btn {
+            background: linear-gradient(135deg, #00d4ff, #8a2be2);
+            color: white;
+        }
+        
+        .remove-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ff6b8b;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #8a2be2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #a0a0c0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="loading-content">
+            <div class="logo-circle">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <h1 class="app-title">Loading Friends</h1>
+            <p class="loading-text">Gathering your connections...</p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app-container" id="appContainer">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-arrow-left" onclick="window.location.href='../index.html'"></i>
+                    <span>Friends</span>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="refreshFriends()">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Friends Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalFriends">0</div>
+                <div class="stat-label">Total Friends</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="onlineFriends">0</div>
+                <div class="stat-label">Online Now</div>
+            </div>
+        </div>
+
+        <!-- Friends Tabs -->
+        <div class="friends-tabs">
+            <button class="tab-btn active" onclick="switchTab('all')">
+                <i class="fas fa-users"></i>
+                All Friends
+            </button>
+            <button class="tab-btn" onclick="switchTab('online')">
+                <i class="fas fa-circle"></i>
+                Online
+            </button>
+            <button class="tab-btn" onclick="switchTab('recent')">
+                <i class="fas fa-clock"></i>
+                Recent
+            </button>
+        </div>
+
+        <!-- All Friends Tab -->
+        <div class="tab-content active" id="allFriendsTab">
+            <div class="chats-container">
+                <div class="friends-list" id="allFriendsList">
+                    <!-- All friends will be loaded here -->
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <h3>No friends yet</h3>
+                        <p>Start by adding friends!</p>
+                        <button class="btn-primary" onclick="window.location.href='search.html'">
+                            <i class="fas fa-search"></i>
+                            Find Friends
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Online Friends Tab -->
+        <div class="tab-content" id="onlineFriendsTab">
+            <div class="chats-container">
+                <div class="friends-list" id="onlineFriendsList">
+                    <!-- Online friends will be loaded here -->
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                        <h3>No one online</h3>
+                        <p>Check back later!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Friends Tab -->
+        <div class="tab-content" id="recentFriendsTab">
+            <div class="chats-container">
+                <div class="friends-list" id="recentFriendsList">
+                    <!-- Recent friends will be loaded here -->
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <h3>No recent activity</h3>
+                        <p>Start chatting with friends!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="../index.html" class="nav-item">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="friends.html" class="nav-item active">
+                <i class="fas fa-user-friends"></i>
+                <span>Friends</span>
+            </a>
+            <a href="search.html" class="nav-item">
+                <i class="fas fa-search"></i>
+                <span>Search</span>
+            </a>
+            <a href="notifications.html" class="nav-item">
+                <i class="fas fa-bell"></i>
+                <span>Alerts</span>
+                <span class="nav-badge" id="navNotificationBadge">0</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Remove Friend Modal -->
+    <div class="modal-overlay" id="removeModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-minus"></i> Remove Friend</h2>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="removeMessage">Are you sure you want to remove this friend?</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button class="btn-primary" id="confirmRemove">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../utils/supabase.js"></script>
+    <script src="../../utils/auth.js"></script>
+    <script src="friends.js"></script>
+</body>
+</html>
