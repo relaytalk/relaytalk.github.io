@@ -1,0 +1,345 @@
+/* Responsive Design for Chat Page */
+
+/* Large Desktop */
+@media (max-width: 1440px) {
+    .message {
+        max-width: 75%;
+    }
+}
+
+/* Desktop */
+@media (max-width: 1200px) {
+    .message {
+        max-width: 78%;
+    }
+}
+
+/* Small Desktop / Large Tablet */
+@media (max-width: 1024px) {
+    .chat-header {
+        padding: 14px 18px;
+        height: 68px;
+    }
+    
+    .main-content {
+        margin-top: 68px;
+        margin-bottom: 88px;
+        height: calc(100vh - 156px);
+    }
+    
+    .messages-container {
+        padding: 18px 18px 55px 18px;
+    }
+    
+    .message {
+        max-width: 80%;
+    }
+}
+
+/* Tablet Landscape */
+@media (max-width: 900px) {
+    .message {
+        max-width: 82%;
+    }
+}
+
+/* Tablet Portrait */
+@media (max-width: 768px) {
+    .chat-header {
+        padding: 12px 16px;
+        height: 65px;
+    }
+
+    .main-content {
+        margin-top: 65px;
+        margin-bottom: 85px;
+        height: calc(100vh - 150px);
+    }
+
+    .messages-container {
+        padding: 15px 16px 50px 16px;
+    }
+
+    .message-input-wrapper {
+        padding: 10px 16px 12px 16px;
+        height: 80px;
+    }
+
+    .message-input {
+        padding: 10px 14px;
+        min-height: 42px;
+        border-radius: 20px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+
+    .send-btn,
+    .attach-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
+
+    .message {
+        max-width: 85%;
+        padding: 11px 15px;
+    }
+    
+    .chat-user-avatar {
+        width: 42px;
+        height: 42px;
+    }
+}
+
+/* Mobile Landscape */
+@media (max-width: 667px) and (orientation: landscape) {
+    .chat-header {
+        height: 60px;
+        padding: 10px 15px;
+    }
+    
+    .main-content {
+        margin-top: 60px;
+        margin-bottom: 70px;
+        height: calc(100vh - 130px);
+    }
+    
+    .messages-container {
+        padding: 10px 15px 35px 15px;
+    }
+    
+    .message-input-wrapper {
+        height: 70px;
+        padding: 8px 15px 10px 15px;
+    }
+    
+    .message-input {
+        min-height: 40px;
+        padding: 8px 12px;
+    }
+}
+
+/* Mobile Portrait */
+@media (max-width: 600px) {
+    .chat-header {
+        padding: 10px 14px;
+        height: 60px;
+    }
+
+    .main-content {
+        margin-top: 60px;
+        margin-bottom: 80px;
+        height: calc(100vh - 140px);
+    }
+
+    .messages-container {
+        padding: 12px 14px 45px 14px;
+    }
+
+    .message-input-wrapper {
+        padding: 8px 14px 10px 14px;
+        height: 75px;
+    }
+
+    .message-input-container {
+        gap: 10px;
+    }
+
+    .message {
+        max-width: 88%;
+        padding: 10px 14px;
+    }
+
+    .chat-user-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+
+    .back-btn,
+    .chat-action-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .message-input {
+        font-size: 0.95rem;
+        min-height: 40px;
+        padding: 9px 13px;
+    }
+
+    .send-btn,
+    .attach-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 0.95rem;
+    }
+    
+    .custom-alert {
+        padding: 20px;
+        max-width: 320px;
+    }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+    .chat-header {
+        padding: 8px 12px;
+        height: 56px;
+    }
+
+    .main-content {
+        margin-top: 56px;
+        margin-bottom: 75px;
+        height: calc(100vh - 131px);
+    }
+
+    .messages-container {
+        padding: 10px 12px 40px 12px;
+        gap: 10px;
+    }
+
+    .message-input-wrapper {
+        padding: 6px 12px 8px 12px;
+        height: 70px;
+    }
+
+    .message {
+        max-width: 90%;
+        padding: 9px 12px;
+        font-size: 0.95rem;
+    }
+
+    .chat-user-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .chat-user-details h3 {
+        font-size: 1.1rem;
+    }
+
+    .chat-user-status {
+        font-size: 0.8rem;
+    }
+
+    .message-input {
+        min-height: 38px;
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
+    .send-btn,
+    .attach-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.9rem;
+    }
+    
+    .empty-chat-icon {
+        font-size: 3.5rem;
+    }
+    
+    .empty-chat h3 {
+        font-size: 1.2rem;
+    }
+}
+
+/* Extra Small Mobile */
+@media (max-width: 360px) {
+    .chat-header {
+        padding: 6px 10px;
+        height: 54px;
+    }
+    
+    .main-content {
+        margin-top: 54px;
+        margin-bottom: 70px;
+        height: calc(100vh - 124px);
+    }
+    
+    .messages-container {
+        padding: 8px 10px 35px 10px;
+    }
+    
+    .message {
+        max-width: 92%;
+        padding: 8px 11px;
+        font-size: 0.9rem;
+    }
+    
+    .message-input-wrapper {
+        padding: 5px 10px 7px 10px;
+        height: 65px;
+    }
+    
+    .message-input {
+        min-height: 36px;
+        padding: 7px 11px;
+        font-size: 0.85rem;
+    }
+    
+    .send-btn,
+    .attach-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 0.85rem;
+    }
+    
+    .back-btn,
+    .chat-action-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 1.1rem;
+    }
+    
+    .chat-user-avatar {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+/* Very Short Height Devices */
+@media (max-height: 600px) {
+    .chat-header {
+        height: 55px;
+        padding: 8px 15px;
+    }
+    
+    .main-content {
+        margin-top: 55px;
+        margin-bottom: 70px;
+        height: calc(100vh - 125px);
+    }
+    
+    .messages-container {
+        padding: 10px 15px 35px 15px;
+    }
+    
+    .message {
+        padding: 8px 12px;
+        margin-bottom: 6px;
+    }
+    
+    .message-input-wrapper {
+        height: 70px;
+        padding: 8px 15px 10px 15px;
+    }
+    
+    .message-input {
+        min-height: 36px;
+        max-height: 80px;
+    }
+    
+    .empty-chat-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+}
+
+/* Prevent iOS zoom on input focus */
+@media (max-width: 768px) {
+    input, textarea {
+        font-size: 16px !important;
+    }
+}
