@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Check auth
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            // NEW: Better login alert with Login/Signup buttons
             showLoginAlert();
             return;
         }
@@ -67,7 +66,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// NEW: Better login alert with Login/Signup options - FIXED REDIRECT
+// SOUND EFFECTS 🎵
+function playSentSound() {
+    try {
+        const audio = new Audio('sent.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log("Sound play failed:", e));
+    } catch (error) {
+        console.log("Sound error:", error);
+    }
+}
+
+function playReceivedSound() {
+    try {
+        const audio = new Audio('received.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log("Sound play failed:", e));
+    } catch (error) {
+        console.log("Sound error:", error);
+    }
+}
+
 function showLoginAlert() {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
@@ -79,30 +98,26 @@ function showLoginAlert() {
     alertIcon.textContent = "🔐";
     alertTitle.textContent = "Login Required";
     alertMessage.textContent = "Please login or signup to continue chatting!";
-
-    // Show both buttons
+    
     alertCancel.style.display = 'inline-block';
-
-    // FIXED: Login button redirects to pages/login/index.html
+    
     alertConfirm.textContent = "Login";
     alertConfirm.className = "alert-btn confirm";
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
-     window.location.href = '../login/index.html';
+        window.location.href = '../login/index.html';
     };
 
-    // Signup button
     alertCancel.textContent = "Signup";
     alertCancel.className = "alert-btn cancel";
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
-        window.location.href = '../auth/index.html?signup=true'; // Same page with signup flag
+        window.location.href = '../auth/index.html';
     };
 
     alertOverlay.style.display = 'flex';
 }
 
-// Load old messages
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -134,7 +149,6 @@ async function loadOldMessages(friendId) {
     }
 }
 
-// Show messages in UI
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -181,7 +195,6 @@ function showMessages(messages) {
     setTimeout(scrollToBottom, 150);
 }
 
-// Scroll to bottom
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (container) {
@@ -191,12 +204,10 @@ function scrollToBottom() {
     }
 }
 
-// Add single message to UI
 function addMessageToUI(message) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
 
-    // Remove empty state if exists
     if (container.querySelector('.empty-chat')) {
         container.innerHTML = '';
     }
@@ -219,18 +230,29 @@ function addMessageToUI(message) {
     setTimeout(scrollToBottom, 50);
 }
 
-// Update friend status UI
+// UPDATED: Better online/offline status with clear visibility
 function updateFriendStatus(status) {
     const isOnline = status === 'online';
-    document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
-    document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    
+    if (isOnline) {
+        statusText.textContent = "Online";
+        statusText.style.color = "#28a745"; // Green for online
+        statusDot.className = "status-dot";
+        statusDot.style.boxShadow = "0 0 8px #28a745"; // Glow effect
+    } else {
+        statusText.textContent = "Offline";
+        statusText.style.color = "#6c757d"; // Gray for offline
+        statusDot.className = "status-dot offline";
+        statusDot.style.boxShadow = "none";
+    }
 }
 
-// REAL-TIME
+// UPDATED: No live status indicator
 function setupRealtime(friendId) {
     console.log("🔧 Setting up realtime for friend:", friendId);
 
-    // Clean up old channels
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
@@ -238,7 +260,6 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // Message channel
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
@@ -246,24 +267,23 @@ function setupRealtime(friendId) {
             table: 'direct_messages'
         }, (payload) => {
             console.log("📨 Realtime INSERT detected:", payload.new);
-
+            
             const newMsg = payload.new;
-
-            // Check if this message is for our chat
+            
             const isOurMessage = 
                 (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
-
+            
             if (isOurMessage) {
-                // Check for duplicates
                 const isDuplicate = currentMessages.some(msg => msg.id === newMsg.id);
-
+                
                 if (!isDuplicate) {
                     console.log("✅ Adding new message to UI");
                     addMessageToUI(newMsg);
-
-                    // Notification for incoming messages only
+                    
+                    // Play received sound if message is from friend
                     if (newMsg.sender_id === friendId) {
+                        playReceivedSound();
                         const originalTitle = document.title;
                         document.title = "💬 New Message!";
                         setTimeout(() => document.title = originalTitle, 1000);
@@ -272,95 +292,35 @@ function setupRealtime(friendId) {
                 }
             }
         })
-        .subscribe((status) => {
-            console.log("💬 Message Channel Status:", status);
-            updateRealtimeStatus(status, 'message');
-        });
+        .subscribe();
 
-    // Status channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
-            table: 'profiles'
+            table: 'profiles',
+            filter: `id=eq.${friendId}`
         }, (payload) => {
-            console.log("🔄 Profile UPDATE detected:", payload.new);
-
-            // Check if this update is for our friend
+            console.log("🔄 Friend status updated:", payload.new.status);
+            
             if (payload.new.id === friendId) {
-                console.log("✅ Friend status updated:", payload.new.status);
                 chatFriend.status = payload.new.status;
                 updateFriendStatus(payload.new.status);
-
-                // Show toast for status change
+                
+                // Show clear notification
                 if (payload.new.status === 'online') {
-                    showToast(`${chatFriend.username} is now online`, "🟢");
+                    showToast(`${chatFriend.username} is now online`, "🟢", 2000);
                 } else {
-                    showToast(`${chatFriend.username} is now offline`, "⚫");
+                    showToast(`${chatFriend.username} is now offline`, "⚫", 2000);
                 }
             }
         })
-        .subscribe((status) => {
-            console.log("📊 Status Channel Status:", status);
-            updateRealtimeStatus(status, 'status');
-        });
+        .subscribe();
 
-    console.log("🎯 Realtime channels created");
+    console.log("✅ Realtime active");
 }
 
-// Update realtime status indicator
-function updateRealtimeStatus(status, type = 'message') {
-    let statusEl = document.getElementById('realtimeStatus');
-    if (!statusEl) {
-        statusEl = createStatus();
-    }
-
-    const now = new Date().toLocaleTimeString();
-
-    if (status === 'SUBSCRIBED') {
-        statusEl.innerHTML = `🟢 Live`;
-        statusEl.style.background = '#28a745';
-    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        statusEl.innerHTML = `🔴 Error`;
-        statusEl.style.background = '#dc3545';
-
-        // Retry after 5 seconds
-        setTimeout(() => {
-            const friendId = new URLSearchParams(window.location.search).get('friendId');
-            if (friendId) {
-                setupRealtime(friendId);
-            }
-        }, 5000);
-    } else {
-        statusEl.innerHTML = `🟡 Connecting`;
-        statusEl.style.background = '#ffc107';
-    }
-}
-
-function createStatus() {
-    const div = document.createElement('div');
-    div.id = 'realtimeStatus';
-    div.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #ffc107;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 10px;
-        font-size: 12px;
-        z-index: 9999;
-        font-weight: bold;
-        max-width: 250px;
-        word-wrap: break-word;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
-    `;
-    document.body.appendChild(div);
-    return div;
-}
-
-// Send message - FIXED: Keyboard doesn't close
+// Send message with sound
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
@@ -387,16 +347,15 @@ async function sendMessage() {
         if (error) throw error;
 
         console.log("✅ Message sent to database:", data.id);
-
-        // FIX: Clear input WITHOUT losing focus (keyboard stays open)
+        
+        // Play sent sound 🎵
+        playSentSound();
+        
+        // Clear input but keep focus
         input.value = '';
         input.style.height = 'auto';
-
-        // IMPORTANT: Schedule focus for next event cycle to prevent keyboard flash
-        setTimeout(() => {
-            input.focus();
-        }, 0);
-
+        setTimeout(() => input.focus(), 0);
+        
         // Update send button
         document.getElementById('sendBtn').disabled = true;
 
@@ -409,7 +368,6 @@ async function sendMessage() {
     }
 }
 
-// Handle Enter key
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -426,7 +384,6 @@ function handleKeyPress(event) {
     }
 }
 
-// Auto resize textarea
 function autoResize(textarea) {
     textarea.style.height = 'auto';
     const newHeight = Math.min(textarea.scrollHeight, 100);
@@ -438,7 +395,6 @@ function autoResize(textarea) {
     }
 }
 
-// CUSTOM ALERT SYSTEM
 function showCustomAlert(message, icon = "⚠️", title = "Alert", onConfirm = null) {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
@@ -489,7 +445,7 @@ function showConfirmAlert(message, icon = "❓", title = "Confirm", onConfirm, o
     alertOverlay.style.display = 'flex';
 }
 
-function showToast(message, icon = "ℹ️") {
+function showToast(message, icon = "ℹ️", duration = 3000) {
     const toast = document.getElementById('customToast');
     const toastIcon = document.getElementById('toastIcon');
     const toastMessage = document.getElementById('toastMessage');
@@ -498,10 +454,9 @@ function showToast(message, icon = "ℹ️") {
     toastMessage.textContent = message;
     toast.style.display = 'flex';
 
-    setTimeout(() => toast.style.display = 'none', 3000);
+    setTimeout(() => toast.style.display = 'none', duration);
 }
 
-// Go back
 function goBack() {
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -512,7 +467,6 @@ function goBack() {
     window.location.href = '../home/index.html';
 }
 
-// Show user info modal
 window.showUserInfo = function() {
     if (!chatFriend) {
         showToast("User information not available", "⚠️");
