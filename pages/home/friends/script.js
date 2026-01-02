@@ -1,6 +1,6 @@
 // Friends Page Script
-import { auth } from '../../utils/auth.js'
-import { supabase } from '../../utils/supabase.js'
+import { auth } from '../../../utils/auth.js'
+import { supabase } from '../../../utils/supabase.js'
 
 console.log("✨ Friends Page Loaded");
 
