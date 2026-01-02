@@ -15,11 +15,11 @@ body {
     flex-direction: column;
 }
 
-/* Chat Header - FIXED AT TOP */
+/* Chat Header - BIGGER SIZE */
 .chat-header {
     display: flex;
     align-items: center;
-    padding: 15px 20px;
+    padding: 18px 20px; /* Increased from 15px */
     background: rgba(26, 26, 46, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -28,20 +28,20 @@ body {
     left: 0;
     right: 0;
     z-index: 100;
-    height: 70px;
+    height: 80px; /* Increased from 70px */
 }
 
 .back-btn {
     background: none;
     border: none;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Slightly bigger */
     cursor: pointer;
     margin-right: 15px;
-    padding: 5px;
+    padding: 6px; /* Slightly bigger */
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 44px; /* Increased from 40px */
+    height: 44px; /* Increased from 40px */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,20 +61,20 @@ body {
 }
 
 .chat-user-avatar {
-    width: 45px;
-    height: 45px;
+    width: 50px; /* Increased from 45px */
+    height: 50px; /* Increased from 45px */
     background: linear-gradient(45deg, #667eea, #764ba2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1.3rem; /* Slightly bigger */
     font-weight: bold;
 }
 
 .chat-user-details h3 {
-    font-size: 1.2rem;
-    margin: 0 0 3px 0;
+    font-size: 1.3rem; /* Increased from 1.2rem */
+    margin: 0 0 4px 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -84,14 +84,14 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9rem;
+    font-size: 0.95rem; /* Slightly bigger */
     color: #a0a0c0;
 }
 
 /* Status dot */
 .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 9px; /* Slightly bigger */
+    height: 9px; /* Slightly bigger */
     border-radius: 50%;
     background: #28a745;
     display: inline-block;
@@ -110,12 +110,12 @@ body {
     background: none;
     border: none;
     color: #a0a0c0;
-    font-size: 1.2rem;
+    font-size: 1.3rem; /* Slightly bigger */
     cursor: pointer;
     padding: 8px;
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 44px; /* Increased from 40px */
+    height: 44px; /* Increased from 40px */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -127,38 +127,38 @@ body {
     color: white;
 }
 
-/* MAIN CONTENT - SCROLLABLE AREA */
+/* MAIN CONTENT - Adjusted for bigger header */
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    margin-top: 70px;
-    margin-bottom: 90px;
+    margin-top: 80px; /* Increased from 70px */
+    margin-bottom: 95px; /* Increased from 90px */
     overflow: hidden;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 175px); /* Adjusted for new sizes */
 }
 
-/* Messages Container */
+/* Messages Container - MORE BOTTOM SPACE */
 .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 60px 20px;
+    padding: 20px 20px 65px 20px; /* Increased bottom from 60px to 65px */
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px; /* Increased from 12px */
     min-height: 0;
 }
 
-/* Last message spacing */
+/* Last message MORE spacing */
 .messages-container > .message:last-child {
-    margin-bottom: 15px;
+    margin-bottom: 18px; /* Increased from 15px */
 }
 
 /* Message Bubbles */
 .message {
     max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 20px;
+    padding: 13px 17px; /* Increased from 12px 16px */
+    border-radius: 22px; /* Slightly bigger */
     position: relative;
     animation: fadeIn 0.3s ease;
     word-wrap: break-word;
@@ -200,9 +200,9 @@ body {
 }
 
 .message-time {
-    font-size: 0.7rem;
+    font-size: 0.72rem; /* Slightly bigger */
     opacity: 0.7;
-    margin-top: 4px;
+    margin-top: 5px; /* Increased from 4px */
     text-align: right;
     font-weight: 300;
 }
@@ -214,20 +214,20 @@ body {
 /* Date Separator */
 .date-separator {
     text-align: center;
-    margin: 16px 0;
+    margin: 18px 0; /* Increased from 16px */
     position: relative;
 }
 
 .date-separator span {
     background: rgba(255, 255, 255, 0.08);
-    padding: 5px 15px;
+    padding: 6px 16px; /* Increased from 5px 15px */
     border-radius: 12px;
-    font-size: 0.8rem;
+    font-size: 0.82rem; /* Slightly bigger */
     color: #a0a0c0;
     font-weight: 300;
 }
 
-/* Message Input - NO ATTACH BUTTON */
+/* Message Input - BIGGER SIZE */
 .message-input-wrapper {
     position: fixed;
     bottom: 0;
@@ -237,13 +237,13 @@ body {
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 100;
-    padding: 12px 20px 15px 20px;
-    height: 85px;
+    padding: 15px 20px 18px 20px; /* Increased padding */
+    height: 95px; /* Increased from 85px */
 }
 
 .message-input-container {
     display: flex;
-    gap: 12px;
+    gap: 14px; /* Increased from 12px */
     align-items: flex-end;
     max-width: 100%;
     height: 100%;
@@ -251,17 +251,17 @@ body {
 
 .message-input {
     flex: 1;
-    padding: 12px 16px;
+    padding: 14px 18px; /* Increased from 12px 16px */
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 22px;
+    border-radius: 24px; /* Increased from 22px */
     color: white;
-    font-size: 1rem;
+    font-size: 1.05rem; /* Slightly bigger */
     resize: none;
     font-family: inherit;
-    line-height: 1.4;
-    min-height: 46px;
-    max-height: 120px;
+    line-height: 1.5;
+    min-height: 50px; /* Increased from 46px */
+    max-height: 130px; /* Increased from 120px */
     box-sizing: border-box;
     transition: all 0.2s ease;
     overflow-y: auto;
@@ -271,7 +271,7 @@ body {
     outline: none;
     border-color: #667eea;
     background: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); /* Slightly bigger */
 }
 
 .message-input::placeholder {
@@ -282,11 +282,11 @@ body {
     background: linear-gradient(135deg, #667eea, #764ba2);
     border: none;
     color: white;
-    width: 46px;
-    height: 46px;
+    width: 50px; /* Increased from 46px */
+    height: 50px; /* Increased from 46px */
     border-radius: 50%;
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 1.2rem; /* Increased from 1.1rem */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,21 +339,21 @@ body {
 .typing-indicator {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.1);
-    padding: 10px 15px;
-    border-radius: 20px;
+    padding: 11px 16px; /* Slightly bigger */
+    border-radius: 22px; /* Slightly bigger */
     border-bottom-left-radius: 5px;
     display: none;
-    margin-bottom: 10px;
+    margin-bottom: 12px; /* Increased from 10px */
 }
 
 .typing-dots {
     display: flex;
-    gap: 4px;
+    gap: 5px; /* Increased from 4px */
 }
 
 .typing-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px; /* Increased from 6px */
+    height: 7px; /* Increased from 6px */
     background: #a0a0c0;
     border-radius: 50%;
     animation: typing 1.4s infinite;
@@ -369,7 +369,7 @@ body {
 
 @keyframes typing {
     0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-5px); }
+    30% { transform: translateY(-6px); } /* Increased from -5px */
 }
 
 /* CUSTOM ALERTS */
@@ -390,10 +390,10 @@ body {
 .custom-alert {
     background: rgba(26, 26, 46, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 25px;
+    border-radius: 22px; /* Slightly bigger */
+    padding: 28px; /* Increased from 25px */
     width: 90%;
-    max-width: 350px;
+    max-width: 360px; /* Slightly bigger */
     text-align: center;
     animation: slideUp 0.3s ease;
 }
@@ -404,37 +404,38 @@ body {
 }
 
 .custom-alert-icon {
-    font-size: 3rem;
-    margin-bottom: 15px;
+    font-size: 3.2rem; /* Increased from 3rem */
+    margin-bottom: 18px; /* Increased from 15px */
 }
 
 .custom-alert-title {
-    font-size: 1.3rem;
-    margin-bottom: 10px;
+    font-size: 1.4rem; /* Increased from 1.3rem */
+    margin-bottom: 12px; /* Increased from 10px */
     color: white;
 }
 
 .custom-alert-message {
     color: #a0a0c0;
-    margin-bottom: 20px;
+    margin-bottom: 25px; /* Increased from 20px */
     line-height: 1.5;
+    font-size: 1.02rem; /* Slightly bigger */
 }
 
 .custom-alert-buttons {
     display: flex;
-    gap: 10px;
+    gap: 12px; /* Increased from 10px */
     justify-content: center;
 }
 
 .alert-btn {
-    padding: 10px 25px;
-    border-radius: 15px;
+    padding: 12px 28px; /* Increased from 10px 25px */
+    border-radius: 16px; /* Increased from 15px */
     border: none;
-    font-size: 1rem;
+    font-size: 1.05rem; /* Slightly bigger */
     cursor: pointer;
     transition: all 0.3s;
     font-weight: 500;
-    min-width: 100px;
+    min-width: 110px; /* Increased from 100px */
 }
 
 .alert-btn.confirm {
@@ -460,29 +461,29 @@ body {
     right: 20px;
     background: rgba(26, 26, 46, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    padding: 15px 20px;
+    border-radius: 16px; /* Increased from 15px */
+    padding: 16px 22px; /* Increased from 15px 20px */
     display: none;
     align-items: center;
-    gap: 10px;
+    gap: 12px; /* Increased from 10px */
     z-index: 2000;
     animation: slideInRight 0.3s ease;
-    max-width: 300px;
+    max-width: 320px; /* Slightly bigger */
     backdrop-filter: blur(10px);
 }
 
 .toast-icon {
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Increased from 1.5rem */
 }
 
 .toast-message {
     color: white;
-    font-size: 0.95rem;
+    font-size: 1rem; /* Increased from 0.95rem */
 }
 
 /* Scrollbar Styling */
 .messages-container::-webkit-scrollbar {
-    width: 8px;
+    width: 9px; /* Increased from 8px */
 }
 
 .messages-container::-webkit-scrollbar-track {
@@ -500,7 +501,7 @@ body {
 }
 
 .message-input::-webkit-scrollbar {
-    width: 4px;
+    width: 5px; /* Increased from 4px */
 }
 
 .message-input::-webkit-scrollbar-track {
@@ -509,7 +510,7 @@ body {
 
 .message-input::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
+    border-radius: 3px; /* Increased from 2px */
 }
 
 /* Modal styles */
@@ -530,10 +531,10 @@ body {
 .modal-content {
     background: rgba(26, 26, 46, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 25px;
-    padding: 30px;
+    border-radius: 28px; /* Increased from 25px */
+    padding: 32px; /* Increased from 30px */
     width: 90%;
-    max-width: 400px;
+    max-width: 420px; /* Increased from 400px */
     max-height: 80vh;
     overflow-y: auto;
     animation: slideUp 0.3s ease;
@@ -543,11 +544,11 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    margin-bottom: 28px; /* Increased from 25px */
 }
 
 .modal-title {
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Increased from 1.5rem */
     color: white;
 }
 
@@ -555,12 +556,12 @@ body {
     background: none;
     border: none;
     color: #a0a0c0;
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Increased from 1.5rem */
     cursor: pointer;
-    padding: 5px;
+    padding: 6px; /* Increased from 5px */
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 44px; /* Increased from 40px */
+    height: 44px; /* Increased from 40px */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -574,43 +575,45 @@ body {
 
 /* User Info Styles */
 .user-info-avatar {
-    width: 80px;
-    height: 80px;
+    width: 85px; /* Increased from 80px */
+    height: 85px; /* Increased from 80px */
     background: linear-gradient(45deg, #667eea, #764ba2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 2.2rem; /* Increased from 2rem */
     font-weight: bold;
-    margin: 0 auto 20px;
+    margin: 0 auto 22px; /* Increased from 20px */
 }
 
 .user-info-details {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 32px; /* Increased from 30px */
 }
 
 .user-info-name {
-    font-size: 1.5rem;
-    margin-bottom: 5px;
+    font-size: 1.6rem; /* Increased from 1.5rem */
+    margin-bottom: 6px; /* Increased from 5px */
     color: white;
 }
 
 .user-info-username {
     color: #a0a0c0;
-    margin-bottom: 15px;
+    margin-bottom: 18px; /* Increased from 15px */
+    font-size: 1.05rem; /* Slightly bigger */
 }
 
 .user-info-status {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 5px 15px;
+    gap: 9px; /* Increased from 8px */
+    padding: 6px 18px; /* Increased from 5px 15px */
     background: rgba(40, 167, 69, 0.1);
     border: 1px solid rgba(40, 167, 69, 0.2);
-    border-radius: 15px;
+    border-radius: 16px; /* Increased from 15px */
     color: #28a745;
+    font-size: 1.02rem; /* Slightly bigger */
 }
 
 .user-info-status.offline {
@@ -622,14 +625,14 @@ body {
 .user-info-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px; /* Increased from 10px */
 }
 
 .info-action-btn {
-    padding: 12px;
-    border-radius: 12px;
+    padding: 14px; /* Increased from 12px */
+    border-radius: 14px; /* Increased from 12px */
     border: none;
-    font-size: 1rem;
+    font-size: 1.05rem; /* Slightly bigger */
     cursor: pointer;
     transition: all 0.3s;
     font-weight: 500;
