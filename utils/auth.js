@@ -1,8 +1,11 @@
 // File: utils/auth.js - SIMPLE USERNAME-ONLY AUTH SYSTEM (CLEAN VERSION)
-import { supabase } from './supabase.js'
+// Supabase is loaded globally from supabase.js (loaded before this file)
 
 let heartbeatInterval = null;
 let currentUserId = null;
+
+// Get supabase from global window object (set by supabase.js)
+const supabase = window.supabase;
 
 // SIMPLE HEARTBEAT SYSTEM (Optional - can be enabled later)
 const heartbeat = {
@@ -34,7 +37,7 @@ const heartbeat = {
     },
 
     async updateStatus(status) {
-        if (!currentUserId) return;
+        if (!currentUserId || !supabase) return;
 
         try {
             await supabase
@@ -68,6 +71,14 @@ const auth = {
     async signIn(username, password) {
         try {
             console.log("🔐 Login attempt:", username);
+
+            if (!supabase) {
+                return {
+                    success: false,
+                    error: "Database not connected",
+                    message: "Database connection failed. Please refresh."
+                };
+            }
 
             // Use @luster.test domain
             const internalEmail = `${username}@luster.test`;
@@ -104,6 +115,14 @@ const auth = {
     async signUp(username, password) {
         try {
             console.log("📝 Signup attempt:", username);
+
+            if (!supabase) {
+                return {
+                    success: false,
+                    error: "Database not connected",
+                    message: "Database connection failed. Please refresh."
+                };
+            }
 
             // Use @luster.test domain
             const internalEmail = `${username}@luster.test`;
@@ -158,6 +177,13 @@ const auth = {
             // Stop heartbeat first
             heartbeat.stop();
 
+            if (!supabase) {
+                return { 
+                    success: false, 
+                    error: "Database not connected" 
+                };
+            }
+
             // Sign out from Supabase
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
@@ -177,6 +203,13 @@ const auth = {
     // Get current user (NO AUTOMATIC HEARTBEAT START - causes loops)
     async getCurrentUser() {
         try {
+            if (!supabase) {
+                return { 
+                    success: false, 
+                    error: 'Database not connected' 
+                };
+            }
+
             const { data, error } = await supabase.auth.getUser();
             if (error) throw error;
 
@@ -210,6 +243,13 @@ const auth = {
     // Check session (simple version)
     async getSession() {
         try {
+            if (!supabase) {
+                return { 
+                    success: false, 
+                    error: 'Database not connected' 
+                };
+            }
+
             const { data, error } = await supabase.auth.getSession();
             if (error) throw error;
 
@@ -239,6 +279,8 @@ const auth = {
     // Check if user is online
     async isUserOnline(userId) {
         try {
+            if (!supabase) return false;
+
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('last_seen, status')
@@ -286,21 +328,12 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ================================================
-// 🔥 EXPORTS SECTION - MULTIPLE OPTIONS
+// 🔥 EXPOSE GLOBALLY - NO EXPORT STATEMENTS
 // ================================================
-
-// Option 1: Named export (for pages using: import { auth } from './auth.js')
-export { auth };
-
-// Option 2: Default export (for pages using: import auth from './auth.js')
-export default auth;
-
-// Option 3: Named export for heartbeat (if needed)
-export { heartbeat };
-
-// Option 4: Global exposure (for pages using regular <script> tags)
 if (typeof window !== 'undefined') {
     window.auth = auth;
     window.heartbeat = heartbeat;
     console.log('✅ Auth exposed globally as window.auth');
 }
+
+// NO EXPORT STATEMENTS AT ALL - this is a regular script
