@@ -157,27 +157,33 @@ function showMessages(messages) {
         `;
     });
 
+    // Add extra space at the end for better visibility
+    html += `<div style="height: 10px;"></div>`;
+    
     container.innerHTML = html;
 
-    // Scroll to bottom - FIXED: Ensure last message visible
-    setTimeout(() => {
-        scrollToBottom();
-    }, 100);
+    // Scroll to bottom
+    setTimeout(scrollToBottom, 150);
 }
 
-// Scroll to bottom helper - FIXED
+// Scroll to bottom helper - FIXED for new layout
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (container) {
-        container.scrollTop = container.scrollHeight;
-        
-        // Extra check for last message visibility
+        // Give a little delay for rendering
         setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+            
+            // Extra margin for last message
             const lastChild = container.lastElementChild;
-            if (lastChild && lastChild.scrollIntoView) {
-                lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            if (lastChild) {
+                lastChild.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'end',
+                    inline: 'nearest'
+                });
             }
-        }, 50);
+        }, 100);
     }
 }
 
@@ -202,6 +208,7 @@ function addMessageToUI(message) {
             <div class="message-content">${message.content || ''}</div>
             <div class="message-time">${time}</div>
         </div>
+        <div style="height: 2px;"></div>
     `;
 
     container.insertAdjacentHTML('beforeend', messageHTML);
@@ -287,6 +294,52 @@ function setupRealtime(friendId) {
         .subscribe();
 }
 
+// Update realtime status indicator
+function updateRealtimeStatus(status) {
+    let statusEl = document.getElementById('realtimeStatus');
+    if (!statusEl) {
+        statusEl = createStatus();
+    }
+
+    if (status === 'SUBSCRIBED') {
+        statusEl.textContent = "🟢 Live";
+        statusEl.style.background = '#28a745';
+        console.log("🎉 REALTIME WORKING!");
+    } else if (status === 'CHANNEL_ERROR') {
+        statusEl.textContent = "🔴 Error";
+        statusEl.style.background = '#dc3545';
+        // Retry after 3 seconds
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const friendId = urlParams.get('friendId');
+            if (friendId) setupRealtime(friendId);
+        }, 3000);
+    } else {
+        statusEl.textContent = "🟡 Connecting";
+        statusEl.style.background = '#ffc107';
+    }
+}
+
+// Create status indicator
+function createStatus() {
+    const div = document.createElement('div');
+    div.id = 'realtimeStatus';
+    div.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ffc107;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        z-index: 9999;
+        font-weight: bold;
+    `;
+    document.body.appendChild(div);
+    return div;
+}
+
 // Send message - FIXED: No full reload
 async function sendMessage() {
     const input = document.getElementById('messageInput');
@@ -331,6 +384,35 @@ async function sendMessage() {
     } catch (error) {
         console.error("Send failed:", error);
         showCustomAlert("Failed to send message", "❌", "Error");
+    }
+}
+
+// Handle Enter key
+function handleKeyPress(event) {
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    if (sendBtn) {
+        sendBtn.disabled = !input || input.value.trim() === '';
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        if (input && input.value.trim()) {
+            sendMessage();
+        }
+    }
+}
+
+// Auto resize textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(textarea.scrollHeight, 100);
+    textarea.style.height = newHeight + 'px';
+
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.disabled = textarea.value.trim() === '';
     }
 }
 
@@ -397,81 +479,6 @@ function showToast(message, icon = "ℹ️") {
     setTimeout(() => {
         toast.style.display = 'none';
     }, 3000);
-}
-
-// Update realtime status indicator
-function updateRealtimeStatus(status) {
-    let statusEl = document.getElementById('realtimeStatus');
-    if (!statusEl) {
-        statusEl = createStatus();
-    }
-
-    if (status === 'SUBSCRIBED') {
-        statusEl.textContent = "🟢 Live";
-        statusEl.style.background = '#28a745';
-        console.log("🎉 REALTIME WORKING!");
-    } else if (status === 'CHANNEL_ERROR') {
-        statusEl.textContent = "🔴 Error";
-        statusEl.style.background = '#dc3545';
-        // Retry after 3 seconds
-        setTimeout(() => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const friendId = urlParams.get('friendId');
-            if (friendId) setupRealtime(friendId);
-        }, 3000);
-    } else {
-        statusEl.textContent = "🟡 Connecting";
-        statusEl.style.background = '#ffc107';
-    }
-}
-
-// Create status indicator
-function createStatus() {
-    const div = document.createElement('div');
-    div.id = 'realtimeStatus';
-    div.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #ffc107;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 10px;
-        font-size: 12px;
-        z-index: 9999;
-        font-weight: bold;
-    `;
-    document.body.appendChild(div);
-    return div;
-}
-
-// Handle Enter key
-function handleKeyPress(event) {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    if (sendBtn) {
-        sendBtn.disabled = !input || input.value.trim() === '';
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        if (input && input.value.trim()) {
-            sendMessage();
-        }
-    }
-}
-
-// Auto resize textarea
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    const newHeight = Math.min(textarea.scrollHeight, 100);
-    textarea.style.height = newHeight + 'px';
-
-    const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) {
-        sendBtn.disabled = textarea.value.trim() === '';
-    }
 }
 
 // Go back
@@ -579,6 +586,25 @@ window.clearChatPrompt = async function() {
             }
         }
     );
+};
+
+// Debug function to check if messages exist
+window.debugMessages = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const friendId = urlParams.get('friendId');
+
+    const { data: allMessages } = await supabase
+        .from('direct_messages')
+        .select('*');
+
+    console.log("All messages in DB:", allMessages);
+
+    const { data: ourMessages } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+
+    console.log("Our messages:", ourMessages);
 };
 
 // Make functions global
