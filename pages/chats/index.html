@@ -28,9 +28,6 @@
             <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">
                 ⓘ
             </button>
-            <button class="chat-action-btn" onclick="testRealtime()" title="Test Realtime" style="font-size: 0.9rem;">
-                🔧
-            </button>
             <button class="chat-action-btn" onclick="clearChatPrompt()" title="Clear Chat">
                 🗑️
             </button>
@@ -54,13 +51,9 @@
         </div>
     </main>
 
-    <!-- Message Input - FIXED AT BOTTOM - SMALLER -->
+    <!-- Message Input - FIXED AT BOTTOM - NO ATTACH BUTTON -->
     <div class="message-input-wrapper">
         <div class="message-input-container">
-            <button class="attach-btn" onclick="attachFile()" title="Attach File">
-                📎
-            </button>
-
             <textarea class="message-input" id="messageInput" 
                       placeholder="Type a message..." 
                       rows="1"
