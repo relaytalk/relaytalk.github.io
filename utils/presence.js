@@ -17,7 +17,7 @@ class PresenceTracker {
         // Initial online status
         await this.update(true);
         
-        // Periodic updates
+        // Periodic updates (every 30 seconds)
         this.intervalId = setInterval(() => {
             this.update(document.visibilityState === 'visible');
         }, 30000);
