@@ -1,7 +1,8 @@
-// /app/pages/phone/script.js
+// /app/pages/phone/script.js - COMPLETE UPDATED VERSION
 
 import { auth } from '/app/utils/auth.js';
 import { supabase } from '/app/utils/supabase.js';
+import callService from '/app/utils/callService.js';
 
 console.log("📞 Phone Page Loaded");
 
@@ -9,11 +10,12 @@ console.log("📞 Phone Page Loaded");
 let currentUser = null;
 let callHistory = [];
 let quickContacts = [];
+let currentIncomingCall = null;
 
 // Initialize phone page
 async function initPhonePage() {
     console.log("Initializing phone page...");
-    
+
     try {
         const { success, user } = await auth.getCurrentUser();  
 
@@ -25,10 +27,13 @@ async function initPhonePage() {
         currentUser = user;  
         console.log("✅ Authenticated as:", currentUser.email);  
 
+        // Initialize call service
+        await initializeCallService();
+
         // Load data
         await loadCallHistory();
         await loadQuickContacts();
-        
+
         // Hide loading
         const loadingIndicator = document.getElementById('loadingIndicator');
         if (loadingIndicator) {
@@ -48,6 +53,227 @@ async function initPhonePage() {
     }
 }
 
+// ==================== CALL SERVICE INTEGRATION ====================
+
+// Initialize call service
+async function initializeCallService() {
+    try {
+        await callService.initialize(currentUser.id);
+        
+        // Set up call service callbacks
+        callService.setOnCallStateChange((state) => {
+            handleCallStateChange(state);
+        });
+        
+        callService.setOnRemoteStream((stream) => {
+            handleRemoteStream(stream);
+        });
+        
+        callService.setOnCallQualityUpdate((stats) => {
+            updateCallQuality(stats);
+        });
+        
+        callService.setOnCallEvent((event, data) => {
+            handleCallEvent(event, data);
+        });
+        
+        console.log("✅ Call service initialized");
+        
+    } catch (error) {
+        console.error("❌ Failed to initialize call service:", error);
+    }
+}
+
+// Call state change handler
+function handleCallStateChange(state) {
+    console.log("📞 Call state changed to:", state);
+    
+    // You can update UI based on call state
+    switch(state) {
+        case 'ringing':
+            // Show ringing UI
+            break;
+        case 'connecting':
+            // Show connecting UI
+            break;
+        case 'active':
+            // Show active call UI
+            break;
+        case 'ending':
+            // Show ending UI
+            break;
+        case 'idle':
+            // Return to normal UI
+            break;
+    }
+}
+
+// Remote stream handler
+function handleRemoteStream(stream) {
+    console.log("🎵 Remote stream received");
+    
+    // Set remote stream to audio/video element
+    const remoteAudio = document.getElementById('remote-audio');
+    const remoteVideo = document.getElementById('remote-video');
+    
+    if (remoteAudio) {
+        remoteAudio.srcObject = stream;
+        remoteAudio.play().catch(e => console.log("Audio play error:", e));
+    }
+    
+    if (remoteVideo && stream.getVideoTracks().length > 0) {
+        remoteVideo.srcObject = stream;
+        remoteVideo.play().catch(e => console.log("Video play error:", e));
+    }
+}
+
+// Call quality update
+function updateCallQuality(stats) {
+    console.log("📊 Call quality:", stats);
+    
+    // Update UI with call quality
+    const qualityElement = document.getElementById('callQuality');
+    if (qualityElement) {
+        qualityElement.innerHTML = `
+            <span class="quality-dot ${stats.overallQuality}"></span>
+            <span>${stats.overallQuality.toUpperCase()}</span>
+        `;
+    }
+}
+
+// Call event handler
+function handleCallEvent(event, data) {
+    console.log("📨 Call event:", event, data);
+    
+    switch(event) {
+        case 'remote_mute_toggled':
+            // Update UI for remote mute
+            console.log("Remote user", data.muted ? "muted" : "unmuted");
+            break;
+            
+        case 'remote_video_toggled':
+            // Update UI for remote video
+            console.log("Remote video", data.videoEnabled ? "enabled" : "disabled");
+            break;
+            
+        case 'call_duration_update':
+            // Update call timer
+            updateCallTimer(data.duration);
+            break;
+    }
+}
+
+// Handle outgoing call
+async function handleOutgoingCall(friendId, friendName, callType) {
+    try {
+        const call = await callService.initiateCall(friendId, callType);
+        
+        if (call) {
+            // Navigate to call page
+            window.location.href = `call.html?type=outgoing&callId=${call.id}&contactId=${friendId}&name=${encodeURIComponent(friendName)}&callType=${callType}`;
+        }
+        
+    } catch (error) {
+        console.error("❌ Failed to start call:", error);
+        showToast('error', 'Call Failed', 'Could not start the call');
+    }
+}
+
+// Handle incoming call
+async function handleIncomingCall(call) {
+    currentIncomingCall = call;
+    
+    // Get caller info
+    const { data: caller } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', call.caller_id)
+        .single();
+    
+    const callerName = caller?.username || 'Unknown';
+    
+    // Show incoming call UI
+    const incomingCallScreen = document.getElementById('incomingCallScreen');
+    if (incomingCallScreen) {
+        incomingCallScreen.style.display = 'flex';
+        document.getElementById('incomingName').textContent = callerName;
+        document.getElementById('incomingAvatar').textContent = callerName.charAt(0).toUpperCase();
+    }
+    
+    // Also show browser notification
+    if (Notification.permission === 'granted') {
+        new Notification('📞 Incoming Call', {
+            body: `${callerName} is calling you`,
+            icon: '/app/relay.png',
+            requireInteraction: true,
+            actions: [
+                { action: 'answer', title: 'Answer' },
+                { action: 'decline', title: 'Decline' }
+            ]
+        });
+    }
+    
+    // Show toast
+    showToast('info', 'Incoming Call', `${callerName} is calling`);
+}
+
+// Answer incoming call
+async function answerCall() {
+    if (!currentIncomingCall) return;
+    
+    try {
+        const call = await callService.answerCall(currentIncomingCall.id);
+        
+        if (call) {
+            // Navigate to call page
+            const { data: caller } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', call.caller_id)
+                .single();
+            
+            const callerName = caller?.username || 'Unknown';
+            
+            window.location.href = `call.html?type=incoming&callId=${call.id}&contactId=${call.caller_id}&name=${encodeURIComponent(callerName)}&callType=${call.call_type}`;
+        }
+        
+    } catch (error) {
+        console.error("❌ Failed to answer call:", error);
+        showToast('error', 'Call Failed', 'Could not answer the call');
+    }
+}
+
+// Reject incoming call
+async function rejectCall() {
+    if (!currentIncomingCall) return;
+    
+    try {
+        await callService.rejectCall(currentIncomingCall.id);
+        currentIncomingCall = null;
+        
+        // Hide incoming call UI
+        const incomingCallScreen = document.getElementById('incomingCallScreen');
+        if (incomingCallScreen) {
+            incomingCallScreen.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error("❌ Failed to reject call:", error);
+    }
+}
+
+// Update call timer
+function updateCallTimer(duration) {
+    const timerElement = document.getElementById('callTimer');
+    if (timerElement) {
+        const minutes = Math.floor(duration / 60);
+        const seconds = duration % 60;
+        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+}
+
+// ==================== PHONE PAGE FUNCTIONS ====================
+
 // Load call history
 async function loadCallHistory() {
     if (!currentUser) return;
@@ -63,7 +289,7 @@ async function loadCallHistory() {
         if (error) throw error;
 
         callHistory = calls || [];
-        
+
         // Display calls
         displayCallHistory();
 
@@ -94,25 +320,30 @@ function displayCallHistory() {
         const isOutgoing = call.caller_id === currentUser.id;
         const isMissed = call.status === 'missed';
         const isIncoming = !isOutgoing && !isMissed;
-        
+
+        // Get contact info
         const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
+        const contactName = call.metadata?.contactName || 'User';
+        const firstLetter = contactName.charAt(0).toUpperCase();
+
+        // Call type and icon
         const callType = isOutgoing ? 'Outgoing' : isIncoming ? 'Incoming' : 'Missed';
         const callIcon = isOutgoing ? 'fas fa-phone-alt' : 
                         isMissed ? 'fas fa-phone-slash' : 'fas fa-phone';
         const callClass = isMissed ? 'call-missed' : 
                          isOutgoing ? 'call-outgoing' : 'call-incoming';
-        
-        // Get contact name (simplified - you'll need to fetch from users table)
-        const contactName = call.metadata?.contactName || 'Unknown';
-        const firstLetter = contactName.charAt(0).toUpperCase();
-        
+
         // Format time
         const callTime = new Date(call.initiated_at);
         const timeString = callTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const dateString = callTime.toLocaleDateString();
-        
+
         // Format duration
         const duration = call.duration ? formatDuration(call.duration) : '--:--';
+
+        // Call type badge
+        const callTypeBadge = call.call_type === 'video' ? 
+            '<span class="call-type-badge" style="background: #667eea; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px;">VIDEO</span>' : '';
 
         html += `
             <div class="call-item ${callClass}" onclick="openCallDetails('${call.id}')">
@@ -121,7 +352,7 @@ function displayCallHistory() {
                 </div>
                 <div class="call-info">
                     <div class="call-name">
-                        <span>${contactName}</span>
+                        <span>${contactName} ${callTypeBadge}</span>
                         <span class="call-type-icon"><i class="${callIcon}"></i></span>
                     </div>
                     <div class="call-details">
@@ -181,14 +412,14 @@ async function getRecentContactIds() {
 
         // Extract unique contact IDs
         const contactIds = new Set();
-        
+
         if (recentCalls) {
             recentCalls.forEach(call => {
                 const otherId = call.caller_id === currentUser.id ? call.receiver_id : call.caller_id;
                 contactIds.add(otherId);
             });
         }
-        
+
         if (recentMessages) {
             recentMessages.forEach(msg => {
                 const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
@@ -223,7 +454,7 @@ function displayQuickContacts() {
     quickContacts.forEach(contact => {
         const firstLetter = contact.username.charAt(0).toUpperCase();
         const isOnline = contact.status === 'online';
-        
+
         html += `
             <div class="contact-card" onclick="openCallModal('${contact.id}', '${contact.username}')">
                 <div class="contact-avatar" style="background: ${getColorFromLetter(firstLetter)}">
@@ -250,11 +481,11 @@ function openCallModal(contactId, contactName) {
     document.getElementById('callModalName').textContent = contactName;
     document.getElementById('callModalAvatar').textContent = contactName.charAt(0).toUpperCase();
     document.getElementById('callModalStatus').textContent = 'Ready to call';
-    
+
     // Store contact info in modal for call initiation
     modal.dataset.contactId = contactId;
     modal.dataset.contactName = contactName;
-    
+
     // Show modal
     modal.style.display = 'flex';
 }
@@ -274,11 +505,9 @@ function startVoiceCall() {
 
     const contactId = modal.dataset.contactId;
     const contactName = modal.dataset.contactName;
-    
+
     closeCallModal();
-    
-    // Navigate to active call screen
-    window.location.href = `call.html?type=outgoing&contactId=${contactId}&name=${encodeURIComponent(contactName)}`;
+    handleOutgoingCall(contactId, contactName, 'voice');
 }
 
 // Start video call
@@ -288,11 +517,9 @@ function startVideoCall() {
 
     const contactId = modal.dataset.contactId;
     const contactName = modal.dataset.contactName;
-    
+
     closeCallModal();
-    
-    // For video call (you'll need to modify call.html to support video)
-    window.location.href = `call.html?type=outgoing&contactId=${contactId}&name=${encodeURIComponent(contactName)}&video=true`;
+    handleOutgoingCall(contactId, contactName, 'video');
 }
 
 // Send message instead of calling
@@ -301,9 +528,9 @@ function sendMessageInstead() {
     if (!modal) return;
 
     const contactId = modal.dataset.contactId;
-    
+
     closeCallModal();
-    
+
     // Navigate to chat
     window.location.href = `/app/pages/chats/index.html?friendId=${contactId}`;
 }
@@ -326,39 +553,11 @@ function setupIncomingCallListener() {
             async (payload) => {
                 const call = payload.new;
                 if (call.status === 'ringing') {
-                    showIncomingCallNotification(call);
+                    await handleIncomingCall(call);
                 }
             }
         )
         .subscribe();
-}
-
-// Show incoming call notification
-function showIncomingCallNotification(call) {
-    // Get caller info
-    const { data: caller } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', call.caller_id)
-        .single();
-
-    const callerName = caller?.username || 'Unknown';
-    
-    // Show notification (you can use browser notifications or custom modal)
-    if (Notification.permission === 'granted') {
-        new Notification('📞 Incoming Call', {
-            body: `${callerName} is calling you`,
-            icon: '/app/relay.png',
-            requireInteraction: true,
-            actions: [
-                { action: 'answer', title: 'Answer' },
-                { action: 'decline', title: 'Decline' }
-            ]
-        });
-    }
-    
-    // Show in-app notification
-    showToast('info', 'Incoming Call', `${callerName} is calling`);
 }
 
 // Clear call history
@@ -388,11 +587,26 @@ function openCallDetails(callId) {
     // You can create a call details modal
     const call = callHistory.find(c => c.id === callId);
     if (call) {
-        alert(`Call Details:\nStatus: ${call.status}\nDuration: ${formatDuration(call.duration)}\nTime: ${new Date(call.initiated_at).toLocaleString()}`);
+        // Get contact name
+        const otherUserId = call.caller_id === currentUser.id ? call.receiver_id : call.caller_id;
+        const contactName = call.metadata?.contactName || 'User';
+        
+        const details = `
+            Call Details:
+            Contact: ${contactName}
+            Type: ${call.call_type === 'video' ? 'Video Call' : 'Voice Call'}
+            Status: ${call.status}
+            Duration: ${formatDuration(call.duration)}
+            Started: ${new Date(call.initiated_at).toLocaleString()}
+            ${call.ended_at ? `Ended: ${new Date(call.ended_at).toLocaleString()}` : ''}
+        `;
+        
+        alert(details);
     }
 }
 
-// Utility functions
+// ==================== UTILITY FUNCTIONS ====================
+
 function formatDuration(seconds) {
     if (!seconds) return '--:--';
     const mins = Math.floor(seconds / 60);
@@ -424,7 +638,8 @@ function showToast(type, title, message) {
     setTimeout(() => toast.remove(), 4000);
 }
 
-// Global functions
+// ==================== GLOBAL FUNCTIONS ====================
+
 window.clearCallHistory = clearCallHistory;
 window.loadQuickContacts = loadQuickContacts;
 window.openCallModal = openCallModal;
@@ -433,6 +648,8 @@ window.startVoiceCall = startVoiceCall;
 window.startVideoCall = startVideoCall;
 window.sendMessageInstead = sendMessageInstead;
 window.openCallDetails = openCallDetails;
+window.answerCall = answerCall;
+window.rejectCall = rejectCall;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initPhonePage);
