@@ -615,294 +615,275 @@ async function sendFriendRequest(toUserId, toUsername) {
 
     try {  
         // Check if request already exists  
-const { data: existingRequest, error: checkError } = await supabase  
+        const { data: existingRequest, error: checkError } = await supabase  
             .from('friend_requests')  
-            .select('id')  
+            .select('id, status')  
             .eq('sender_id', currentUser.id)  
             .eq('receiver_id', toUserId)  
-            .eq('status', 'pending')  
-            .maybeSingle();  
+            .single();  
+
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+            throw checkError;
+        }
 
         if (existingRequest) {  
-            showInfo("Request Already Sent", `You've already sent a friend request to ${toUsername}`);
-
-            // Reset button
-            if (sendBtn) {
-                sendBtn.textContent = '✓ Sent';
-                setTimeout(() => {
-                    sendBtn.disabled = false;
-                }, 1000);
-            }
-            return;  
+            if (existingRequest.status === 'pending') {  
+                showInfo("Request Already Sent", "Friend request already sent!");  
+                return;  
+            }  
+            if (existingRequest.status === 'accepted') {  
+                showInfo("Already Friends", "You are already friends with this user!");  
+                return;  
+            }  
         }  
 
-        // Create friend request  
-        const { error } = await supabase  
+        // Send new request  
+        const { data, error } = await supabase  
             .from('friend_requests')  
             .insert({  
                 sender_id: currentUser.id,  
                 receiver_id: toUserId,  
                 status: 'pending',  
-                created_at: new Date().toISOString()  
-            });  
+                sent_at: new Date().toISOString()  
+            })  
+            .select()  
+            .single();  
 
-        if (error) {  
-            console.error("Error sending request:", error);  
-            showError("Request Failed", "Could not send friend request");
-
-            // Reset button
-            if (sendBtn) {
-                sendBtn.textContent = 'Add Friend';
-                sendBtn.disabled = false;
-            }
-            return;  
-        }  
+        if (error) throw error;  
 
         // Update UI  
-        loadSearchResults();  
-        updateNotificationsBadge();  
+        if (sendBtn) {  
+            sendBtn.textContent = '✓ Sent';  
+            sendBtn.disabled = true;  
+            sendBtn.classList.add('sent');  
+        }  
 
-        // Show success toast
-        showFriendRequest("Friend Request Sent", `Your request has been sent to ${toUsername}!`);
-
-        // Update button
-        if (sendBtn) {
-            sendBtn.textContent = '✓ Sent';
-            sendBtn.disabled = true;
-            sendBtn.classList.add('sent');
-        }
+        // Show success message  
+        showSuccess(  
+            "Friend Request Sent!",  
+            `Request sent to ${toUsername}`  
+        );  
 
     } catch (error) {  
         console.error("Error sending friend request:", error);  
-        showError("Request Failed", "Please check your connection and try again");
+        showError("Request Failed", "Could not send friend request. Please try again.");  
 
-        // Reset button
-        if (sendBtn) {
-            sendBtn.textContent = 'Add Friend';
-            sendBtn.disabled = false;
-        }
+        // Reset button  
+        if (sendBtn) {  
+            sendBtn.textContent = 'Add Friend';  
+            sendBtn.disabled = false;  
+        }  
     }
 }
 
 // Load notifications
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
-
-    if (!container) {  
-        console.error("Notifications container not found!");  
-        return;  
-    }  
-
-    try {  
-        // Get notifications  
-        const { data: notifications, error } = await supabase  
-            .from('friend_requests')  
-            .select('id, sender_id, created_at')  
-            .eq('receiver_id', currentUser.id)  
-            .eq('status', 'pending')  
-            .order('created_at', { ascending: false });  
-
-        if (error) {  
-            console.log("Notifications error:", error.message);  
-            showEmptyNotifications(container);  
-            return;  
-        }  
-
-        if (!notifications || notifications.length === 0) {  
-            showEmptyNotifications(container);  
-            return;  
-        }  
-
-        // Get usernames for each sender  
-        const senderIds = notifications.map(n => n.sender_id);  
-        const { data: profiles, error: profilesError } = await supabase  
-            .from('profiles')  
-            .select('id, username')  
-            .in('id', senderIds);  
-
-        const profileMap = {};  
-        if (!profilesError && profiles) {  
-            profiles.forEach(p => profileMap[p.id] = p.username);  
-        }  
-
-html += `  
-    <div class="notification-item">  
-        <div class="notification-content">  
-            <div class="notification-text">  
-                <div class="notification-title">${senderName} wants to be friends</div>  
-                <div class="notification-time">${timeAgo}</div>  
-            </div>  
-            <div class="notification-actions">  
-                <button class="accept-btn" onclick="window.acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)">  
-                    Accept  
-                </button>  
-                <button class="decline-btn" onclick="window.declineFriendRequest('${notification.id}', this)">  
-                    Decline  
-                </button>  
-            </div>  
-        </div>  
-    </div>  
-`; 
-        });  
-
-        container.innerHTML = html;  
-
-    } catch (error) {  
-        console.error("Error loading notifications:", error);  
-        showEmptyNotifications(container);  
+    if (!container) {
+        console.error("Notifications container not found!");
+        return;
     }
-}
 
-function showEmptyNotifications(container) {
-    container.innerHTML = `  
-        <div class="empty-state">  
-            <div class="empty-icon">🔔</div>  
-            <p>No notifications yet</p>  
-        </div>  
-    `;
+    try {
+        const { data: requests, error } = await supabase
+            .from('friend_requests')
+            .select(`
+                id,
+                sender_id,
+                status,
+                sent_at,
+                profiles:sender_id(username, full_name)
+            `)
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending')
+            .order('sent_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!requests || requests.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No notifications</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">You're all caught up!</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        requests.forEach(request => {
+            const sender = request.profiles;
+            const sentTime = new Date(request.sent_at);
+            const timeAgo = getTimeAgo(sentTime);
+
+            html += `
+                <div class="notification-item">
+                    <div class="notification-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+                        ${sender.username ? sender.username.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-text">
+                            <strong>${sender.username || 'Unknown User'}</strong> sent you a friend request
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
+                        <div class="notification-actions">
+                            <button class="accept-btn" onclick="window.acceptFriendRequest('${request.id}', '${sender.username}')">
+                                ✓ Accept
+                            </button>
+                            <button class="decline-btn" onclick="window.declineFriendRequest('${request.id}')">
+                                × Decline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error("Error loading notifications:", error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚠️</div>
+                <p>Error loading notifications</p>
+                <p style="font-size: 0.9rem;">${error.message}</p>
+            </div>
+        `;
+    }
 }
 
 // Accept friend request
-async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
-    console.log("Accepting request:", requestId, "from:", senderId);
+async function acceptFriendRequest(requestId, senderUsername) {
+    try {
+        const { data, error } = await supabase
+            .from('friend_requests')
+            .update({ 
+                status: 'accepted',
+                responded_at: new Date().toISOString()
+            })
+            .eq('id', requestId)
+            .select()
+            .single();
 
-    // Show loading state on button
-    if (button) {
-        const originalText = button.textContent;
-        button.textContent = '...';
-        button.disabled = true;
-    }
+        if (error) throw error;
 
-    try {  
-        // 1. Update friend request status  
-        const { error: updateError } = await supabase  
-            .from('friend_requests')  
-            .update({ status: 'accepted' })  
-            .eq('id', requestId);  
+        // Get sender ID
+        const { data: request, error: requestError } = await supabase
+            .from('friend_requests')
+            .select('sender_id')
+            .eq('id', requestId)
+            .single();
 
-        if (updateError) throw updateError;  
+        if (requestError) throw requestError;
 
-        // 2. Add to friends table (both directions)  
-        const { error: friendError1 } = await supabase  
-            .from('friends')  
-            .insert({   
-                user_id: currentUser.id,   
-                friend_id: senderId,  
-                created_at: new Date().toISOString()  
-            });  
+        // Add to friends table for both users
+        const senderId = request.sender_id;
 
-        const { error: friendError2 } = await supabase  
-            .from('friends')  
-            .insert({   
-                user_id: senderId,   
-                friend_id: currentUser.id,  
-                created_at: new Date().toISOString()  
-            });  
+        // Add sender as friend to current user
+        const { error: addFriendError1 } = await supabase
+            .from('friends')
+            .insert({ user_id: currentUser.id, friend_id: senderId });
 
-        if (friendError1 || friendError2) {  
-            console.log("Friend errors (might already exist):", friendError1?.message, friendError2?.message);  
-            // Continue anyway - might already exist  
-        }  
+        if (addFriendError1) throw addFriendError1;
 
-        // 3. Update UI  
-        await loadNotifications();  
-        await loadFriends();  
-        await updateNotificationsBadge();  
+        // Add current user as friend to sender
+        const { error: addFriendError2 } = await supabase
+            .from('friends')
+            .insert({ user_id: senderId, friend_id: currentUser.id });
 
-        // Show success toast
-        showFriendAdded("New Friend!", `You are now connected with ${senderName}! 🎉`);
+        if (addFriendError2) throw addFriendError2;
 
-        // Update button
-        if (button) {
-            button.textContent = '✓ Accepted';
-            button.style.background = 'rgba(40, 167, 69, 0.3)';
-        }
+        // Show success message
+        showFriendAdded(
+            "Friend Request Accepted!",
+            `You are now friends with ${senderUsername}`
+        );
 
-    } catch (error) {  
-        console.error("Error accepting friend request:", error);  
-        showError("Connection Failed", "Could not accept friend request");
+        // Update notifications
+        await loadNotifications();
+        await updateNotificationsBadge();
+        await loadFriends();
 
-        // Reset button
-        if (button) {
-            button.textContent = '✓';
-            button.disabled = false;
-        }
+    } catch (error) {
+        console.error("Error accepting friend request:", error);
+        showError("Accept Failed", "Could not accept friend request. Please try again.");
     }
 }
 
 // Decline friend request
-async function declineFriendRequest(requestId, button = null) {
-    // Show loading state on button
-    if (button) {
-        const originalText = button.textContent;
-        button.textContent = '...';
-        button.disabled = true;
-    }
-
+async function declineFriendRequest(requestId) {
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('friend_requests')
-            .update({ status: 'rejected' })
+            .update({ 
+                status: 'declined',
+                responded_at: new Date().toISOString()
+            })
             .eq('id', requestId);
 
-        if (error) throw error;  
+        if (error) throw error;
 
-        await loadNotifications();  
-        await updateNotificationsBadge();  
+        // Remove from UI
+        const notificationItem = event.target.closest('.notification-item');
+        if (notificationItem) {
+            notificationItem.remove();
+        }
 
-        // Show info toast
+        // Check if there are no more notifications
+        const container = document.getElementById('notificationsList');
+        if (container && container.children.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No notifications</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">You're all caught up!</p>
+                </div>
+            `;
+        }
+
+        // Update badge
+        await updateNotificationsBadge();
+
         showInfo("Request Declined", "Friend request has been declined");
 
-        // Update button
-        if (button) {
-            button.textContent = '✗ Declined';
-            button.style.background = 'rgba(220, 53, 69, 0.3)';
-        }
-
-    } catch (error) {  
-        console.error("Error declining friend request:", error);  
-        showError("Action Failed", "Could not decline friend request");
-
-        // Reset button
-        if (button) {
-            button.textContent = '✗';
-            button.disabled = false;
-        }
+    } catch (error) {
+        console.error("Error declining friend request:", error);
+        showError("Decline Failed", "Could not decline friend request. Please try again.");
     }
 }
 
-// Set up event listeners
+// Setup event listeners
 function setupEventListeners() {
     console.log("Setting up event listeners...");
 
-    // Logout button (if exists)  
-    const logoutBtn = document.getElementById('logoutBtn');  
-    if (logoutBtn) {  
-        logoutBtn.addEventListener('click', async () => {  
-            try {  
-                // Show loading toast
-                const loadingToast = showInfo("Logging Out", "Please wait...");
-
-                await auth.signOut();  
-
-                // Remove loading toast
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            const loadingToast = showInfo("Logging Out", "Please wait...");
+            
+            try {
+                const { error } = await auth.signOut();
+                
                 if (loadingToast && loadingToast.parentNode) {
                     loadingToast.remove();
                 }
-
-                // Show success toast
-                showSuccess("Logged Out", "See you soon! 👋");
-
+                
+                if (error) throw error;
+                
+                showSuccess("Logged Out", "See you next time!");
                 setTimeout(() => {
-                    window.location.href = '../auth/index.html';  
+                    window.location.href = '../auth/index.html';
                 }, 1000);
-
-            } catch (error) {  
-                console.error("Error logging out:", error);  
+                
+            } catch (error) {
+                console.error("Error logging out:", error);
                 showError("Logout Failed", "Please try again");
-            }  
-        });  
-    }  
+            }
+        });
+    }
 
     console.log("✅ Event listeners setup complete");
 }
