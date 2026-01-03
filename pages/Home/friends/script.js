@@ -1,4 +1,4 @@
-// Friends Page Script - WITH ABSOLUTE PATHS AND CALL FUNCTIONALITY
+// Friends Page Script - CORRECTED PATHS
 import { auth } from '/app/utils/auth.js'
 import { supabase } from '/app/utils/supabase.js'
 import presenceTracker from '/app/utils/presence.js';
@@ -7,22 +7,20 @@ console.log("✨ Friends Page Loaded");
 
 // ==================== ABSOLUTE PATHS CONFIGURATION ====================
 const PATHS = {
-    // Absolute paths from root
-    HOME: '/app/pages/home/index.html',
+    HOME: '/app/pages/Home/index.html',           // Capital H
     LOGIN: '/app/pages/login/index.html',  
     SIGNUP: '/app/pages/auth/index.html',
     CHATS: '/app/pages/chats/index.html',
-    FRIENDS: '/app/pages/home/friends/index.html'
+    FRIENDS: '/app/pages/Home/friends/index.html' // Capital H
 };
 
 // ==================== VARIABLES ====================
 let currentUser = null;
-let currentProfile = null;
 let allFriends = [];
 let callServiceInstance = null;
 let callTimerInterval = null;
 
-// Toast Notification System
+// Toast Notification System (keep same as before)
 class ToastNotification {
     constructor() {
         this.container = document.getElementById('toastContainer');
@@ -186,18 +184,17 @@ function updateFriendOnlineStatus(friendId, isOnline) {
                     }
 
                     if (statusText) {
-                        statusText.textContent = isOnline ? 'Online' : 'Last seen ' + getTimeAgo(new Date());
+                        statusText.textContent = isOnline ? 'Online' : 'Last seen ' + getTimeAgo(new Date(friend.last_seen || new Date()));
                     }
 
+                    // Call button always enabled, just show status
                     if (callButton) {
                         if (isOnline) {
                             callButton.classList.remove('offline');
-                            callButton.disabled = false;
-                            callButton.title = 'Call friend';
+                            callButton.title = 'Call ' + friend.username;
                         } else {
                             callButton.classList.add('offline');
-                            callButton.disabled = true;
-                            callButton.title = 'Friend is offline';
+                            callButton.title = 'Call ' + friend.username + ' (offline - will ring when online)';
                         }
                     }
                 }
@@ -215,22 +212,25 @@ async function checkIfUserIsOnline(userId) {
             .single();
 
         if (error || !presence) {
-            return false;
+            return { online: false, lastSeen: null };
         }
 
         if (presence.is_online) {
-            return true;
+            return { online: true, lastSeen: presence.last_seen };
         }
 
         const lastSeen = new Date(presence.last_seen);
         const now = new Date();
         const minutesAway = (now - lastSeen) / (1000 * 60);
 
-        return minutesAway < 2;
+        return { 
+            online: minutesAway < 5,
+            lastSeen: presence.last_seen 
+        };
 
     } catch (error) {
         console.error("Error checking online status:", error);
-        return false;
+        return { online: false, lastSeen: null };
     }
 }
 
@@ -249,6 +249,38 @@ function goToHome() {
 
 function goToFriends() {
     window.location.href = PATHS.FRIENDS;
+}
+
+// ==================== CHAT FUNCTIONS ====================
+async function openChat(friendId, friendName) {
+    console.log("💬 Opening chat with:", friendName);
+    
+    try {
+        // Mark messages as read
+        await markMessagesAsRead(friendId);
+        
+        // Navigate to chat page
+        window.location.href = `/app/pages/chats/index.html?friend=${friendId}&name=${encodeURIComponent(friendName)}`;
+        
+    } catch (error) {
+        console.error("Error opening chat:", error);
+        toast.error("Error", "Failed to open chat");
+    }
+}
+
+async function markMessagesAsRead(friendId) {
+    if (!currentUser) return;
+    
+    try {
+        await supabase
+            .from('messages')
+            .update({ read: true })
+            .eq('sender_id', friendId)
+            .eq('receiver_id', currentUser.id)
+            .eq('read', false);
+    } catch (error) {
+        console.log("Note: Could not mark messages as read", error.message);
+    }
 }
 
 // ==================== FRIENDS LIST ====================
@@ -283,8 +315,12 @@ async function loadFriendsList(searchTerm = '') {
         if (profilesError) throw profilesError;  
 
         const presencePromises = profiles.map(async (profile) => {
-            const isOnline = await checkIfUserIsOnline(profile.id);
-            return { ...profile, is_online: isOnline };
+            const status = await checkIfUserIsOnline(profile.id);
+            return { 
+                ...profile, 
+                is_online: status.online,
+                last_seen: status.lastSeen 
+            };
         });
 
         const profilesWithPresence = await Promise.all(presencePromises);
@@ -406,7 +442,7 @@ function displayFriendsCleanStyle(friends, container) {
                     <div class="friend-name-status">  
                         <div class="friend-name-clean">${friend.username}</div>  
                         <div class="friend-status-clean">  
-                            ${isOnline ? 'Online' : 'Recently'}  
+                            ${isOnline ? 'Online' : 'Last seen ' + getTimeAgo(new Date(friend.last_seen || new Date()))}  
                         </div>  
                     </div>  
                     <div class="friend-actions" style="display: flex; align-items: center; gap: 10px;">
@@ -417,8 +453,7 @@ function displayFriendsCleanStyle(friends, container) {
                         ` : ''}
                         <button class="call-button ${isOnline ? '' : 'offline'}" 
                                 onclick="startCall('${friend.id}', '${friend.username}', event)"
-                                ${!isOnline ? 'disabled' : ''}
-                                title="${isOnline ? 'Call ' + friend.username : 'Friend is offline'}">
+                                title="${isOnline ? 'Call ' + friend.username : 'Call ' + friend.username + ' (offline - will ring when online)'}">
                             ${phoneIconSVG}
                         </button>
                     </div>
@@ -480,11 +515,9 @@ function setupSearch() {
 async function startCall(friendId, friendName, event) {
     if (event) event.stopPropagation();
     
-    const friend = allFriends.find(f => f.id === friendId);
-    if (!friend || !friend.is_online) {
-        toast.error("Offline", `${friendName} is currently offline`);
-        return;
-    }
+    console.log("📞 Starting call with:", friendName, friendId);
+    
+    // CALLS ALWAYS AVAILABLE - Even when offline!
     
     try {
         showCallScreen(friendName, friendId, 'outgoing');
@@ -508,14 +541,27 @@ async function startCall(friendId, friendName, event) {
         callService.setOnCallEvent((event, data) => {
             if (event === 'call_ended') {
                 setTimeout(hideCallScreen, 1000);
+            } else if (event === 'call_failed') {
+                toast.error("Call Failed", "Could not connect to friend");
+                hideCallScreen();
             }
         });
         
+        // Start call - it will work even if friend is offline
         await callService.initiateCall(friendId, 'voice');
+        
+        // Show status based on friend's online status
+        const friend = allFriends.find(f => f.id === friendId);
+        if (friend && !friend.is_online) {
+            const statusText = document.getElementById('callStatusText');
+            if (statusText) {
+                statusText.innerHTML = `Ringing... <span style="font-size: 0.9em; color: #ff9500;">(Friend is offline - will ring when they come online)</span>`;
+            }
+        }
         
     } catch (error) {
         console.error("❌ Call failed:", error);
-        toast.error("Call Failed", "Could not connect");
+        toast.error("Call Failed", "Could not start call");
         hideCallScreen();
     }
 }
@@ -586,7 +632,7 @@ function showCallScreen(friendName, friendId, type = 'outgoing') {
             </div>
             
             <!-- Friend Name -->
-            <h2 style="font-size: 2.5rem; margin-bottom: 10px; color: white;">${friendName}</h2>
+            <h2 style="font-size: 2.5rem; margin-bottom: 15px; color: white;">${friendName}</h2>
             
             <!-- Call Status -->
             <p id="callStatusText" style="color: #a0a0c0; margin-bottom: 40px; font-size: 1.3rem;">
@@ -783,7 +829,7 @@ function toggleSpeaker() {
         speakerBtn.style.background = isSpeakerOn ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
     }
     
-    // Adjust volume: 60% when off, 100% when on
+    // Adjust volume: 40% when off (60% decrease), 100% when on
     audio.volume = isSpeakerOn ? 1.0 : 0.4;
 }
 
@@ -839,8 +885,9 @@ async function showIncomingCallScreen(call) {
         .eq('id', call.caller_id)
         .single();
     
-    const friendName = caller?.username || 'Unknown';
-    showCallScreen(friendName, call.id, 'incoming');
+    if (!caller) return;
+    
+    showCallScreen(caller.username, call.id, 'incoming');
 }
 
 async function answerIncomingCall(callId) {
@@ -901,14 +948,6 @@ function showLoginPrompt() {
     if (loadingIndicator) {
         loadingIndicator.style.display = 'none';
     }
-}
-
-function openChat(friendId, friendName) {
-    localStorage.setItem('currentChatFriend', JSON.stringify({
-        id: friendId,
-        name: friendName
-    }));
-    window.location.href = PATHS.CHATS;
 }
 
 // ==================== INITIALIZE ====================
