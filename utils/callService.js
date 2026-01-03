@@ -1,4 +1,4 @@
-// /app/utils/callservice.js - UPDATED VERSION
+// /app/utils/callService.js - COMPLETE FIXED VERSION
 import { supabase } from './supabase.js';
 
 class CallService {
@@ -9,6 +9,7 @@ class CallService {
         this.currentCall = null;
         this.isCaller = false;
         this.userId = null;
+        this.currentRoomId = null;
 
         this.callState = 'idle';
         this.callStartTime = null;
@@ -26,6 +27,7 @@ class CallService {
 
     async initialize(userId) {
         this.userId = userId;
+        console.log("📞 CallService initialized for user:", userId);
         return true;
     }
 
@@ -35,7 +37,9 @@ class CallService {
 
             // 1. Create call record
             const roomId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            this.currentRoomId = roomId;
 
+            console.log("📞 Creating call record...");
             const { data: call, error } = await supabase
                 .from('calls')
                 .insert({
@@ -52,24 +56,30 @@ class CallService {
             if (error) throw error;
             this.currentCall = call;
 
-            // 2. Get user media with error handling
+            // 2. Update presence to 'in-call'
+            await this.updateCallPresence('in-call');
+
+            // 3. Get user media with error handling
+            console.log("🎤 Requesting microphone...");
             this.localStream = await this.getLocalMedia(type === 'video');
 
-            // 3. Create peer connection
+            // 4. Create peer connection
+            console.log("🔗 Creating peer connection...");
             this.peerConnection = new RTCPeerConnection({
                 iceServers: this.iceServers,
                 iceTransportPolicy: 'all'
             });
 
-            // 4. Add local tracks
+            // 5. Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
-            // 5. Setup event handlers
+            // 6. Setup event handlers
             this.setupPeerConnection();
 
-            // 6. Create offer
+            // 7. Create offer
+            console.log("📤 Creating offer...");
             const offer = await this.peerConnection.createOffer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: type === 'video'
@@ -77,7 +87,7 @@ class CallService {
 
             await this.peerConnection.setLocalDescription(offer);
 
-            // 7. Save offer to DB
+            // 8. Save offer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -86,12 +96,13 @@ class CallService {
                 })
                 .eq('id', call.id);
 
-            // 8. Listen for answer
+            // 9. Listen for answer
             this.listenForAnswer();
 
-            // 9. Update state
+            // 10. Update state
             this.updateState('ringing');
 
+            console.log("✅ Call initiated successfully");
             return call;
 
         } catch (error) {
@@ -106,6 +117,7 @@ class CallService {
             this.isCaller = false;
 
             // 1. Get call data
+            console.log("📞 Getting call data...");
             const { data: call, error } = await supabase
                 .from('calls')
                 .select('*')
@@ -114,35 +126,40 @@ class CallService {
 
             if (error) throw error;
             this.currentCall = call;
+            this.currentRoomId = call.room_id;
 
-            // 2. Get user media with error handling
+            // 2. Update presence to 'in-call'
+            await this.updateCallPresence('in-call');
+
+            // 3. Get user media
+            console.log("🎤 Requesting microphone...");
             this.localStream = await this.getLocalMedia(call.call_type === 'video');
 
-            // 3. Create peer connection
+            // 4. Create peer connection
             this.peerConnection = new RTCPeerConnection({
                 iceServers: this.iceServers,
                 iceTransportPolicy: 'all'
             });
 
-            // 4. Add local tracks
+            // 5. Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
-            // 5. Setup event handlers
+            // 6. Setup event handlers
             this.setupPeerConnection();
 
-            // 6. Set remote offer
+            // 7. Set remote offer
             const offer = JSON.parse(call.sdp_offer);
             await this.peerConnection.setRemoteDescription(
                 new RTCSessionDescription(offer)
             );
 
-            // 7. Create answer
+            // 8. Create answer
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
 
-            // 8. Save answer to DB
+            // 9. Save answer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -153,10 +170,10 @@ class CallService {
                 })
                 .eq('id', callId);
 
-            // 9. Listen for ICE candidates
+            // 10. Listen for ICE candidates
             this.listenForAnswer();
 
-            // 10. Update state
+            // 11. Update state
             this.updateState('active');
 
             return true;
@@ -168,19 +185,32 @@ class CallService {
         }
     }
 
+    async updateCallPresence(status) {
+        try {
+            if (!this.userId || !this.currentRoomId) return;
+            
+            console.log(`👁️ Updating call presence: ${status}`);
+            
+            // Update presence via RPC function
+            const { error } = await supabase.rpc('update_user_presence', {
+                p_user_id: this.userId,
+                p_room_id: this.currentRoomId,
+                p_status: status
+            });
+            
+            if (error) {
+                console.log("Note: Could not update call presence via function:", error.message);
+            }
+        } catch (error) {
+            console.log("Presence update note:", error.message);
+        }
+    }
+
     async getLocalMedia(video = false) {
         try {
             console.log("🎤 Requesting microphone permission...");
-            
-            // First check if we already have permission
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const hasAudioPermission = devices.some(device => device.kind === 'audioinput' && device.deviceId !== '');
-            
-            if (!hasAudioPermission) {
-                console.log("⚠️ No microphone permission, requesting...");
-            }
 
-            this.localStream = await navigator.mediaDevices.getUserMedia({
+            const constraints = {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -193,15 +223,17 @@ class CallService {
                     height: { ideal: 480 },
                     facingMode: 'user'
                 } : false
-            });
+            };
 
-            console.log("✅ Microphone access granted");
-            return this.localStream;
+            console.log("Media constraints:", constraints);
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            console.log("✅ Media access granted, tracks:", stream.getTracks().map(t => t.kind));
+            return stream;
 
         } catch (error) {
             console.error("❌ Microphone access denied:", error);
             
-            // Show user-friendly error message
             let errorMessage = "Microphone access is required for calls. ";
             
             if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -214,15 +246,18 @@ class CallService {
                 errorMessage += error.message;
             }
             
-            // Create a popup to inform user
             this.showPermissionError(errorMessage);
             throw new Error(errorMessage);
         }
     }
 
     showPermissionError(message) {
-        // Create error modal
+        // Remove existing error if any
+        const existing = document.getElementById('callPermissionError');
+        if (existing) existing.remove();
+
         const errorDiv = document.createElement('div');
+        errorDiv.id = 'callPermissionError';
         errorDiv.style.cssText = `
             position: fixed;
             top: 50%;
@@ -243,10 +278,10 @@ class CallService {
         errorDiv.innerHTML = `
             <h3 style="color: #ff3b30; margin-bottom: 15px;">⚠️ Microphone Required</h3>
             <p style="color: #a0a0c0; margin-bottom: 20px;">${message}</p>
-            <button onclick="this.parentElement.remove(); location.reload();" 
+            <button onclick="this.parentElement.remove();" 
                     style="padding: 12px 25px; background: #667eea; color: white; 
                            border: none; border-radius: 10px; cursor: pointer;">
-                Retry
+                OK
             </button>
         `;
         
@@ -272,6 +307,7 @@ class CallService {
         // Connection state
         this.peerConnection.onconnectionstatechange = () => {
             const state = this.peerConnection.connectionState;
+            console.log("Peer connection state:", state);
 
             if (state === 'connected') {
                 this.updateState('active');
@@ -284,6 +320,7 @@ class CallService {
         // ICE connection state
         this.peerConnection.oniceconnectionstatechange = () => {
             const state = this.peerConnection.iceConnectionState;
+            console.log("ICE connection state:", state);
             if (state === 'failed') {
                 this.endCall();
             }
@@ -366,28 +403,33 @@ class CallService {
     }
 
     async endCall() {
-        if (!this.currentCall) return;
+        console.log("📞 Ending call...");
 
-        try {
-            const duration = this.callStartTime ? 
-                Math.floor((Date.now() - this.callStartTime) / 1000) : 0;
+        if (this.currentCall) {
+            try {
+                const duration = this.callStartTime ? 
+                    Math.floor((Date.now() - this.callStartTime) / 1000) : 0;
 
-            await supabase
-                .from('calls')
-                .update({
-                    status: 'ended',
-                    ended_at: new Date().toISOString(),
-                    duration: duration,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', this.currentCall.id);
+                await supabase
+                    .from('calls')
+                    .update({
+                        status: 'ended',
+                        ended_at: new Date().toISOString(),
+                        duration: duration,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', this.currentCall.id);
 
-            if (this.onCallEvent) {
-                this.onCallEvent('call_ended', { duration });
+                // Update presence back to online
+                await this.updateCallPresence('online');
+
+                if (this.onCallEvent) {
+                    this.onCallEvent('call_ended', { duration });
+                }
+
+            } catch (error) {
+                console.error("Error ending call:", error);
             }
-
-        } catch (error) {
-            console.error("Error ending call:", error);
         }
 
         this.cleanup();
@@ -408,6 +450,7 @@ class CallService {
     }
 
     updateState(state) {
+        console.log("📞 Call state changed:", state);
         this.callState = state;
         if (this.onCallStateChange) {
             this.onCallStateChange(state);
@@ -415,6 +458,8 @@ class CallService {
     }
 
     cleanup() {
+        console.log("🧹 Cleaning up call...");
+        
         if (this.peerConnection) {
             this.peerConnection.close();
             this.peerConnection = null;
@@ -431,14 +476,23 @@ class CallService {
         }
 
         this.currentCall = null;
+        this.currentRoomId = null;
         this.callState = 'idle';
         this.callStartTime = null;
         this.isCaller = false;
     }
 
-    setOnCallStateChange(callback) { this.onCallStateChange = callback; }
-    setOnRemoteStream(callback) { this.onRemoteStream = callback; }
-    setOnCallEvent(callback) { this.onCallEvent = callback; }
+    setOnCallStateChange(callback) { 
+        this.onCallStateChange = callback; 
+    }
+    
+    setOnRemoteStream(callback) { 
+        this.onRemoteStream = callback; 
+    }
+    
+    setOnCallEvent(callback) { 
+        this.onCallEvent = callback; 
+    }
 }
 
 const callService = new CallService();
