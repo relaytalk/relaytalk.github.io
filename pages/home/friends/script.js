@@ -1,8 +1,19 @@
-// Friends Page Script - WITH CORRECT PATHS
-import { auth } from '../../../utils/auth.js'
-import { supabase } from '../../../utils/supabase.js'
+// Friends Page Script - WITH ABSOLUTE PATHS
+import { auth } from '/app/utils/auth.js'
+import { supabase } from '/app/utils/supabase.js'
 
 console.log("✨ Friends Page Loaded");
+
+// ==================== ABSOLUTE PATHS CONFIGURATION ====================
+const PATHS = {
+    // Absolute paths from root
+    HOME: '/app/pages/home/index.html',
+    LOGIN: '/app/pages/login/index.html',  
+    SIGNUP: '/app/pages/auth/index.html',
+    CHATS: '/app/pages/chats/index.html',
+    FRIENDS: '/app/pages/home/friends/index.html'
+};
+// ==================== END PATHS CONFIG ====================
 
 // Current user
 let currentUser = null;
@@ -74,6 +85,7 @@ const toast = new ToastNotification();
 // Initialize friends page
 async function initFriendsPage() {
     console.log("Initializing friends page...");
+    console.log("Using absolute paths:", PATHS);
 
     // Set up loading timeout safety
     const loadingTimeout = setTimeout(() => {
@@ -150,18 +162,22 @@ function showLoginPrompt() {
     }
 }
 
-// ==================== CORRECT PATHS ====================
+// ==================== NAVIGATION USING ABSOLUTE PATHS ====================
 
 function goToLogin() {
-    // From: app/pages/home/friends/
-    // To: app/pages/login/
-    window.location.href = '../../../login/index.html';  
+    window.location.href = PATHS.LOGIN;
 }
 
 function goToSignup() {
-    // From: app/pages/home/friends/
-    // To: app/pages/auth/
-    window.location.href = '../../../auth/index.html';  
+    window.location.href = PATHS.SIGNUP;
+}
+
+function goToHome() {
+    window.location.href = PATHS.HOME;
+}
+
+function goToFriends() {
+    window.location.href = PATHS.FRIENDS;
 }
 
 // Load friends list
@@ -231,7 +247,7 @@ async function loadFriendsList(searchTerm = '') {
             return;
         }
 
-        displayFriendsWhatsAppStyle(filteredFriends, container);
+        displayFriendsCleanStyle(filteredFriends, container);
 
     } catch (error) {  
         console.error("Error loading friends:", error);  
@@ -292,8 +308,8 @@ function updateFriendsStats(friends) {
     }
 }
 
-// Display friends in WhatsApp style
-function displayFriendsWhatsAppStyle(friends, container) {
+// Display friends in CLEAN style
+function displayFriendsCleanStyle(friends, container) {
     // Sort: online first, then by unread count, then by name
     friends.sort((a, b) => {
         // Online first
@@ -313,25 +329,28 @@ function displayFriendsWhatsAppStyle(friends, container) {
         const isOnline = friend.status === 'online';  
         const lastSeen = friend.last_seen ? new Date(friend.last_seen) : new Date();  
         const timeAgo = getTimeAgo(lastSeen);  
+        
+        // Get ONLY FIRST LETTER (uppercase)
         const firstLetter = friend.username ? friend.username.charAt(0).toUpperCase() : '?';  
-        const avatarUrl = friend.avatar_url || `https://ui-avatars.com/api/?name=${friend.username}&background=667eea&color=fff`;
+        
+        // Simple avatar color (all same color)
+        const avatarColor = '#667eea';
 
         html += `  
-            <div class="friend-item-whatsapp" onclick="openChat('${friend.id}', '${friend.username}')">  
-                <div class="friend-avatar-whatsapp">  
-                    <img src="${avatarUrl}" alt="${friend.username}" class="friend-avatar-image" 
-                         onerror="this.src='https://ui-avatars.com/api/?name=${friend.username}&background=667eea&color=fff'">
-                    <span class="status-indicator-whatsapp ${isOnline ? 'online' : 'offline'}"></span>
+            <div class="friend-item-clean" onclick="openChat('${friend.id}', '${friend.username}')">  
+                <div class="friend-avatar-clean" style="background: ${avatarColor};">  
+                    ${firstLetter}
+                    <span class="status-indicator-clean ${isOnline ? 'online' : 'offline'}"></span>
                 </div>  
-                <div class="friend-info-whatsapp">  
+                <div class="friend-info-clean">  
                     <div class="friend-name-status">  
-                        <div class="friend-name-whatsapp">${friend.username}</div>  
-                        <div class="friend-status-whatsapp">  
+                        <div class="friend-name-clean">${friend.username}</div>  
+                        <div class="friend-status-clean">  
                             ${isOnline ? 'Online' : 'Last seen ' + timeAgo}  
                         </div>  
                     </div>  
                     ${friend.unreadCount > 0 ? `  
-                        <div class="unread-badge">  
+                        <div class="unread-badge-clean">  
                             ${friend.unreadCount > 9 ? '9+' : friend.unreadCount}  
                         </div>  
                     ` : ''}  
@@ -403,7 +422,7 @@ function setupSearch() {
     });
 }
 
-// CORRECT PATH for chats page
+// Open chat with friend
 async function openChat(friendId, friendUsername = 'Friend') {
     console.log("Opening chat with:", friendId);
     
@@ -416,8 +435,8 @@ async function openChat(friendId, friendUsername = 'Friend') {
         username: friendUsername  
     }));  
     
-    // CORRECT PATH: From app/pages/home/friends/ to app/pages/chats/
-    window.location.href = '../../../chats/index.html?friendId=' + friendId;
+    // Use absolute path
+    window.location.href = `${PATHS.CHATS}?friendId=${friendId}`;
 }
 
 // Mark messages as read
@@ -434,29 +453,19 @@ async function markMessagesAsRead(friendId) {
         const friend = allFriends.find(f => f.id === friendId);
         if (friend) {
             friend.unreadCount = 0;
-            displayFriendsWhatsAppStyle(allFriends, document.getElementById('friendsContainer'));
+            displayFriendsCleanStyle(allFriends, document.getElementById('friendsContainer'));
         }
     } catch (error) {
         console.log("Could not mark messages as read:", error.message);
     }
 }
 
-// ==================== NAVIGATION FUNCTIONS ====================
-
-function goToHome() {
-    // From: app/pages/home/friends/
-    // To: app/pages/home/
-    window.location.href = '../index.html';
-}
-
+// Search modal functions
 function openSearchModal() {
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
         loadSearchResults();
-    } else {
-        // Redirect to home page search
-        window.location.href = '../index.html';
     }
 }
 
@@ -474,7 +483,6 @@ function closeModal() {
     });
 }
 
-// Search modal functions
 async function loadSearchResults() {
     try {
         if (!currentUser) return;
@@ -507,7 +515,7 @@ async function loadSearchResults() {
             const firstLetter = user.username.charAt(0).toUpperCase();
             html += `
                 <div class="search-result">
-                    <div class="search-avatar">${firstLetter}</div>
+                    <div class="search-avatar" style="background: #667eea;">${firstLetter}</div>
                     <div class="search-info">
                         <div class="search-name">${user.username}</div>
                     </div>
@@ -579,7 +587,7 @@ async function loadNotifications() {
         }
         
         // Get sender usernames
-       const senderIds = requests.map(r => r.sender_id);
+        const senderIds = requests.map(r => r.sender_id);
         const { data: profiles } = await supabase
             .from('profiles')
             .select('id, username')
@@ -594,10 +602,11 @@ async function loadNotifications() {
         requests.forEach(request => {
             const senderName = profileMap[request.sender_id] || 'Unknown';
             const timeAgo = getTimeAgo(request.created_at);
+            const firstLetter = senderName.charAt(0).toUpperCase();
             
             html += `
                 <div class="notification-item">
-                    <div class="notification-avatar">${senderName.charAt(0)}</div>
+                    <div class="notification-avatar" style="background: #667eea;">${firstLetter}</div>
                     <div class="notification-content">
                         <div class="notification-text">
                             <div class="notification-title">${senderName} wants to be friends</div>
@@ -691,12 +700,13 @@ async function declineRequest(requestId, button) {
 // ==================== GLOBAL FUNCTIONS ====================
 
 window.goToHome = goToHome;
+window.goToFriends = goToFriends;
+window.goToLogin = goToLogin;
+window.goToSignup = goToSignup;
 window.openSearchModal = openSearchModal;
 window.openNotifications = openNotifications;
 window.closeModal = closeModal;
 window.openChat = openChat;
-window.goToLogin = goToLogin;
-window.goToSignup = goToSignup;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptRequest = acceptRequest;
 window.declineRequest = declineRequest;
