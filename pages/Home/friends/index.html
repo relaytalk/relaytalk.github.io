@@ -7,8 +7,93 @@
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Additional inline styles for login prompt */
+        .login-prompt {
+            text-align: center;
+            padding: 60px 20px;
+            max-width: 400px;
+            margin: 100px auto;
+        }
+        
+        .login-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .login-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .login-subtitle {
+            color: #a0a0c0;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 250px;
+            margin: 0 auto;
+        }
+        
+        .login-btn, .signup-btn {
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .login-btn:active, .signup-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .login-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .login-btn:hover {
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .signup-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .signup-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Loading skeleton animation */
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .friend-skeleton {
+            animation: skeleton-pulse 1.5s infinite;
+        }
+    </style>
 </head>
 <body>
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
     <!-- Loading Indicator -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-text">✨ Loading Friends...</div>
@@ -19,7 +104,7 @@
         <button class="back-btn" onclick="goToHome()">
             <i class="fas fa-arrow-left"></i> Back
         </button>
-        <div class="page-title">✨ Friends</div>
+        <div class="logo-top">✨ Relay</div>
     </header>
 
     <!-- Main Content -->
@@ -39,10 +124,6 @@
                     <div class="stat-number" id="onlineFriends">0</div>
                     <div class="stat-label">Online Now</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="pendingRequests">0</div>
-                    <div class="stat-label">Pending</div>
-                </div>
             </div>
         </section>
 
@@ -55,52 +136,29 @@
             </div>
         </div>
 
-        <!-- Filter Options -->
-        <div class="filter-options">
-            <button class="filter-btn active" onclick="filterFriends('all')">
-                <i class="fas fa-users"></i> All Friends
-            </button>
-            <button class="filter-btn" onclick="filterFriends('online')">
-                <i class="fas fa-circle online"></i> Online
-            </button>
-            <button class="filter-btn" onclick="filterFriends('recent')">
-                <i class="fas fa-clock"></i> Recently Added
-            </button>
-            <button class="filter-btn" onclick="filterFriends('close')">
-                <i class="fas fa-heart"></i> Close Friends
-            </button>
-        </div>
-
-        <!-- Friends Tabs -->
-        <div class="friends-tabs">
-            <button class="tab-btn active" onclick="switchTab('all')" id="tabAll">
-                All Friends
-                <span class="tab-badge" id="badgeAll">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('online')" id="tabOnline">
-                Online
-                <span class="tab-badge" id="badgeOnline">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('requests')" id="tabRequests">
-                Requests
-                <span class="tab-badge" id="badgeRequests">0</span>
-            </button>
-            <button class="tab-btn" onclick="switchTab('sent')" id="tabSent">
-                Sent
-                <span class="tab-badge" id="badgeSent">0</span>
-            </button>
-        </div>
-
         <!-- Friends Container -->
         <div class="friends-container" id="friendsContainer">
-            <!-- Friends will be loaded here -->
-            <div class="empty-state">
-                <div class="empty-icon">👥</div>
-                <h3 class="empty-title">No Friends Yet</h3>
-                <p class="empty-desc">Start building your friend list by searching for people</p>
-                <button class="search-btn" onclick="openSearch()" style="margin-top: 20px;">
-                    <i class="fas fa-search"></i> Find Friends
-                </button>
+            <!-- Loading skeleton will appear here -->
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
+            </div>
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
+            </div>
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -118,7 +176,7 @@
             <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
         </button>
 
-        <button class="nav-btn active" onclick="viewFriendsPage()">
+        <button class="nav-btn active" onclick="goToFriends()">
             <span class="nav-icon"><i class="fas fa-users"></i></span>
             Friends
         </button>
@@ -135,19 +193,61 @@
             <div class="search-container">
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" id="searchInput" class="search-input" 
-                       placeholder="Search by username or name..." autocomplete="off">
+                       placeholder="Search by username..." autocomplete="off">
             </div>
             
             <div id="searchResults">
+                <!-- Search results will appear here -->
                 <div class="empty-state" style="padding: 30px 20px;">
                     <div class="empty-icon">🔍</div>
                     <h3 class="empty-title">Find New Friends</h3>
-                    <p class="empty-desc">Type a username or name to find people on Relay</p>
+                    <p class="empty-desc">Type a username to find people on Relay</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <script type="module" src="../script.js"></script>
+    <!-- Notifications Modal -->
+    <div class="modal-overlay" id="notificationsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            
+            <div id="notificationsList">
+                <!-- Notifications will appear here -->
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-icon">🔔</div>
+                    <h3 class="empty-title">No Notifications</h3>
+                    <p class="empty-desc">You're all caught up! New notifications will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Friends Page Script -->
+    <script type="module" src="script.js"></script>
+    
+    <script>
+        // Add goToFriends function for the bottom nav
+        function goToFriends() {
+            // Already on friends page
+            console.log("Already on friends page");
+        }
+        
+        // Prevent text selection
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+        });
+        
+        // Prevent context menu on long press
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        // Remove blue tap highlight on mobile
+        document.addEventListener('touchstart', function() {}, {passive: true});
+    </script>
 </body>
 </html>
