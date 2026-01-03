@@ -5,7 +5,34 @@ import presenceTracker from '/app/utils/presence.js';
 
 console.log("✨ Friends Page Loaded");
 
+
+
+
+
+
 // ==================== ABSOLUTE PATHS CONFIGURATION ====================
+
+
+// Add this function to your script.js file (around line 123)
+function setupSearch() {
+  const searchInput = document.querySelector('.search-bar input');
+  const friendItems = document.querySelectorAll('.friend-item');
+  
+  if (!searchInput) return;
+  
+  searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    
+    friendItems.forEach(item => {
+      const friendName = item.querySelector('.friend-name')?.textContent.toLowerCase() || '';
+      const friendStatus = item.querySelector('.friend-status')?.textContent.toLowerCase() || '';
+      
+      const matches = friendName.includes(searchTerm) || friendStatus.includes(searchTerm);
+      item.style.display = matches ? 'flex' : 'none';
+    });
+  });
+}
+
 const PATHS = {
     // Absolute paths from root
     HOME: '/app/pages/home/index.html',
