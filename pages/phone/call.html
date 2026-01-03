@@ -406,20 +406,51 @@
             </button>
         </div>
     </div>
+<!-- COMPLETE SCRIPT SECTION FOR call.html -->
+<script type="module">
+    import callService from '/app/utils/callService.js';
+    import { supabase } from '/app/utils/supabase.js';
 
-    <!-- Script -->
-    <script>
-        // Get URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const callType = urlParams.get('type'); // 'outgoing' or 'incoming'
-        const contactId = urlParams.get('contactId');
-        const contactName = urlParams.get('name') || 'Friend';
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const callType = urlParams.get('type'); // 'outgoing' or 'incoming'
+    const contactId = urlParams.get('contactId');
+    const contactName = urlParams.get('name') || 'Friend';
+    const callId = urlParams.get('callId');
+    const isVideoCall = urlParams.get('video') === 'true' || urlParams.get('callType') === 'video';
+    
+    // Call state
+    let callSeconds = 0;
+    let callTimer;
+    let currentUser = null;
+    let audioContext = null;
+    let analyser = null;
 
-        // Initialize call
-        document.addEventListener('DOMContentLoaded', function() {
+    // Initialize call page
+    async function initCallPage() {
+        console.log("📞 Initializing call page...");
+        
+        try {
+            // Get current user
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = '/app/pages/login/index.html';
+                return;
+            }
+            
+            currentUser = user;
+            
             // Set caller info
             document.getElementById('callerName').textContent = contactName;
             document.getElementById('callerAvatar').textContent = contactName.charAt(0).toUpperCase();
+            document.getElementById('incomingName').textContent = contactName;
+            document.getElementById('incomingAvatar').textContent = contactName.charAt(0).toUpperCase();
+            
+            // Show video elements if video call
+            if (isVideoCall) {
+                document.getElementById('remote-video').style.display = 'block';
+                document.getElementById('video-toggle').style.display = 'flex';
+            }
             
             // Show appropriate screen
             if (callType === 'incoming') {
@@ -428,159 +459,566 @@
                 startOutgoingCall();
             }
             
-            // Start timer
-            startCallTimer();
+            // Initialize call service
+            await initializeCallService();
+            
+            // Start timer if outgoing call
+            if (callType === 'outgoing') {
+                startCallTimer();
+            }
             
             // Setup audio visualizer
             setupAudioVisualizer();
-        });
-
-        // Call timer
-        let callSeconds = 0;
-        let callTimer;
-
-        function startCallTimer() {
-            callSeconds = 0;
-            callTimer = setInterval(function() {
-                callSeconds++;
-                const minutes = Math.floor(callSeconds / 60);
-                const seconds = callSeconds % 60;
-                const timerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                
-                document.getElementById('callTimer').textContent = timerText;
-                document.getElementById('callDuration').textContent = timerText;
-            }, 1000);
+            
+        } catch (error) {
+            console.error("❌ Failed to initialize call page:", error);
         }
+    }
 
-        // Call controls
-        function toggleMute() {
-            const btn = document.getElementById('muteBtn');
-            const isMuted = btn.classList.contains('active');
+    // ==================== CALL SERVICE INTEGRATION ====================
+
+    async function initializeCallService() {
+        try {
+            await callService.initialize(currentUser.id);
+            
+            // Set up call service callbacks
+            callService.setOnCallStateChange((state) => {
+                handleCallStateChange(state);
+            });
+            
+            callService.setOnRemoteStream((stream) => {
+                handleRemoteStream(stream);
+            });
+            
+            callService.setOnCallQualityUpdate((stats) => {
+                updateCallQuality(stats);
+            });
+            
+            callService.setOnCallEvent((event, data) => {
+                handleCallEvent(event, data);
+            });
+            
+            console.log("✅ Call service initialized for call page");
+            
+        } catch (error) {
+            console.error("❌ Failed to initialize call service:", error);
+        }
+    }
+
+    // Call state change handler
+    function handleCallStateChange(state) {
+        console.log("📞 Call state changed to:", state);
+        
+        const statusElement = document.getElementById('callStatus');
+        const timerElement = document.getElementById('callTimer');
+        
+        switch(state) {
+            case 'ringing':
+                statusElement.textContent = 'Ringing...';
+                statusElement.style.color = '#FF9500';
+                break;
+                
+            case 'connecting':
+                statusElement.textContent = 'Connecting...';
+                statusElement.style.color = '#007AFF';
+                break;
+                
+            case 'active':
+                statusElement.textContent = 'Connected';
+                statusElement.style.color = '#4CAF50';
+                startCallTimer();
+                break;
+                
+            case 'ending':
+                statusElement.textContent = 'Ending call...';
+                statusElement.style.color = '#FF3B30';
+                break;
+                
+            case 'idle':
+                statusElement.textContent = 'Call ended';
+                statusElement.style.color = '#FF3B30';
+                break;
+        }
+    }
+
+    // Remote stream handler
+    function handleRemoteStream(stream) {
+        console.log("🎵 Remote stream received");
+        
+        const remoteAudio = document.getElementById('remote-audio');
+        const remoteVideo = document.getElementById('remote-video');
+        
+        // Handle audio
+        if (remoteAudio) {
+            remoteAudio.srcObject = stream;
+            remoteAudio.play().catch(e => console.log("Audio play error:", e));
+            
+            // Setup audio visualization for remote stream
+            setupRemoteAudioVisualizer(stream);
+        }
+        
+        // Handle video
+        if (remoteVideo && stream.getVideoTracks().length > 0) {
+            remoteVideo.srcObject = stream;
+            remoteVideo.play().catch(e => console.log("Video play error:", e));
+            remoteVideo.style.display = 'block';
+        }
+    }
+
+    // Call quality update
+    function updateCallQuality(stats) {
+        console.log("📊 Call quality:", stats);
+        
+        const qualityElement = document.getElementById('callQuality');
+        if (qualityElement) {
+            const qualityDot = qualityElement.querySelector('.quality-dot');
+            const qualityText = qualityElement.querySelector('span:last-child');
+            
+            if (qualityDot) {
+                qualityDot.className = 'quality-dot ' + stats.overallQuality;
+            }
+            
+            if (qualityText) {
+                qualityText.textContent = stats.overallQuality.charAt(0).toUpperCase() + stats.overallQuality.slice(1);
+            }
+        }
+    }
+
+    // Call event handler
+    function handleCallEvent(event, data) {
+        console.log("📨 Call event:", event, data);
+        
+        switch(event) {
+            case 'remote_mute_toggled':
+                // Show remote mute status
+                showToast(data.muted ? 'Remote user muted' : 'Remote user unmuted');
+                break;
+                
+            case 'remote_video_toggled':
+                // Show remote video status
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) {
+                    remoteVideo.style.display = data.videoEnabled ? 'block' : 'none';
+                }
+                showToast(data.videoEnabled ? 'Remote video on' : 'Remote video off');
+                break;
+                
+            case 'call_duration_update':
+                // Update call timer
+                updateCallTimer(data.duration);
+                break;
+                
+            case 'call_ended':
+                // Remote user ended the call
+                endCall();
+                break;
+        }
+    }
+
+    // ==================== CALL CONTROLS ====================
+
+    async function toggleMute() {
+        const btn = document.getElementById('muteBtn');
+        
+        try {
+            const isMuted = await callService.toggleMute();
             
             if (isMuted) {
-                btn.classList.remove('active');
-                btn.innerHTML = '<i class="fas fa-microphone"></i>';
-                // Unmute audio
-            } else {
-                btn.classList.add('active');
                 btn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-                // Mute audio
-            }
-        }
-
-        function toggleSpeaker() {
-            const btn = document.getElementById('speakerBtn');
-            const isSpeaker = btn.classList.contains('active');
-            
-            if (isSpeaker) {
-                btn.classList.remove('active');
-                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-                // Switch to earpiece
-            } else {
+                btn.style.background = '#ff9500';
                 btn.classList.add('active');
-                btn.innerHTML = '<i class="fas fa-volume-high"></i>';
-                // Switch to speaker
+                showToast('You are muted');
+            } else {
+                btn.innerHTML = '<i class="fas fa-microphone"></i>';
+                btn.style.background = 'rgba(255,255,255,0.1)';
+                btn.classList.remove('active');
+                showToast('You are unmuted');
+            }
+            
+        } catch (error) {
+            console.error("❌ Failed to toggle mute:", error);
+        }
+    }
+
+    async function toggleSpeaker() {
+        const btn = document.getElementById('speakerBtn');
+        const isSpeaker = btn.classList.contains('active');
+        
+        // Toggle speaker class (for UI)
+        if (isSpeaker) {
+            btn.classList.remove('active');
+            btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            showToast('Speaker off');
+        } else {
+            btn.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-volume-high"></i>';
+            btn.style.background = '#007AFF';
+            showToast('Speaker on');
+            
+            // Try to use Web Audio API for better speaker control
+            try {
+                const audioElements = document.querySelectorAll('audio, video');
+                audioElements.forEach(element => {
+                    if (element.setSinkId) {
+                        element.setSinkId('').catch(console.log);
+                    }
+                });
+            } catch (error) {
+                console.log("Speaker control not supported");
             }
         }
+    }
 
-        function endCall() {
-            clearInterval(callTimer);
+    async function toggleVideo() {
+        if (!isVideoCall) return;
+        
+        const btn = document.getElementById('videoBtn');
+        
+        try {
+            const videoEnabled = await callService.toggleVideo();
             
-            // Show call ended animation
-            document.getElementById('callStatus').textContent = 'Call Ended';
-            document.getElementById('callStatus').style.color = '#ff3b30';
+            if (videoEnabled) {
+                btn.innerHTML = '<i class="fas fa-video"></i>';
+                btn.style.background = 'rgba(255,255,255,0.1)';
+                btn.classList.remove('active');
+                showToast('Video on');
+            } else {
+                btn.innerHTML = '<i class="fas fa-video-slash"></i>';
+                btn.style.background = '#ff9500';
+                btn.classList.add('active');
+                showToast('Video off');
+            }
             
-            // Wait 2 seconds then go back
-            setTimeout(function() {
+        } catch (error) {
+            console.error("❌ Failed to toggle video:", error);
+        }
+    }
+
+    async function switchCamera() {
+        if (!isVideoCall) return;
+        
+        try {
+            await callService.switchCamera();
+            showToast('Camera switched');
+        } catch (error) {
+            console.error("❌ Failed to switch camera:", error);
+            showToast('Only one camera available');
+        }
+    }
+
+    async function endCall() {
+        console.log("📞 Ending call...");
+        
+        // Update UI
+        document.getElementById('callStatus').textContent = 'Call Ended';
+        document.getElementById('callStatus').style.color = '#ff3b30';
+        
+        // Stop call timer
+        stopCallTimer();
+        
+        // End call through call service
+        await callService.endCall();
+        
+        // Cleanup audio context
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+        }
+        
+        // Wait 2 seconds then go back
+        setTimeout(() => {
+            window.history.back();
+        }, 2000);
+    }
+
+    // ==================== INCOMING CALL HANDLING ====================
+
+    function showIncomingCall() {
+        document.getElementById('callScreen').style.display = 'none';
+        document.getElementById('incomingCallScreen').style.display = 'flex';
+    }
+
+    async function acceptCall() {
+        console.log("📞 Accepting incoming call...");
+        
+        document.getElementById('incomingCallScreen').style.display = 'none';
+        document.getElementById('callScreen').style.display = 'flex';
+        document.getElementById('callStatus').textContent = 'Connecting...';
+        
+        try {
+            // Answer the call through call service
+            if (callId) {
+                await callService.answerCall(callId);
+            } else {
+                console.error("No call ID provided");
+                showToast('Error: No call ID');
                 window.history.back();
-            }, 2000);
-        }
-
-        // Incoming call functions
-        function showIncomingCall() {
-            document.getElementById('callScreen').style.display = 'none';
-            document.getElementById('incomingCallScreen').style.display = 'flex';
+            }
             
-            // Set incoming caller info
-            document.getElementById('incomingName').textContent = contactName;
-            document.getElementById('incomingAvatar').textContent = contactName.charAt(0).toUpperCase();
+        } catch (error) {
+            console.error("❌ Failed to accept call:", error);
+            showToast('Failed to accept call');
+            window.history.back();
         }
+    }
 
-        function acceptCall() {
-            document.getElementById('incomingCallScreen').style.display = 'none';
-            document.getElementById('callScreen').style.display = 'flex';
-            document.getElementById('callStatus').textContent = 'Connected';
-            startCallTimer();
+    async function rejectCall() {
+        console.log("❌ Rejecting incoming call...");
+        
+        // Reject call through call service
+        if (callId) {
+            await callService.rejectCall(callId);
         }
+        
+        // Go back immediately
+        window.history.back();
+    }
 
-        function rejectCall() {
-            document.getElementById('callStatus').textContent = 'Call Rejected';
-            setTimeout(function() {
-                window.history.back();
+    function startOutgoingCall() {
+        console.log("📞 Starting outgoing call...");
+        document.getElementById('callStatus').textContent = 'Calling...';
+        
+        // If we have a contact ID, initiate the call
+        if (contactId && !callId) {
+            setTimeout(async () => {
+                try {
+                    await callService.initiateCall(contactId, isVideoCall ? 'video' : 'voice');
+                } catch (error) {
+                    console.error("❌ Failed to start call:", error);
+                    showToast('Failed to start call');
+                    setTimeout(() => window.history.back(), 2000);
+                }
             }, 1000);
         }
+    }
 
-        // Audio visualizer
-        function setupAudioVisualizer() {
-            const canvas = document.getElementById('visualizerCanvas');
-            const ctx = canvas.getContext('2d');
+    // ==================== CALL TIMER ====================
+
+    function startCallTimer() {
+        callSeconds = 0;
+        clearInterval(callTimer);
+        
+        callTimer = setInterval(() => {
+            callSeconds++;
+            updateCallTimer(callSeconds);
+        }, 1000);
+    }
+
+    function updateCallTimer(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        const timerText = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        document.getElementById('callTimer').textContent = timerText;
+        document.getElementById('callDuration').textContent = timerText;
+    }
+
+    function stopCallTimer() {
+        if (callTimer) {
+            clearInterval(callTimer);
+            callTimer = null;
+        }
+    }
+
+    // ==================== AUDIO VISUALIZER ====================
+
+    function setupAudioVisualizer() {
+        const canvas = document.getElementById('visualizerCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        // Create audio context for local audio visualization
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
             
-            // Set canvas size
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+            // We'll connect this when we have a local stream
+            
+        } catch (error) {
+            console.log("Audio context not supported, using fallback visualizer");
+            // Fallback to animated bars
+            animateFallbackVisualizer(ctx, canvas);
+            return;
+        }
+        
+        // Animation loop
+        function draw() {
+            requestAnimationFrame(draw);
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw bars
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
             
             // Create gradient
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
             gradient.addColorStop(0, '#667eea');
             gradient.addColorStop(1, '#764ba2');
             
-            // Animation loop
-            function draw() {
-                requestAnimationFrame(draw);
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 2;
                 
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
                 
-                // Draw bars (simulated audio data)
-                const barCount = 50;
-                const barWidth = canvas.width / barCount;
-                
-                for (let i = 0; i < barCount; i++) {
-                    const barHeight = Math.random() * canvas.height * 0.8;
-                    const x = i * barWidth;
-                    const y = (canvas.height - barHeight) / 2;
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(x, y, barWidth - 2, barHeight);
-                }
+                x += barWidth + 1;
             }
+        }
+        
+        draw();
+    }
+
+    function setupRemoteAudioVisualizer(stream) {
+        if (!audioContext || !analyser) return;
+        
+        try {
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+        } catch (error) {
+            console.log("Could not connect remote stream to visualizer:", error);
+        }
+    }
+
+    function animateFallbackVisualizer(ctx, canvas) {
+        function draw() {
+            requestAnimationFrame(draw);
             
-            draw();
-        }
-
-        // Navigation
-        function minimizeCall() {
-            document.getElementById('callScreen').style.display = 'none';
-            document.getElementById('minimizedCall').style.display = 'block';
-        }
-
-        function expandCall() {
-            document.getElementById('minimizedCall').style.display = 'none';
-            document.getElementById('callScreen').style.display = 'flex';
-        }
-
-        function startOutgoingCall() {
-            document.getElementById('callStatus').textContent = 'Calling...';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Simulate call connection
-            setTimeout(function() {
-                document.getElementById('callStatus').textContent = 'Connected';
-            }, 2000);
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // Draw animated bars (simulated audio)
+            const barCount = 50;
+            const barWidth = canvas.width / barCount;
+            
+            for (let i = 0; i < barCount; i++) {
+                // Simulate audio data with some randomness and wave pattern
+                const time = Date.now() / 1000;
+                const wave = Math.sin(time * 2 + i * 0.3) * 0.5 + 0.5;
+                const random = Math.random() * 0.3;
+                const barHeight = (wave + random) * canvas.height * 0.8;
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth - 2, barHeight);
+            }
         }
+        
+        draw();
+    }
 
-        // Handle back button
-        window.addEventListener('popstate', function() {
-            clearInterval(callTimer);
-        });
-    </script>
+    // ==================== UTILITY FUNCTIONS ====================
+
+    function showToast(message) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'call-toast';
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            z-index: 10000;
+            animation: fadeInOut 3s ease;
+        `;
+        
+        // Add CSS animation
+        if (!document.querySelector('#toastStyles')) {
+            const style = document.createElement('style');
+            style.id = 'toastStyles';
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(toast);
+        
+        // Remove toast after animation
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    function minimizeCall() {
+        // Implement call minimization
+        showToast('Call minimized');
+        // You would typically hide the call UI and show a small floating window
+    }
+
+    function expandCall() {
+        // Implement call expansion
+        showToast('Call expanded');
+    }
+
+    function showKeypad() {
+        // Show dial pad for DTMF tones
+        showToast('Keypad (DTMF tones coming soon)');
+    }
+
+    function toggleHold() {
+        // Implement call hold
+        showToast('Call hold coming soon');
+    }
+
+    // ==================== EVENT LISTENERS ====================
+
+    // Handle back button
+   window.addEventListener('popstate', function() {
+        endCall();
+    });
+
+    // Handle page visibility change
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            console.log("Page hidden");
+        } else {
+            console.log("Page visible");
+        }
+    });
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', initCallPage);
+
+    // ==================== GLOBAL FUNCTIONS ====================
+
+    window.toggleMute = toggleMute;
+    window.toggleSpeaker = toggleSpeaker;
+    window.toggleVideo = toggleVideo;
+    window.switchCamera = switchCamera;
+    window.endCall = endCall;
+    window.acceptCall = acceptCall;
+    window.rejectCall = rejectCall;
+    window.minimizeCall = minimizeCall;
+    window.expandCall = expandCall;
+    window.showKeypad = showKeypad;
+    window.toggleHold = toggleHold;
+</script>
 </body>
 </html>
