@@ -586,7 +586,8 @@ async function loadNotifications() {
             return;
         }
         // Get sender usernames
-                const senderIds = requests.map(r => r.sender_id);
+          // Get sender usernames
+        const senderIds = requests.map(r => r.sender_id);
         const { data: profiles } = await supabase
             .from('profiles')
             .select('id, username')
@@ -597,14 +598,9 @@ async function loadNotifications() {
             profiles.forEach(p => profileMap[p.id] = p.username);
         }
 
-        let html = '';
-        requests.forEach(request => {
-            const senderName = profileMap[request.sender_id] || 'Unknown';
-            const timeAgo = getTimeAgo(request.created_at);
-            const firstLetter = senderName.charAt(0).toUpperCase();
-
-            html += `  
+        html += `  
     <div class="notification-item">  
+        <div class="notification-avatar" style="background: #667eea;">${firstLetter}</div>
         <div class="notification-content">  
             <div class="notification-text">  
                 <div class="notification-title">${senderName} wants to be friends</div>  
