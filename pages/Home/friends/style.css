@@ -772,3 +772,55 @@ button:active, .search-btn:active, .nav-btn:active,
 .toast-info {
     border-left: 4px solid #007AFF;
 }
+
+
+/* ==================== CALL SCREEN STYLES ==================== */
+
+/* Button hover effects */
+#callScreen button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+#callScreen button:active {
+    transform: scale(0.95);
+}
+
+/* Active states for mute/speaker */
+#callScreen button[style*="rgba(255,255,255,0.2)"] {
+    border-color: rgba(102, 126, 234, 0.5) !important;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* End call button specific */
+#callScreen button[onclick="endCurrentCall()"]:hover {
+    transform: scale(1.1) !important;
+    box-shadow: 0 8px 25px rgba(255, 59, 48, 0.5) !important;
+}
+
+#callScreen button[onclick="endCurrentCall()"]:active {
+    transform: scale(0.95) !important;
+}
+
+/* Responsive call screen */
+@media (max-width: 480px) {
+    #callScreen .calling-ring {
+        width: 120px !important;
+        height: 120px !important;
+        font-size: 2.8rem !important;
+    }
+    
+    #callScreen h2 {
+        font-size: 2rem !important;
+    }
+    
+    #callScreen button {
+        width: 70px !important;
+        height: 70px !important;
+        font-size: 1.8rem !important;
+    }
+    
+    #callTimer {
+        font-size: 2.5rem !important;
+    }
+}
