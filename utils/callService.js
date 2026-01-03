@@ -1,4 +1,4 @@
-// /app/utils/callService.js - SIMPLIFIED VERSION
+// /app/utils/callService.js - SIMPLIFIED FOR DIRECT CALLS
 import { supabase } from './supabase.js';
 
 class CallService {
@@ -8,39 +8,36 @@ class CallService {
         this.remoteStream = null;
         this.currentCall = null;
         this.isCaller = false;
-        this.callType = 'voice';
         this.userId = null;
         
         this.callState = 'idle';
         this.callStartTime = null;
         this.callTimer = null;
         
-        // STUN servers
         this.iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
         ];
         
-        // Callbacks
         this.onCallStateChange = null;
         this.onRemoteStream = null;
         this.onCallEvent = null;
+        
+        console.log("✅ Call Service initialized");
     }
 
-    // Initialize
     async initialize(userId) {
         this.userId = userId;
         return true;
     }
 
-    // Start a call
     async initiateCall(friendId, type = 'voice') {
         try {
-            this.callType = type;
             this.isCaller = true;
             
-            // 1. Create call record
+            // Create call record
             const roomId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
             const { data: call, error } = await supabase
@@ -59,18 +56,18 @@ class CallService {
             if (error) throw error;
             this.currentCall = call;
             
-            // 2. Get user media
+            // Get user media
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                video: type === 'video'
+                video: false
             });
             
-            // 3. Create peer connection
+            // Create peer connection
             this.peerConnection = new RTCPeerConnection({
                 iceServers: this.iceServers
             });
             
-            // Add tracks
+            // Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
@@ -78,11 +75,15 @@ class CallService {
             // Setup event handlers
             this.setupPeerConnection();
             
-            // 4. Create offer
-            const offer = await this.peerConnection.createOffer();
+            // Create offer
+            const offer = await this.peerConnection.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false
+            });
+            
             await this.peerConnection.setLocalDescription(offer);
             
-            // 5. Save offer to DB
+            // Save offer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -91,27 +92,26 @@ class CallService {
                 })
                 .eq('id', call.id);
             
-            // 6. Setup listener for answer
-            this.listenForAnswer();
+            // Listen for answer
+            this.listenForCallUpdates();
             
-            // 7. Update state
+            // Update state
             this.updateState('ringing');
             
             return call;
             
         } catch (error) {
-            console.error("Initiate call error:", error);
+            console.error("❌ Initiate call failed:", error);
             this.cleanup();
             throw error;
         }
     }
 
-    // Answer a call
     async answerCall(callId) {
         try {
             this.isCaller = false;
             
-            // 1. Get call
+            // Get call data
             const { data: call, error } = await supabase
                 .from('calls')
                 .select('*')
@@ -120,20 +120,19 @@ class CallService {
             
             if (error) throw error;
             this.currentCall = call;
-            this.callType = call.call_type || 'voice';
             
-            // 2. Get user media
+            // Get user media
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                video: this.callType === 'video'
+                video: false
             });
             
-            // 3. Create peer connection
+            // Create peer connection
             this.peerConnection = new RTCPeerConnection({
                 iceServers: this.iceServers
             });
             
-            // Add tracks
+            // Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
@@ -141,17 +140,17 @@ class CallService {
             // Setup event handlers
             this.setupPeerConnection();
             
-            // 4. Set remote offer
+            // Set remote offer
             const offer = JSON.parse(call.sdp_offer);
             await this.peerConnection.setRemoteDescription(
                 new RTCSessionDescription(offer)
             );
             
-            // 5. Create answer
+            // Create answer
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
             
-            // 6. Save answer to DB
+            // Save answer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -162,31 +161,28 @@ class CallService {
                 })
                 .eq('id', callId);
             
-            // 7. Update state
+            // Listen for updates
+            this.listenForCallUpdates();
+            
+            // Update state
             this.updateState('active');
-            this.startTimer();
             
             return true;
             
         } catch (error) {
-            console.error("Answer call error:", error);
+            console.error("❌ Answer call failed:", error);
             this.cleanup();
             throw error;
         }
     }
 
-    // Setup peer connection events
     setupPeerConnection() {
-        if (!this.peerConnection) return;
-        
-        // ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate && this.currentCall) {
                 this.sendIceCandidate(event.candidate);
             }
         };
         
-        // Remote stream
         this.peerConnection.ontrack = (event) => {
             this.remoteStream = event.streams[0];
             if (this.onRemoteStream) {
@@ -194,10 +190,8 @@ class CallService {
             }
         };
         
-        // Connection state
         this.peerConnection.onconnectionstatechange = () => {
             const state = this.peerConnection.connectionState;
-            console.log("Connection state:", state);
             
             if (state === 'connected') {
                 this.updateState('active');
@@ -208,34 +202,6 @@ class CallService {
         };
     }
 
-    // Listen for answer (for caller)
-    listenForAnswer() {
-        if (!this.currentCall) return;
-        
-        supabase
-            .channel(`call-${this.currentCall.room_id}`)
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'calls',
-                filter: `id=eq.${this.currentCall.id}`
-            }, async (payload) => {
-                const call = payload.new;
-                
-                if (call.sdp_answer && this.isCaller) {
-                    const answer = JSON.parse(call.sdp_answer);
-                    await this.peerConnection.setRemoteDescription(
-                        new RTCSessionDescription(answer)
-                    );
-                    
-                    this.updateState('active');
-                    this.startTimer();
-                }
-            })
-            .subscribe();
-    }
-
-    // Send ICE candidate
     async sendIceCandidate(candidate) {
         if (!this.currentCall) return;
         
@@ -256,12 +222,52 @@ class CallService {
             });
     }
 
-    // End call
+    listenForCallUpdates() {
+        if (!this.currentCall) return;
+        
+        supabase
+            .channel(`call-${this.currentCall.room_id}`)
+            .on('broadcast', { event: 'ice-candidate' }, async (payload) => {
+                const { candidate, senderId } = payload.payload;
+                if (senderId !== this.userId && this.peerConnection) {
+                    try {
+                        await this.peerConnection.addIceCandidate(
+                            new RTCIceCandidate(candidate)
+                        );
+                    } catch (error) {
+                        console.log("ICE candidate error:", error);
+                    }
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'calls',
+                filter: `id=eq.${this.currentCall.id}`
+            }, async (payload) => {
+                const call = payload.new;
+                
+                // Caller receives answer
+                if (this.isCaller && call.sdp_answer) {
+                    const answer = JSON.parse(call.sdp_answer);
+                    await this.peerConnection.setRemoteDescription(
+                        new RTCSessionDescription(answer)
+                    );
+                    this.updateState('active');
+                }
+                
+                // Call ended
+                if (call.status === 'ended' || call.status === 'rejected') {
+                    this.endCall();
+                }
+            })
+            .subscribe();
+    }
+
     async endCall() {
         if (!this.currentCall) return;
         
         try {
-            // Update DB
             await supabase
                 .from('calls')
                 .update({
@@ -273,21 +279,19 @@ class CallService {
                 })
                 .eq('id', this.currentCall.id);
             
-            // Send call ended event
             if (this.onCallEvent) {
                 this.onCallEvent('call_ended', {});
             }
             
         } catch (error) {
-            console.error("Error updating call end:", error);
+            console.error("Error ending call:", error);
         }
         
         this.cleanup();
     }
 
-    // Toggle mute
     async toggleMute() {
-        if (!this.localStream) return;
+        if (!this.localStream) return false;
         
         const audioTracks = this.localStream.getAudioTracks();
         const isMuted = audioTracks[0]?.enabled === false;
@@ -297,10 +301,9 @@ class CallService {
             track.enabled = newState;
         });
         
-        return newState;
+        return newState; // true = unmuted, false = muted
     }
 
-    // Update state
     updateState(state) {
         this.callState = state;
         if (this.onCallStateChange) {
@@ -308,15 +311,13 @@ class CallService {
         }
     }
 
-    // Start timer
     startTimer() {
         this.callStartTime = Date.now();
         this.callTimer = setInterval(() => {
-            // Timer logic
+            // Timer running
         }, 1000);
     }
 
-    // Cleanup
     cleanup() {
         if (this.peerConnection) {
             this.peerConnection.close();
@@ -336,9 +337,10 @@ class CallService {
         this.currentCall = null;
         this.callState = 'idle';
         this.callStartTime = null;
+        this.isCaller = false;
     }
 
-    // Setters for callbacks
+    // Setters
     setOnCallStateChange(callback) { this.onCallStateChange = callback; }
     setOnRemoteStream(callback) { this.onRemoteStream = callback; }
     setOnCallEvent(callback) { this.onCallEvent = callback; }
