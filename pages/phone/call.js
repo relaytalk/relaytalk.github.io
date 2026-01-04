@@ -1,4 +1,4 @@
-// /app/pages/phone/call.js - COMPLETE FIXED VERSION
+// /app/pages/phone/call.js - CLEAN FINAL VERSION
 console.log("📞 Call Page Loaded");
 
 // Global references
@@ -7,13 +7,12 @@ let callService;
 let currentCallId = null;
 
 // Audio state
-let isAudioEnabled = false;
-let audioUnlockAttempts = 0;
+let audioUnlocked = false;
 
 async function initCallPage() {
     console.log("Initializing call page...");
     
-    // Setup audio unlock immediately
+    // Setup audio unlock
     setupAudioUnlock();
 
     // Get URL parameters
@@ -33,13 +32,11 @@ async function initCallPage() {
     if (window.supabase) {
         supabase = window.supabase;
         window.globalSupabase = supabase;
-        console.log("✅ Using window.supabase");
     } else {
         try {
             const module = await import('/app/utils/supabase.js');
             supabase = module.supabase;
             window.globalSupabase = supabase;
-            console.log("✅ Loaded supabase from module");
         } catch (error) {
             showError("Failed to load Supabase: " + error.message);
             return;
@@ -68,16 +65,11 @@ async function initCallPage() {
         callService = module.default;
         window.globalCallService = callService;
         await callService.initialize(user.id);
-        console.log("✅ Call service initialized");
 
         // Setup callbacks
         callService.setOnCallStateChange(handleCallStateChange);
         callService.setOnRemoteStream(handleRemoteStream);
         callService.setOnCallEvent(handleCallEvent);
-
-        // Mark as ready for global functions
-        window.callServiceReady = true;
-        console.log("✅ Call service marked as ready");
 
         // Start or answer call
         if (isIncoming && currentCallId) {
@@ -99,114 +91,36 @@ async function initCallPage() {
 }
 
 function setupAudioUnlock() {
-    console.log("🔊 Setting up audio unlock...");
-    
-    // Create silent audio element to warm up audio context
+    // Create silent audio to warm up audio context
     const silentAudio = new Audio();
     silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
     silentAudio.volume = 0.001;
     
-    // Function to unlock audio
     const unlockAudio = async () => {
-        if (isAudioEnabled) return;
-        
-        console.log("🔓 Attempting to unlock audio...");
-        audioUnlockAttempts++;
+        if (audioUnlocked) return;
         
         try {
-            // Try to play silent audio
             await silentAudio.play();
-            console.log("✅ Silent audio played successfully");
-            isAudioEnabled = true;
+            audioUnlocked = true;
             
-            // Now try to play remote audio if it exists
+            // Try to play remote audio
             const remoteAudio = document.getElementById('remoteAudio');
             if (remoteAudio && remoteAudio.srcObject && remoteAudio.paused) {
-                console.log("🎵 Attempting to play remote audio...");
-                await remoteAudio.play();
-                console.log("✅ Remote audio playing!");
+                setTimeout(() => {
+                    remoteAudio.play().catch(() => {});
+                }, 300); // Small delay for better reliability
             }
-            
-            // Remove unlock button if exists
-            const unlockBtn = document.getElementById('unlockAudioBtn');
-            if (unlockBtn) unlockBtn.remove();
-            
         } catch (error) {
-            console.log(`Audio unlock attempt ${audioUnlockAttempts} failed:`, error.name);
-            
-            // Show unlock button after 3 failed attempts
-            if (audioUnlockAttempts >= 3 && !document.getElementById('unlockAudioBtn')) {
-                showAudioUnlockButton();
-            }
+            console.log("Audio unlock attempt failed:", error.name);
         }
     };
     
-    // Unlock on any interaction
-    ['click', 'touchstart', 'keydown', 'mousedown'].forEach(event => {
-        document.addEventListener(event, unlockAudio, { once: true });
-    });
+    // Unlock on user interaction
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
     
     // Also try after delay
     setTimeout(unlockAudio, 1000);
-    setTimeout(unlockAudio, 3000);
-}
-
-function showAudioUnlockButton() {
-    console.log("Showing audio unlock button");
-    
-    const button = document.createElement('button');
-    button.id = 'unlockAudioBtn';
-    button.innerHTML = '🔇 TAP TO ENABLE AUDIO';
-    button.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 20px 40px;
-        border-radius: 30px;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        z-index: 10000;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        animation: pulse 2s infinite;
-    `;
-    
-    // Add pulse animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes pulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    button.onclick = async () => {
-        button.innerHTML = '🔄 Enabling...';
-        button.style.background = '#4cd964';
-        
-        const remoteAudio = document.getElementById('remoteAudio');
-        if (remoteAudio) {
-            try {
-                await remoteAudio.play();
-                console.log("✅ Audio enabled via button!");
-                button.innerHTML = '✅ AUDIO ENABLED!';
-                setTimeout(() => button.remove(), 2000);
-                isAudioEnabled = true;
-            } catch (error) {
-                console.log("Button click failed:", error);
-                button.innerHTML = '❌ Please click screen';
-                setTimeout(() => button.remove(), 2000);
-            }
-        }
-    };
-    
-    document.body.appendChild(button);
 }
 
 function startOutgoingCall(friendId, friendName, type) {
@@ -244,24 +158,20 @@ function setupIncomingCallControls() {
     `;
 }
 
-// Handle answer button click with waiting mechanism
+// Handle answer button click
 window.handleAnswerClick = async function() {
     console.log("Answer button clicked");
     
     // Show loading state
-    const statusEl = document.getElementById('callStatus');
-    if (statusEl) {
-        statusEl.textContent = 'Answering...';
-    }
+    document.getElementById('callStatus').textContent = 'Answering...';
     
     // Unlock audio on user interaction
     setupAudioUnlock();
     
-    // Wait for call service to be ready (max 5 seconds)
-    for (let i = 0; i < 50; i++) {
+    // Wait for call service to be ready
+    for (let i = 0; i < 30; i++) {
         if (window.globalCallService && window.currentCallId) {
             try {
-                console.log("Answering call:", window.currentCallId);
                 await window.globalCallService.answerCall(window.currentCallId);
                 
                 // Update controls to show mute/end
@@ -368,8 +278,6 @@ function handleCallStateChange(state) {
                 timerEl.style.display = 'block';
                 startCallTimer();
             }
-            // Try to unlock audio when call becomes active
-            setTimeout(setupAudioUnlock, 500);
             break;
         case 'ending':
             statusEl.textContent = 'Ending call...';
@@ -378,78 +286,35 @@ function handleCallStateChange(state) {
 }
 
 function handleRemoteStream(stream) {
-    console.log("🎵 REMOTE STREAM RECEIVED!");
-    
-    // Log detailed stream info
-    const audioTracks = stream.getAudioTracks();
-    console.log("Audio tracks:", audioTracks.length);
-    audioTracks.forEach((track, i) => {
-        console.log(`Track ${i}: enabled=${track.enabled}, muted=${track.muted}`);
-    });
+    console.log("Remote stream received");
     
     const audio = document.getElementById('remoteAudio');
     if (audio) {
-        // Clear any previous stream
+        // Clear previous stream
         audio.srcObject = null;
         
-        // Set the new stream
-        audio.srcObject = stream;
-        
-        // CRITICAL SETTINGS
-        audio.muted = false;
-        audio.volume = 1.0;
-        audio.autoplay = true;
-        
-        console.log("Audio element configured:", {
-            muted: audio.muted,
-            volume: audio.volume,
-            paused: audio.paused,
-            readyState: audio.readyState
-        });
-        
-        // Try to play immediately
-        const playAudio = async () => {
-            try {
-                await audio.play();
-                console.log("✅ Audio playback started successfully!");
-                isAudioEnabled = true;
-                
-                // Remove unlock button if exists
-                const unlockBtn = document.getElementById('unlockAudioBtn');
-                if (unlockBtn) unlockBtn.remove();
-                
-            } catch (error) {
-                console.log("❌ Auto-play failed:", error.name);
-                
-                // Show unlock instructions
-                if (!document.getElementById('unlockAudioBtn')) {
-                    showAudioUnlockButton();
-                }
-                
-                // Try again after user interaction
-                document.body.addEventListener('click', () => {
-                    if (!isAudioEnabled) {
-                        audio.play().then(() => {
-                            console.log("✅ Audio started after click");
-                            isAudioEnabled = true;
-                        }).catch(e => {
-                            console.log("Still can't play:", e);
-                        });
+        // Add 300ms delay for smoother audio
+        setTimeout(() => {
+            audio.srcObject = stream;
+            audio.volume = 1.0;
+            audio.muted = false;
+            
+            // Try to play with retry logic
+            const playWithRetry = (retries = 3) => {
+                audio.play().then(() => {
+                    console.log("✅ Audio playing smoothly");
+                }).catch(error => {
+                    if (retries > 0) {
+                        console.log(`Retrying audio playback (${retries} attempts left)...`);
+                        setTimeout(() => playWithRetry(retries - 1), 500);
+                    } else {
+                        console.log("Audio playback failed, waiting for user interaction");
                     }
-                }, { once: true });
-            }
-        };
-        
-        // Try to play
-        playAudio();
-        
-        // Also set up continuous play attempts
-        audio.onpause = () => {
-            if (stream.active && !isAudioEnabled) {
-                console.log("Audio paused, trying to resume...");
-                setTimeout(() => audio.play().catch(() => {}), 100);
-            }
-        };
+                });
+            };
+            
+            playWithRetry();
+        }, 300); // 300ms delay for smoother audio
     }
 }
 
