@@ -1,9 +1,5 @@
-// /app/pages/home/friends/script.js - COMPLETE WITH ALL FUNCTIONS
-import { auth } from '/app/utils/auth.js';
-import { supabase } from '/app/utils/supabase.js';
-import presenceTracker from '/app/utils/presence.js';
-
-console.log("✨ Friends Page Loaded");
+// /app/pages/home/friends/script.js - COMPLETE FIXED VERSION
+console.log("✨ Friends Page Loaded - FIXED VERSION");
 
 // ==================== PATHS CONFIG ====================
 const PATHS = {
@@ -15,6 +11,41 @@ const PATHS = {
     PHONE: '/app/pages/phone/index.html',
     PHONE_CALL: '/app/pages/phone/call.html'
 };
+
+// ==================== INITIALIZE SUPABASE ====================
+// Wait for supabase to be available
+let supabase;
+let auth;
+let presenceTracker;
+
+async function initializeModules() {
+    try {
+        // Get supabase from window
+        if (window.supabase) {
+            supabase = window.supabase;
+            console.log("✅ Using window.supabase");
+        } else {
+            // Load supabase module
+            const supabaseModule = await import('/app/utils/supabase.js');
+            supabase = supabaseModule.supabase;
+            console.log("✅ Loaded supabase from module");
+        }
+        
+        // Load auth
+        const authModule = await import('/app/utils/auth.js');
+        auth = authModule.auth;
+        
+        // Load presence tracker
+        const presenceModule = await import('/app/utils/presence.js');
+        presenceTracker = presenceModule.default;
+        
+        console.log("✅ All modules loaded");
+        return true;
+    } catch (error) {
+        console.error("❌ Failed to load modules:", error);
+        return false;
+    }
+}
 
 // ==================== GLOBAL VARIABLES ====================
 let currentUser = null;
@@ -83,6 +114,14 @@ async function initFriendsPage() {
     }, 8000);
 
     try {
+        // Initialize modules
+        const modulesLoaded = await initializeModules();
+        if (!modulesLoaded) {
+            toast.error("Error", "Failed to load app modules");
+            return;
+        }
+
+        // Get current user
         const { success, user } = await auth.getCurrentUser();  
         if (!success || !user) {  
             clearTimeout(loadingTimeout);
@@ -177,7 +216,7 @@ function updateFriendOnlineStatus(friendId, isOnline) {
             if (callButton) {
                 callButton.classList.toggle('offline', !isOnline);
                 callButton.disabled = !isOnline;
-                callButton.title = isOnline ? 'Call friend' : 'Friend is offline';
+                callButton.title = isOnline ? 'Call ' + avatar.nextElementSibling?.textContent : 'Friend is offline';
             }
         }
     });
@@ -211,18 +250,33 @@ function showLoginPrompt() {
     `;
 }
 
-// ==================== CHAT FUNCTIONS ====================
+// ==================== CHAT FUNCTIONS - FIXED ====================
 window.openChat = async (friendId, friendUsername) => {
-    console.log("💬 Opening chat with:", friendUsername);
+    console.log("💬 Opening chat with:", friendUsername, friendId);
     
-    // Store in session storage
-    sessionStorage.setItem('currentChatFriend', JSON.stringify({
-        id: friendId,
-        username: friendUsername
-    }));
-    
-    // Navigate to chats page
-    window.location.href = PATHS.CHATS;
+    try {
+        // Store friend data in sessionStorage AND localStorage
+        const friendData = {
+            id: friendId,
+            username: friendUsername,
+            timestamp: Date.now()
+        };
+        
+        sessionStorage.setItem('currentChatFriend', JSON.stringify(friendData));
+        localStorage.setItem('currentChatFriend', JSON.stringify(friendData));
+        
+        console.log("📦 Stored friend data:", friendData);
+        
+        // Also set in URL parameters for redundancy
+        const chatUrl = `${PATHS.CHATS}?friend=${friendId}&name=${encodeURIComponent(friendUsername)}&ref=friends`;
+        
+        console.log("🔗 Redirecting to:", chatUrl);
+        window.location.href = chatUrl;
+        
+    } catch (error) {
+        console.error("❌ Error opening chat:", error);
+        toast.error("Error", "Failed to open chat");
+    }
 };
 
 async function markMessagesAsRead(friendId) {
@@ -240,11 +294,14 @@ async function markMessagesAsRead(friendId) {
     }
 }
 
-// ==================== CALL FUNCTIONS ====================
+// ==================== CALL FUNCTIONS - FIXED ====================
 window.startCall = async (friendId, friendUsername, event) => {
-    if (event) event.stopPropagation();
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
     
-    console.log("📞 Starting call with:", friendUsername);
+    console.log("📞 Starting call with:", friendUsername, friendId);
     
     try {
         // Check if friend is online
@@ -255,222 +312,40 @@ window.startCall = async (friendId, friendUsername, event) => {
             .single();
             
         if (!presence?.is_online) {
-            toast.error("Friend Offline", `${friendUsername} is offline`);
+            toast.error("Friend Offline", `${friendUsername} is offline. Calls will work when they're online.`);
             return;
         }
         
-        // Initialize call service
-        if (!callService) {
-            const module = await import('/app/utils/callService.js');
-            callService = module.default;
-            await callService.initialize(currentUser.id);
-            
-            // Setup callbacks
-            callService.setOnCallStateChange((state) => {
-                console.log("Call state:", state);
-                updateCallScreenStatus(state);
-            });
-            
-            callService.setOnRemoteStream((stream) => {
-                console.log("Remote stream received:", stream);
-                const audio = document.getElementById('remoteAudio');
-                if (audio) audio.srcObject = stream;
-            });
-            
-            callService.setOnCallEvent((event, data) => {
-                console.log("Call event:", event, data);
-                if (event === 'call_ended') {
-                    hideCallScreen();
-                }
-            });
-        }
+        // ✅ FIXED: Navigate to call page instead of showing inline screen
+        const callData = {
+            friendId: friendId,
+            friendUsername: friendUsername,
+            userId: currentUser.id,
+            timestamp: Date.now(),
+            type: 'voice',
+            isInitiator: true
+        };
         
-        // Show call screen
-        showCallScreen(friendUsername, friendId, 'outgoing');
+        // Store call data
+        sessionStorage.setItem('callData', JSON.stringify(callData));
+        localStorage.setItem('callData', JSON.stringify(callData));
         
-        // Start the call
-        const call = await callService.initiateCall(friendId, 'voice');
+        console.log("📦 Call data stored:", callData);
         
-        console.log("✅ Call started:", call);
+        // Navigate to call page
+        const callUrl = `${PATHS.PHONE_CALL}?friend=${friendId}&name=${encodeURIComponent(friendUsername)}&type=voice`;
+        console.log("🔗 Redirecting to call page:", callUrl);
+        
+        toast.success("Starting Call", `Calling ${friendUsername}...`);
+        
+        // Small delay to show toast
+        setTimeout(() => {
+            window.location.href = callUrl;
+        }, 500);
         
     } catch (error) {
         console.error("❌ Call failed:", error);
         toast.error("Call Failed", error.message || "Could not start call");
-        hideCallScreen();
-    }
-};
-
-function showCallScreen(friendName, friendId, type = 'outgoing') {
-    // Remove existing call screen
-    if (currentCallScreen) {
-        currentCallScreen.remove();
-    }
-    
-    const firstLetter = friendName.charAt(0).toUpperCase();
-    
-    const callScreen = document.createElement('div');
-    callScreen.id = 'callScreen';
-    currentCallScreen = callScreen;
-    
-    callScreen.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        animation: fadeIn 0.3s ease;
-    `;
-    
-    callScreen.innerHTML = `
-        <div style="text-align: center; padding: 30px; width: 100%; max-width: 500px;">
-            <div style="
-                width: 150px;
-                height: 150px;
-                border-radius: 50%;
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                margin: 0 auto 30px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 3.5rem;
-                font-weight: bold;
-                color: white;
-                position: relative;
-            ">
-                ${firstLetter}
-            </div>
-            
-            <h2 style="font-size: 2.5rem; margin-bottom: 15px; color: white;">${friendName}</h2>
-            
-            <p id="callStatusText" style="color: #a0a0c0; margin-bottom: 40px; font-size: 1.3rem;">
-                ${type === 'outgoing' ? 'Calling...' : 'Incoming call...'}
-            </p>
-            
-            <div id="callTimer" style="
-                font-size: 3rem;
-                font-weight: bold;
-                margin-bottom: 50px;
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                display: none;
-            ">00:00</div>
-            
-            <audio id="remoteAudio" autoplay style="display: none;"></audio>
-            
-            <div style="display: flex; justify-content: center; gap: 30px; margin-top: 50px;">
-                <button onclick="toggleMuteCall()" id="muteCallBtn" style="
-                    width: 80px;
-                    height: 80px;
-                    border-radius: 50%;
-                    background: rgba(255,255,255,0.1);
-                    border: 2px solid rgba(255,255,255,0.2);
-                    color: white;
-                    font-size: 2rem;
-                    cursor: pointer;
-                    display: none;
-                ">
-                    🔇
-                </button>
-                
-                <button onclick="endCurrentCall()" style="
-                    width: 80px;
-                    height: 80px;
-                    border-radius: 50%;
-                    background: linear-gradient(45deg, #ff3b30, #ff5e3a);
-                    border: none;
-                    color: white;
-                    font-size: 2rem;
-                    cursor: pointer;
-                ">
-                    ❌
-                </button>
-            </div>
-        </div>
-        
-        <style>
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-        </style>
-    `;
-    
-    document.body.appendChild(callScreen);
-}
-
-function updateCallScreenStatus(state) {
-    const statusText = document.getElementById('callStatusText');
-    const timer = document.getElementById('callTimer');
-    const muteBtn = document.getElementById('muteCallBtn');
-    
-    if (!statusText) return;
-    
-    switch(state) {
-        case 'ringing':
-            statusText.textContent = 'Calling...';
-            break;
-        case 'connecting':
-            statusText.textContent = 'Connecting...';
-            break;
-        case 'active':
-            statusText.textContent = 'Call Connected';
-            if (timer) {
-                timer.style.display = 'block';
-                startCallTimer();
-            }
-            if (muteBtn) muteBtn.style.display = 'block';
-            break;
-        case 'ending':
-            statusText.textContent = 'Ending call...';
-            break;
-    }
-}
-
-let callTimerInterval = null;
-function startCallTimer() {
-    let seconds = 0;
-    const timerEl = document.getElementById('callTimer');
-    if (!timerEl) return;
-    
-    clearInterval(callTimerInterval);
-    callTimerInterval = setInterval(() => {
-        seconds++;
-        const minutes = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }, 1000);
-}
-
-window.hideCallScreen = () => {
-    if (currentCallScreen) {
-        currentCallScreen.remove();
-        currentCallScreen = null;
-    }
-    if (callTimerInterval) {
-        clearInterval(callTimerInterval);
-        callTimerInterval = null;
-    }
-    if (callService) {
-        callService.endCall();
-    }
-};
-
-window.endCurrentCall = window.hideCallScreen;
-
-window.toggleMuteCall = async () => {
-    if (!callService) return;
-    const isMuted = await callService.toggleMute();
-    const muteBtn = document.getElementById('muteCallBtn');
-    if (muteBtn) {
-        muteBtn.textContent = isMuted ? '🔊' : '🔇';
     }
 };
 
@@ -488,22 +363,33 @@ function setupIncomingCallListener() {
         }, async (payload) => {
             const call = payload.new;
             if (call.status === 'ringing') {
-                showIncomingCallScreen(call);
+                const { data: caller } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', call.caller_id)
+                    .single();
+                
+                if (caller) {
+                    // Store incoming call data
+                    const callData = {
+                        callId: call.id,
+                        callerId: call.caller_id,
+                        callerUsername: caller.username,
+                        roomId: call.room_id,
+                        timestamp: Date.now(),
+                        type: call.call_type,
+                        isInitiator: false
+                    };
+                    
+                    sessionStorage.setItem('incomingCall', JSON.stringify(callData));
+                    localStorage.setItem('incomingCall', JSON.stringify(callData));
+                    
+                    // Navigate to call page
+                    window.location.href = `${PATHS.PHONE_CALL}?call=${call.id}&incoming=true`;
+                }
             }
         })
         .subscribe();
-}
-
-async function showIncomingCallScreen(call) {
-    const { data: caller } = await supabase
-        .from('profiles')
-        .select('username, avatar_url')
-        .eq('id', call.caller_id)
-        .single();
-    
-    if (!caller) return;
-    
-    showCallScreen(caller.username, call.id, 'incoming');
 }
 
 // ==================== MODAL FUNCTIONS ====================
@@ -767,4 +653,4 @@ window.addEventListener('beforeunload', async () => {
 });
 
 // ==================== INITIALIZE ====================
-document.addEventListener('DOMContentLoaded', initFriendsPage); 
+document.addEventListener('DOMContentLoaded', initFriendsPage);
