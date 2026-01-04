@@ -1,1104 +1,152 @@
-<!-- /app/pages/phone/call.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📞 Active Call - Relay</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="../style.css">
+    <title>✨ Relay - Call</title>
+    <link rel="stylesheet" href="/app/pages/phone/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-/* Add these styles to call.html's <style> section */
-
-.call-toast {
-    position: fixed;
-    bottom: 150px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.8);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    z-index: 10000;
-    animation: fadeInOut 3s ease;
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-    90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-}
-
-/* Video toggle button */
-#video-toggle {
-    display: none; /* Hidden by default, shown for video calls */
-    position: absolute;
-    top: 20px;
-    right: 100px;
-    gap: 10px;
-}
-
-.video-control-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.video-control-btn:active {
-    transform: scale(0.95);
-}
-
-.video-control-btn i {
-    font-size: 1.2rem;
-}
-
-/* Remote video element */
-#remote-video {
-    display: none; /* Hidden by default, shown when video stream arrives */
-    width: 200px;
-    height: 150px;
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    border-radius: 15px;
-    border: 2px solid rgba(255,255,255,0.2);
-    object-fit: cover;
-    background: #000;
-}
-
-/* Quality dots */
-.quality-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 5px;
-}
-
-.quality-dot.good { background: #4CAF50; }
-.quality-dot.average { background: #FF9500; }
-.quality-dot.poor { background: #FF3B30; }
-        /* Active Call Specific Styles */
-        .call-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .call-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: white;
-            z-index: 9999;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-
-        .call-top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
+            height: 100vh;
             padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(0,0,0,0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .call-info {
             text-align: center;
-            margin-top: 60px;
+        }
+        
+        .caller-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .caller-name {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .call-status {
+            font-size: 1.3rem;
+            color: #a0a0c0;
             margin-bottom: 40px;
         }
-
-        .caller-avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        
+        .call-timer {
             font-size: 3rem;
             font-weight: bold;
-            color: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 50px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-
-        .caller-name {
-            font-size: 2rem;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .call-status {
-            font-size: 1.2rem;
-            color: #a0a0c0;
-            margin-bottom: 10px;
-        }
-
-        .call-timer {
-            font-size: 1.5rem;
-            font-weight: 500;
-            color: #4CAF50;
-            font-family: monospace;
-        }
-
-        /* Audio Visualizer */
-        .audio-visualizer {
-            width: 300px;
-            height: 100px;
-            margin: 30px auto;
-            position: relative;
-        }
-
-        .visualizer-canvas {
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
-            background: rgba(255,255,255,0.05);
-        }
-
-        /* Call Controls */
+        
         .call-controls {
-            position: absolute;
-            bottom: 50px;
-            left: 0;
-            width: 100%;
             display: flex;
-            justify-content: center;
-            gap: 25px;
-            padding: 0 20px;
+            gap: 30px;
+            margin-top: 50px;
         }
-
+        
         .control-btn {
-            width: 70px;
-            height: 70px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             border: none;
+            color: white;
+            font-size: 2rem;
             cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            position: relative;
         }
-
+        
         .control-btn:active {
-            transform: scale(0.92);
+            transform: scale(0.95);
         }
-
-        .control-btn i {
-            font-size: 1.8rem;
-        }
-
+        
         .mute-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
-
-        .mute-btn.active {
-            background: #ff9500;
-            color: white;
+        
+        .end-btn {
+            background: linear-gradient(45deg, #ff3b30, #ff5e3a);
         }
-
-        .speaker-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-
-        .speaker-btn.active {
-            background: #007AFF;
-            color: white;
-        }
-
-        .end-call-btn {
-            background: #ff3b30;
-            color: white;
-            width: 80px;
-            height: 80px;
-        }
-
-        .end-call-btn i {
-            font-size: 2rem;
-        }
-
-        /* Incoming Call Screen */
-        .incoming-call {
-            text-align: center;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .call-actions {
-            display: flex;
-            gap: 40px;
-            margin-top: 40px;
-        }
-
-        .accept-btn, .reject-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-        }
-
-        .accept-btn:active, .reject-btn:active {
-            transform: scale(0.92);
-        }
-
+        
         .accept-btn {
-            background: #4CAF50;
-            color: white;
+            background: linear-gradient(45deg, #4cd964, #5ac8fa);
         }
-
-        .reject-btn {
-            background: #ff3b30;
-            color: white;
+        
+        .decline-btn {
+            background: linear-gradient(45deg, #ff3b30, #ff5e3a);
         }
-
-        /* Call Quality Indicator */
-        .call-quality {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.5);
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .quality-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4CAF50;
-        }
-
-        .quality-dot.good { background: #4CAF50; }
-        .quality-dot.average { background: #FF9500; }
-        .quality-dot.poor { background: #ff3b30; }
-
-        /* Minimized Call */
-        .minimized-call {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            width: 200px;
-            background: rgba(26, 26, 46, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            padding: 15px;
+        
+        .audio-container {
             display: none;
-            z-index: 9998;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .caller-avatar {
-                width: 100px;
-                height: 100px;
-                font-size: 2.5rem;
-            }
-
-            .caller-name {
-                font-size: 1.8rem;
-            }
-
-            .audio-visualizer {
-                width: 250px;
-                height: 80px;
-            }
-
-            .control-btn {
-                width: 60px;
-                height: 60px;
-            }
-
-            .end-call-btn {
-                width: 70px;
-                height: 70px;
-            }
+        
+        .loading {
+            color: #a0a0c0;
+            font-size: 1.2rem;
+            margin-top: 20px;
         }
-
-        @media (max-width: 480px) {
-            .call-controls {
-                gap: 15px;
-            }
-
-            .caller-avatar {
-                width: 80px;
-                height: 80px;
-                font-size: 2rem;
-            }
-
-            .caller-name {
-                font-size: 1.5rem;
-            }
-
-            .audio-visualizer {
-                width: 200px;
-                height: 60px;
-            }
+        
+        .error-message {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            max-width: 400px;
         }
     </style>
 </head>
 <body>
-    <!-- Active Call Screen -->
-    <div class="call-screen" id="callScreen">
-        <!-- Top Bar -->
-        <div class="call-top-bar" id="callTopBar">
-            <div class="network-info">
-                <i class="fas fa-signal"></i> 5G
-            </div>
-            <div class="call-duration" id="callDuration">
-                00:00
-            </div>
-            <div class="battery-info">
-                <i class="fas fa-battery-full"></i> 85%
-            </div>
+    <div class="call-container" id="callContainer">
+        <div class="caller-avatar" id="callerAvatar">?</div>
+        <h1 class="caller-name" id="callerName">Loading...</h1>
+        <p class="call-status" id="callStatus">Connecting...</p>
+        <div class="call-timer" id="callTimer" style="display: none;">00:00</div>
+        
+        <div class="call-controls" id="callControls">
+            <!-- Controls will be added by JavaScript -->
         </div>
-
-        <!-- Call Info -->
-        <div class="call-info">
-            <div class="caller-avatar" id="callerAvatar">
-                U
-            </div>
-            <div class="caller-name" id="callerName">
-                Unknown
-            </div>
-            <div class="call-status" id="callStatus">
-                Connecting...
-            </div>
-            <div class="call-timer" id="callTimer">
-                00:00
-            </div>
-        </div>
-
-        <!-- Audio Visualizer -->
-        <div class="audio-visualizer">
-            <canvas class="visualizer-canvas" id="visualizerCanvas"></canvas>
-        </div>
-
-        <!-- Call Quality -->
-        <div class="call-quality" id="callQuality">
-            <span class="quality-dot good"></span>
-            <span>Good</span>
-        </div>
-
-        <!-- Call Controls -->
-        <div class="call-controls">
-            <button class="control-btn mute-btn" id="muteBtn" onclick="toggleMute()">
-                <i class="fas fa-microphone"></i>
-            </button>
-            <button class="control-btn speaker-btn" id="speakerBtn" onclick="toggleSpeaker()">
-                <i class="fas fa-volume-up"></i>
-            </button>
-            <button class="control-btn end-call-btn" onclick="endCall()">
-                <i class="fas fa-phone-slash"></i>
-            </button>
-        </div>
-
-        <!-- Additional Options (Hidden by default) -->
-        <div class="extra-options" id="extraOptions" style="display: none;">
-            <button class="option-btn" onclick="toggleVideo()">
-                <i class="fas fa-video"></i>
-            </button>
-            <button class="option-btn" onclick="toggleHold()">
-                <i class="fas fa-pause"></i>
-            </button>
-            <button class="option-btn" onclick="showKeypad()">
-                <i class="fas fa-dialpad"></i>
-            </button>
-        </div>
+        
+        <audio id="remoteAudio" autoplay class="audio-container"></audio>
+        <audio id="localAudio" autoplay muted class="audio-container"></audio>
+        
+        <div class="loading" id="loadingMessage">Setting up call...</div>
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
     </div>
 
-    <!-- Incoming Call Screen (Hidden by default) -->
-    <div class="call-screen incoming-call" id="incomingCallScreen" style="display: none;">
-        <div class="call-info">
-            <div class="caller-avatar" id="incomingAvatar">
-                F
-            </div>
-            <div class="caller-name" id="incomingName">
-                Friend Name
-            </div>
-            <div class="call-status">
-                Incoming Voice Call
-            </div>
-        </div>
-
-        <div class="call-actions">
-            <button class="reject-btn" onclick="rejectCall()">
-                <i class="fas fa-phone-slash"></i>
-            </button>
-            <button class="accept-btn" onclick="acceptCall()">
-                <i class="fas fa-phone"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- Minimized Call (Hidden by default) -->
-    <div class="minimized-call" id="minimizedCall">
-        <div class="minimized-header">
-            <div class="minimized-avatar">U</div>
-            <div class="minimized-info">
-                <div class="minimized-name">Call Active</div>
-                <div class="minimized-timer">00:45</div>
-            </div>
-            <button class="minimized-expand" onclick="expandCall()">
-                <i class="fas fa-expand"></i>
-            </button>
-        </div>
-    </div>
-<!-- COMPLETE SCRIPT SECTION FOR call.html -->
-<script type="module">
-    import callService from '/app/utils/callService.js';
-    import { supabase } from '/app/utils/supabase.js';
-
-    // Get URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const callType = urlParams.get('type'); // 'outgoing' or 'incoming'
-    const contactId = urlParams.get('contactId');
-    const contactName = urlParams.get('name') || 'Friend';
-    const callId = urlParams.get('callId');
-    const isVideoCall = urlParams.get('video') === 'true' || urlParams.get('callType') === 'video';
-    
-    // Call state
-    let callSeconds = 0;
-    let callTimer;
-    let currentUser = null;
-    let audioContext = null;
-    let analyser = null;
-
-    // Initialize call page
-    async function initCallPage() {
-        console.log("📞 Initializing call page...");
-        
-        try {
-            // Get current user
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                window.location.href = '/app/pages/login/index.html';
-                return;
-            }
-            
-            currentUser = user;
-            
-            // Set caller info
-            document.getElementById('callerName').textContent = contactName;
-            document.getElementById('callerAvatar').textContent = contactName.charAt(0).toUpperCase();
-            document.getElementById('incomingName').textContent = contactName;
-            document.getElementById('incomingAvatar').textContent = contactName.charAt(0).toUpperCase();
-            
-            // Show video elements if video call
-            if (isVideoCall) {
-                document.getElementById('remote-video').style.display = 'block';
-                document.getElementById('video-toggle').style.display = 'flex';
-            }
-            
-            // Show appropriate screen
-            if (callType === 'incoming') {
-                showIncomingCall();
-            } else {
-                startOutgoingCall();
-            }
-            
-            // Initialize call service
-            await initializeCallService();
-            
-            // Start timer if outgoing call
-            if (callType === 'outgoing') {
-                startCallTimer();
-            }
-            
-            // Setup audio visualizer
-            setupAudioVisualizer();
-            
-        } catch (error) {
-            console.error("❌ Failed to initialize call page:", error);
-        }
-    }
-
-    // ==================== CALL SERVICE INTEGRATION ====================
-
-    async function initializeCallService() {
-        try {
-            await callService.initialize(currentUser.id);
-            
-            // Set up call service callbacks
-            callService.setOnCallStateChange((state) => {
-                handleCallStateChange(state);
-            });
-            
-            callService.setOnRemoteStream((stream) => {
-                handleRemoteStream(stream);
-            });
-            
-            callService.setOnCallQualityUpdate((stats) => {
-                updateCallQuality(stats);
-            });
-            
-            callService.setOnCallEvent((event, data) => {
-                handleCallEvent(event, data);
-            });
-            
-            console.log("✅ Call service initialized for call page");
-            
-        } catch (error) {
-            console.error("❌ Failed to initialize call service:", error);
-        }
-    }
-
-    // Call state change handler
-    function handleCallStateChange(state) {
-        console.log("📞 Call state changed to:", state);
-        
-        const statusElement = document.getElementById('callStatus');
-        const timerElement = document.getElementById('callTimer');
-        
-        switch(state) {
-            case 'ringing':
-                statusElement.textContent = 'Ringing...';
-                statusElement.style.color = '#FF9500';
-                break;
-                
-            case 'connecting':
-                statusElement.textContent = 'Connecting...';
-                statusElement.style.color = '#007AFF';
-                break;
-                
-            case 'active':
-                statusElement.textContent = 'Connected';
-                statusElement.style.color = '#4CAF50';
-                startCallTimer();
-                break;
-                
-            case 'ending':
-                statusElement.textContent = 'Ending call...';
-                statusElement.style.color = '#FF3B30';
-                break;
-                
-            case 'idle':
-                statusElement.textContent = 'Call ended';
-                statusElement.style.color = '#FF3B30';
-                break;
-        }
-    }
-
-    // Remote stream handler
-    function handleRemoteStream(stream) {
-        console.log("🎵 Remote stream received");
-        
-        const remoteAudio = document.getElementById('remote-audio');
-        const remoteVideo = document.getElementById('remote-video');
-        
-        // Handle audio
-        if (remoteAudio) {
-            remoteAudio.srcObject = stream;
-            remoteAudio.play().catch(e => console.log("Audio play error:", e));
-            
-            // Setup audio visualization for remote stream
-            setupRemoteAudioVisualizer(stream);
-        }
-        
-        // Handle video
-        if (remoteVideo && stream.getVideoTracks().length > 0) {
-            remoteVideo.srcObject = stream;
-            remoteVideo.play().catch(e => console.log("Video play error:", e));
-            remoteVideo.style.display = 'block';
-        }
-    }
-
-    // Call quality update
-    function updateCallQuality(stats) {
-        console.log("📊 Call quality:", stats);
-        
-        const qualityElement = document.getElementById('callQuality');
-        if (qualityElement) {
-            const qualityDot = qualityElement.querySelector('.quality-dot');
-            const qualityText = qualityElement.querySelector('span:last-child');
-            
-            if (qualityDot) {
-                qualityDot.className = 'quality-dot ' + stats.overallQuality;
-            }
-            
-            if (qualityText) {
-                qualityText.textContent = stats.overallQuality.charAt(0).toUpperCase() + stats.overallQuality.slice(1);
-            }
-        }
-    }
-
-    // Call event handler
-    function handleCallEvent(event, data) {
-        console.log("📨 Call event:", event, data);
-        
-        switch(event) {
-            case 'remote_mute_toggled':
-                // Show remote mute status
-                showToast(data.muted ? 'Remote user muted' : 'Remote user unmuted');
-                break;
-                
-            case 'remote_video_toggled':
-                // Show remote video status
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo) {
-                    remoteVideo.style.display = data.videoEnabled ? 'block' : 'none';
-                }
-                showToast(data.videoEnabled ? 'Remote video on' : 'Remote video off');
-                break;
-                
-            case 'call_duration_update':
-                // Update call timer
-                updateCallTimer(data.duration);
-                break;
-                
-            case 'call_ended':
-                // Remote user ended the call
-                endCall();
-                break;
-        }
-    }
-
-    // ==================== CALL CONTROLS ====================
-
-    async function toggleMute() {
-        const btn = document.getElementById('muteBtn');
-        
-        try {
-            const isMuted = await callService.toggleMute();
-            
-            if (isMuted) {
-                btn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-                btn.style.background = '#ff9500';
-                btn.classList.add('active');
-                showToast('You are muted');
-            } else {
-                btn.innerHTML = '<i class="fas fa-microphone"></i>';
-                btn.style.background = 'rgba(255,255,255,0.1)';
-                btn.classList.remove('active');
-                showToast('You are unmuted');
-            }
-            
-        } catch (error) {
-            console.error("❌ Failed to toggle mute:", error);
-        }
-    }
-
-    async function toggleSpeaker() {
-        const btn = document.getElementById('speakerBtn');
-        const isSpeaker = btn.classList.contains('active');
-        
-        // Toggle speaker class (for UI)
-        if (isSpeaker) {
-            btn.classList.remove('active');
-            btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-            btn.style.background = 'rgba(255,255,255,0.1)';
-            showToast('Speaker off');
-        } else {
-            btn.classList.add('active');
-            btn.innerHTML = '<i class="fas fa-volume-high"></i>';
-            btn.style.background = '#007AFF';
-            showToast('Speaker on');
-            
-            // Try to use Web Audio API for better speaker control
-            try {
-                const audioElements = document.querySelectorAll('audio, video');
-                audioElements.forEach(element => {
-                    if (element.setSinkId) {
-                        element.setSinkId('').catch(console.log);
-                    }
-                });
-            } catch (error) {
-                console.log("Speaker control not supported");
-            }
-        }
-    }
-
-    async function toggleVideo() {
-        if (!isVideoCall) return;
-        
-        const btn = document.getElementById('videoBtn');
-        
-        try {
-            const videoEnabled = await callService.toggleVideo();
-            
-            if (videoEnabled) {
-                btn.innerHTML = '<i class="fas fa-video"></i>';
-                btn.style.background = 'rgba(255,255,255,0.1)';
-                btn.classList.remove('active');
-                showToast('Video on');
-            } else {
-                btn.innerHTML = '<i class="fas fa-video-slash"></i>';
-                btn.style.background = '#ff9500';
-                btn.classList.add('active');
-                showToast('Video off');
-            }
-            
-        } catch (error) {
-            console.error("❌ Failed to toggle video:", error);
-        }
-    }
-
-    async function switchCamera() {
-        if (!isVideoCall) return;
-        
-        try {
-            await callService.switchCamera();
-            showToast('Camera switched');
-        } catch (error) {
-            console.error("❌ Failed to switch camera:", error);
-            showToast('Only one camera available');
-        }
-    }
-
-    async function endCall() {
-        console.log("📞 Ending call...");
-        
-        // Update UI
-        document.getElementById('callStatus').textContent = 'Call Ended';
-        document.getElementById('callStatus').style.color = '#ff3b30';
-        
-        // Stop call timer
-        stopCallTimer();
-        
-        // End call through call service
-        await callService.endCall();
-        
-        // Cleanup audio context
-        if (audioContext && audioContext.state !== 'closed') {
-            audioContext.close();
-        }
-        
-        // Wait 2 seconds then go back
-        setTimeout(() => {
-            window.history.back();
-        }, 2000);
-    }
-
-    // ==================== INCOMING CALL HANDLING ====================
-
-    function showIncomingCall() {
-        document.getElementById('callScreen').style.display = 'none';
-        document.getElementById('incomingCallScreen').style.display = 'flex';
-    }
-
-    async function acceptCall() {
-        console.log("📞 Accepting incoming call...");
-        
-        document.getElementById('incomingCallScreen').style.display = 'none';
-        document.getElementById('callScreen').style.display = 'flex';
-        document.getElementById('callStatus').textContent = 'Connecting...';
-        
-        try {
-            // Answer the call through call service
-            if (callId) {
-                await callService.answerCall(callId);
-            } else {
-                console.error("No call ID provided");
-                showToast('Error: No call ID');
-                window.history.back();
-            }
-            
-        } catch (error) {
-            console.error("❌ Failed to accept call:", error);
-            showToast('Failed to accept call');
-            window.history.back();
-        }
-    }
-
-    async function rejectCall() {
-        console.log("❌ Rejecting incoming call...");
-        
-        // Reject call through call service
-        if (callId) {
-            await callService.rejectCall(callId);
-        }
-        
-        // Go back immediately
-        window.history.back();
-    }
-
-    function startOutgoingCall() {
-        console.log("📞 Starting outgoing call...");
-        document.getElementById('callStatus').textContent = 'Calling...';
-        
-        // If we have a contact ID, initiate the call
-        if (contactId && !callId) {
-            setTimeout(async () => {
-                try {
-                    await callService.initiateCall(contactId, isVideoCall ? 'video' : 'voice');
-                } catch (error) {
-                    console.error("❌ Failed to start call:", error);
-                    showToast('Failed to start call');
-                    setTimeout(() => window.history.back(), 2000);
-                }
-            }, 1000);
-        }
-    }
-
-    // ==================== CALL TIMER ====================
-
-    function startCallTimer() {
-        callSeconds = 0;
-        clearInterval(callTimer);
-        
-        callTimer = setInterval(() => {
-            callSeconds++;
-            updateCallTimer(callSeconds);
-        }, 1000);
-    }
-
-    function updateCallTimer(seconds) {
-        const minutes = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        const timerText = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        
-        document.getElementById('callTimer').textContent = timerText;
-        document.getElementById('callDuration').textContent = timerText;
-    }
-
-    function stopCallTimer() {
-        if (callTimer) {
-            clearInterval(callTimer);
-            callTimer = null;
-        }
-    }
-
-    // ==================== AUDIO VISUALIZER ====================
-
-    function setupAudioVisualizer() {
-        const canvas = document.getElementById('visualizerCanvas');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        // Set canvas size
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        
-        // Create audio context for local audio visualization
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            
-            // We'll connect this when we have a local stream
-            
-        } catch (error) {
-            console.log("Audio context not supported, using fallback visualizer");
-            // Fallback to animated bars
-            animateFallbackVisualizer(ctx, canvas);
-            return;
-        }
-        
-        // Animation loop
-        function draw() {
-            requestAnimationFrame(draw);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            
-            analyser.getByteFrequencyData(dataArray);
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw bars
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-            
-            // Create gradient
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#764ba2');
-            
-            for (let i = 0; i < bufferLength; i++) {
-                barHeight = dataArray[i] / 2;
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                
-                x += barWidth + 1;
-            }
-        }
-        
-        draw();
-    }
-
-    function setupRemoteAudioVisualizer(stream) {
-        if (!audioContext || !analyser) return;
-        
-        try {
-            const source = audioContext.createMediaStreamSource(stream);
-            source.connect(analyser);
-        } catch (error) {
-            console.log("Could not connect remote stream to visualizer:", error);
-        }
-    }
-
-    function animateFallbackVisualizer(ctx, canvas) {
-        function draw() {
-            requestAnimationFrame(draw);
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Create gradient
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#764ba2');
-            
-            // Draw animated bars (simulated audio)
-            const barCount = 50;
-            const barWidth = canvas.width / barCount;
-            
-            for (let i = 0; i < barCount; i++) {
-                // Simulate audio data with some randomness and wave pattern
-                const time = Date.now() / 1000;
-                const wave = Math.sin(time * 2 + i * 0.3) * 0.5 + 0.5;
-                const random = Math.random() * 0.3;
-                const barHeight = (wave + random) * canvas.height * 0.8;
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth - 2, barHeight);
-            }
-        }
-        
-        draw();
-    }
-
-    // ==================== UTILITY FUNCTIONS ====================
-
-    function showToast(message) {
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = 'call-toast';
-        toast.textContent = message;
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 150px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            z-index: 10000;
-            animation: fadeInOut 3s ease;
-        `;
-        
-        // Add CSS animation
-        if (!document.querySelector('#toastStyles')) {
-            const style = document.createElement('style');
-            style.id = 'toastStyles';
-            style.textContent = `
-                @keyframes fadeInOut {
-                    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-                    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                    90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        document.body.appendChild(toast);
-        
-        // Remove toast after animation
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
-
-    function minimizeCall() {
-        // Implement call minimization
-        showToast('Call minimized');
-        // You would typically hide the call UI and show a small floating window
-    }
-
-    function expandCall() {
-        // Implement call expansion
-        showToast('Call expanded');
-    }
-
-    function showKeypad() {
-        // Show dial pad for DTMF tones
-        showToast('Keypad (DTMF tones coming soon)');
-    }
-
-    function toggleHold() {
-        // Implement call hold
-        showToast('Call hold coming soon');
-    }
-
-    // ==================== EVENT LISTENERS ====================
-
-    // Handle back button
-   window.addEventListener('popstate', function() {
-        endCall();
-    });
-
-    // Handle page visibility change
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            console.log("Page hidden");
-        } else {
-            console.log("Page visible");
-        }
-    });
-
-    // Initialize when page loads
-    document.addEventListener('DOMContentLoaded', initCallPage);
-
-    // ==================== GLOBAL FUNCTIONS ====================
-
-    window.toggleMute = toggleMute;
-    window.toggleSpeaker = toggleSpeaker;
-    window.toggleVideo = toggleVideo;
-    window.switchCamera = switchCamera;
-    window.endCall = endCall;
-    window.acceptCall = acceptCall;
-    window.rejectCall = rejectCall;
-    window.minimizeCall = minimizeCall;
-    window.expandCall = expandCall;
-    window.showKeypad = showKeypad;
-    window.toggleHold = toggleHold;
-</script>
+    <script type="module" src="call.js"></script>
 </body>
 </html>
