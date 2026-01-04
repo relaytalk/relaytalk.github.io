@@ -1,9 +1,11 @@
-// /app/pages/phone/call.js - WITH SPEAKER TOGGLE
+// /app/pages/phone/call.js - CORRECTED SPEAKER MODE (Audio Output)
 console.log("📞 Call Page Loaded");
 
 let supabase;
 let callService;
 let currentCallId = null;
+let isSpeakerMode = false; // false = earpiece, true = loudspeaker
+let remoteAudio = null;
 
 async function initCallPage() {
     console.log("Initializing call page...");
@@ -81,10 +83,10 @@ function startOutgoingCall(friendId, friendName, type) {
     const controls = document.getElementById('callControls');
     controls.innerHTML = `
         <button class="control-btn speaker-btn" id="speakerBtn" onclick="window.toggleSpeaker()">
-            <i class="fas fa-microphone"></i>
-            <span class="speaker-label">Mic</span>
+            <i class="fas fa-volume-up"></i>
+            <span class="speaker-label">Speaker</span>
         </button>
-        <button class="control-btn mute-btn" onclick="window.toggleMute()">
+        <button class="control-btn mute-btn" id="muteBtn" onclick="window.toggleMute()">
             <i class="fas fa-microphone"></i>
         </button>
         <button class="control-btn end-btn" onclick="window.endCall()">
@@ -113,19 +115,19 @@ function setupIncomingCallControls() {
 // Handle answer button click
 window.handleAnswerClick = async function() {
     document.getElementById('callStatus').textContent = 'Answering...';
-    
+
     if (window.globalCallService && window.currentCallId) {
         try {
             await window.globalCallService.answerCall(window.currentCallId);
-            
+
             const controls = document.getElementById('callControls');
             if (controls) {
                 controls.innerHTML = `
                     <button class="control-btn speaker-btn" id="speakerBtn" onclick="window.toggleSpeaker()">
-                        <i class="fas fa-microphone"></i>
-                        <span class="speaker-label">Mic</span>
+                        <i class="fas fa-volume-up"></i>
+                        <span class="speaker-label">Speaker</span>
                     </button>
-                    <button class="control-btn mute-btn" onclick="window.toggleMute()">
+                    <button class="control-btn mute-btn" id="muteBtn" onclick="window.toggleMute()">
                         <i class="fas fa-microphone"></i>
                     </button>
                     <button class="control-btn end-btn" onclick="window.endCall()">
@@ -156,71 +158,149 @@ window.handleDeclineClick = async function() {
             console.error("Decline failed:", error);
         }
     }
-    
+
     window.history.back();
 };
 
-// Global functions
+// Toggle speaker output (loudspeaker vs earpiece)
 window.toggleSpeaker = async () => {
-    if (!window.globalCallService) return;
-    
+    if (!window.globalCallService) {
+        console.error("Call service not available");
+        return;
+    }
+
     try {
-        const isSpeakerMode = await window.globalCallService.toggleSpeakerMode();
-        const speakerBtn = document.getElementById('speakerBtn');
-        const speakerIcon = speakerBtn.querySelector('i');
-        const speakerLabel = speakerBtn.querySelector('.speaker-label');
+        // Toggle speaker mode in call service
+        isSpeakerMode = await window.globalCallService.toggleSpeakerMode();
         
-        if (isSpeakerMode) {
-            // Speaker ON - System Audio
-            speakerIcon.className = 'fas fa-volume-up';
-            speakerLabel.textContent = 'Speaker';
-            speakerBtn.style.background = 'linear-gradient(45deg, #4cd964, #5ac8fa)';
+        const speakerBtn = document.getElementById('speakerBtn');
+        const remoteAudio = document.getElementById('remoteAudio');
+        
+        if (speakerBtn && remoteAudio) {
+            const speakerIcon = speakerBtn.querySelector('i');
+            const speakerLabel = speakerBtn.querySelector('.speaker-label');
             
-            // Show notification
-            showToast('Speaker Mode: System Audio');
-        } else {
-            // Speaker OFF - Microphone
-            speakerIcon.className = 'fas fa-microphone';
-            speakerLabel.textContent = 'Mic';
-            speakerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-            
-            // Show notification
-            showToast('Speaker Mode: Microphone');
+            if (isSpeakerMode) {
+                // Switch to LOUDSPEAKER (system audio)
+                speakerIcon.className = 'fas fa-volume-up';
+                speakerLabel.textContent = 'Speaker ON';
+                speakerBtn.style.background = 'linear-gradient(45deg, #4cd964, #5ac8fa)';
+                speakerBtn.style.boxShadow = '0 0 15px rgba(76, 217, 100, 0.4)';
+                
+                // Set audio output to loudspeaker
+                remoteAudio.setAttribute('playsinline', 'false');
+                
+                // On mobile, we might need to use different audio context
+                if (typeof remoteAudio.sinkId !== 'undefined') {
+                    try {
+                        await remoteAudio.setSinkId(''); // System default (speaker)
+                    } catch (err) {
+                        console.log("Could not set sinkId:", err);
+                    }
+                }
+                
+                showToast('🔊 Speaker Mode: Loudspeaker');
+                
+            } else {
+                // Switch to EARPIECE (normal phone mode)
+                speakerIcon.className = 'fas fa-headphones';
+                speakerLabel.textContent = 'Earpiece';
+                speakerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                speakerBtn.style.boxShadow = 'none';
+                
+                // Set audio output to earpiece/headphones
+                remoteAudio.setAttribute('playsinline', 'true');
+                
+                // Try to use earpiece if available
+                if (typeof remoteAudio.sinkId !== 'undefined') {
+                    try {
+                        // Try to get earpiece/headphones sink
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const audioOutputs = devices.filter(device => 
+                            device.kind === 'audiooutput' && 
+                            (device.label.includes('earpiece') || device.label.includes('default'))
+                        );
+                        
+                        if (audioOutputs.length > 0) {
+                            await remoteAudio.setSinkId(audioOutputs[0].deviceId);
+                        }
+                    } catch (err) {
+                        console.log("Could not set earpiece sink:", err);
+                    }
+                }
+                
+                showToast('🎧 Speaker Mode: Earpiece');
+            }
         }
     } catch (error) {
         console.error("Toggle speaker failed:", error);
+        showToast('❌ Failed to toggle speaker');
     }
 };
 
+// Toggle microphone mute
 window.toggleMute = async () => {
-    if (!window.globalCallService) return;
-    
+    if (!window.globalCallService) {
+        console.error("Call service not available");
+        return;
+    }
+
     try {
         const isMuted = await window.globalCallService.toggleMute();
-        const muteBtn = document.querySelector('.mute-btn');
+        const muteBtn = document.getElementById('muteBtn');
+        
         if (muteBtn) {
             if (isMuted) {
                 muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
                 muteBtn.style.background = 'linear-gradient(45deg, #ff9500, #ff5e3a)';
-                showToast('Microphone Muted');
+                muteBtn.style.boxShadow = '0 0 10px rgba(255, 149, 0, 0.4)';
+                showToast('🔇 Microphone Muted');
             } else {
                 muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
                 muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-                showToast('Microphone Unmuted');
+                muteBtn.style.boxShadow = 'none';
+                showToast('🎤 Microphone Unmuted');
             }
         }
     } catch (error) {
         console.error("Toggle mute failed:", error);
+        showToast('❌ Failed to toggle mute');
     }
 };
 
-window.endCall = () => {
+window.endCall = async () => {
     if (window.globalCallService) {
-        window.globalCallService.endCall();
+        try {
+            await window.globalCallService.endCall();
+        } catch (error) {
+            console.error("Error ending call:", error);
+        }
     }
+    
+    // Also update call status in database if we have call ID
+    if (window.globalSupabase && window.currentCallId) {
+        try {
+            await window.globalSupabase
+                .from('calls')
+                .update({ 
+                    status: 'ended',
+                    ended_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', window.currentCallId);
+        } catch (error) {
+            console.error("Failed to update call status:", error);
+        }
+    }
+    
+    // Show ending message
+    document.getElementById('callStatus').textContent = 'Call ended';
+    showToast('📞 Call ended');
+    
+    // Wait a moment then go back
     setTimeout(() => {
         window.history.back();
-    }, 1000);
+    }, 1500);
 };
 
 function handleCallStateChange(state) {
@@ -247,21 +327,29 @@ function handleCallStateChange(state) {
         case 'ending':
             statusEl.textContent = 'Ending call...';
             break;
+        case 'idle':
+            statusEl.textContent = 'Call ended';
+            break;
     }
 }
 
 function handleRemoteStream(stream) {
     console.log("Remote stream received");
-    
+
     const audio = document.getElementById('remoteAudio');
     if (audio) {
         audio.srcObject = stream;
         audio.volume = 1.0;
         audio.muted = false;
         
-        // Try to play immediately
+        // Set initial audio output (default to earpiece)
+        audio.setAttribute('playsinline', 'true');
+        
+        // Play audio
         audio.play().then(() => {
             console.log("Audio playing!");
+            // Ensure audio is at correct volume
+            audio.volume = 1.0;
         }).catch(error => {
             console.log("Audio play failed:", error.name);
             showAudioHelp();
@@ -269,16 +357,14 @@ function handleRemoteStream(stream) {
     }
 }
 
-function handleSpeakerModeChange(isSpeakerMode) {
-    console.log("Speaker mode changed:", isSpeakerMode);
+function handleSpeakerModeChange(speakerMode) {
+    console.log("Speaker mode changed:", speakerMode);
+    isSpeakerMode = speakerMode;
     
-    if (isSpeakerMode) {
-        // Show system audio notification
-        showToast('Now in Speaker Mode - Others can hear your system audio');
-    } else {
-        // Show microphone notification
-        showToast('Now in Microphone Mode - Others can hear your voice');
-    }
+    // Update UI to reflect the change
+    setTimeout(() => {
+        window.toggleSpeaker();
+    }, 100);
 }
 
 function showAudioHelp() {
@@ -298,67 +384,73 @@ function showAudioHelp() {
             max-width: 300px;
             border: 2px solid #667eea;
         ">
-            <p style="margin: 0; font-size: 14px;">Click anywhere to enable audio</p>
+            <p style="margin: 0; font-size: 14px;">Tap to enable audio playback</p>
+            <button onclick="enableAudio()" style="
+                margin-top: 10px;
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+            ">Enable Audio</button>
         </div>
     `;
-    
+
     document.body.appendChild(help);
-    
-    // Click anywhere to play
-    document.body.addEventListener('click', () => {
-        const audio = document.getElementById('remoteAudio');
-        if (audio && audio.paused) {
-            audio.play().catch(() => {});
-        }
-        const helpEl = document.getElementById('audioHelp');
-        if (helpEl) helpEl.remove();
-    }, { once: true });
-    
-    // Remove after 5 seconds
-    setTimeout(() => {
-        const helpEl = document.getElementById('audioHelp');
-        if (helpEl && helpEl.parentNode) helpEl.remove();
-    }, 5000);
 }
+
+// Helper to enable audio
+window.enableAudio = function() {
+    const audio = document.getElementById('remoteAudio');
+    if (audio) {
+        audio.play().catch(e => console.error("Audio play error:", e));
+    }
+    const helpEl = document.getElementById('audioHelp');
+    if (helpEl) helpEl.remove();
+};
 
 function showToast(message) {
     // Remove existing toast
     const existing = document.getElementById('toastNotification');
     if (existing) existing.remove();
-    
+
     const toast = document.createElement('div');
     toast.id = 'toastNotification';
     toast.style.cssText = `
         position: fixed;
-        top: 20px;
+        top: 80px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.85);
         color: white;
-        padding: 12px 24px;
-        border-radius: 25px;
+        padding: 12px 20px;
+        border-radius: 20px;
         z-index: 9999;
-        font-size: 14px;
+        font-size: 13px;
         text-align: center;
         animation: fadeInOut 3s ease-in-out;
         border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        white-space: pre-line;
+        line-height: 1.4;
     `;
-    
+
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     // Add animation
     const style = document.createElement('style');
     style.textContent = `
         @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
         }
     `;
     document.head.appendChild(style);
-    
+
     // Remove after animation
     setTimeout(() => {
         if (toast.parentNode) toast.remove();
@@ -368,12 +460,12 @@ function showToast(message) {
 
 function handleCallEvent(event, data) {
     if (event === 'call_ended') {
-        if (window.globalCallService) {
-            window.globalCallService.endCall();
-        }
+        document.getElementById('callStatus').textContent = 'Call ended';
+        showToast('📞 Call ended');
+        
         setTimeout(() => {
             window.history.back();
-        }, 1000);
+        }, 1500);
     }
 }
 
@@ -401,7 +493,17 @@ function showError(message) {
 
     document.getElementById('callStatus').textContent = 'Error';
     document.getElementById('loadingMessage').style.display = 'none';
+    
+    // Show error toast
+    showToast('❌ ' + message);
 }
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initCallPage);
+
+// Add event listener for beforeunload to clean up
+window.addEventListener('beforeunload', () => {
+    if (window.globalCallService) {
+        window.globalCallService.endCall();
+    }
+});
