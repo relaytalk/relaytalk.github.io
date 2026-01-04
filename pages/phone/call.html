@@ -150,94 +150,122 @@
     <script type="module" src="call.js"></script>
     
     <!-- Global functions for inline onclick handlers -->
-    <script>
-        // Store global references
-        let globalCallService = null;
-        let globalSupabase = null;
-        let currentCallId = null;
+  <!-- Replace the entire script section at the bottom of call.html -->
+<script>
+    // Global state
+    let globalCallService = null;
+    let globalSupabase = null;
+    let currentCallId = null;
+    let isInitialized = false;
 
-        // Function to answer call (used by inline onclick)
-        window.answerCall = async function() {
-            if (!globalCallService || !currentCallId) {
-                console.error("Call service not ready or no call ID");
-                alert("Please wait, call service is loading...");
-                return;
-            }
+    // Function to answer call (used by inline onclick)
+    window.answerCall = async function() {
+        if (!isInitialized) {
+            console.log("Waiting for initialization...");
+            // Wait a bit and retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        if (!globalCallService || !currentCallId) {
+            console.error("Call service not ready. Current state:", {
+                globalCallService: !!globalCallService,
+                currentCallId: currentCallId,
+                isInitialized: isInitialized
+            });
+            alert("Please wait a moment, the call is still loading...");
+            return;
+        }
+        
+        try {
+            document.getElementById('callStatus').textContent = 'Answering...';
+            await globalCallService.answerCall(currentCallId);
             
-            try {
-                document.getElementById('callStatus').textContent = 'Answering...';
-                await globalCallService.answerCall(currentCallId);
-                
-                // Update UI
-                const controls = document.getElementById('callControls');
-                if (controls) {
-                    controls.innerHTML = `
-                        <button class="control-btn mute-btn" onclick="window.toggleMute()">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        <button class="control-btn end-btn" onclick="window.endCall()">
-                            <i class="fas fa-phone-slash"></i>
-                        </button>
-                    `;
-                }
-            } catch (error) {
-                console.error("Answer call failed:", error);
-                alert("Failed to answer: " + error.message);
+            // Update UI
+            const controls = document.getElementById('callControls');
+            if (controls) {
+                controls.innerHTML = `
+                    <button class="control-btn mute-btn" onclick="window.toggleMute()">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="control-btn end-btn" onclick="window.endCall()">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                `;
             }
-        };
+        } catch (error) {
+            console.error("Answer call failed:", error);
+            alert("Failed to answer: " + error.message);
+        }
+    };
 
-        // Function to decline call (used by inline onclick)
-        window.declineCall = async function() {
-            if (!globalSupabase || !currentCallId) {
-                window.history.back();
-                return;
-            }
-            
-            try {
-                await globalSupabase
-                    .from('calls')
-                    .update({ 
-                        status: 'rejected',
-                        ended_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', currentCallId);
-            } catch (error) {
-                console.error("Decline failed:", error);
-            }
-            
+    // Function to decline call (used by inline onclick)
+    window.declineCall = async function() {
+        if (!globalSupabase || !currentCallId) {
+            console.log("No supabase or call ID, just going back");
             window.history.back();
-        };
+            return;
+        }
+        
+        try {
+            await globalSupabase
+                .from('calls')
+                .update({ 
+                    status: 'rejected',
+                    ended_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', currentCallId);
+        } catch (error) {
+            console.error("Decline failed:", error);
+        }
+        
+        window.history.back();
+    };
 
-        // Other global functions
-        window.toggleMute = async () => {
-            if (!globalCallService) return;
-            
-            try {
-                const isMuted = await globalCallService.toggleMute();
-                const muteBtn = document.querySelector('.mute-btn');
-                if (muteBtn) {
-                    if (isMuted) {
-                        muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-                        muteBtn.style.background = 'linear-gradient(45deg, #ff9500, #ff5e3a)';
-                    } else {
-                        muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-                        muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-                    }
+    // Other global functions
+    window.toggleMute = async () => {
+        if (!globalCallService) {
+            alert("Call service not ready yet");
+            return;
+        }
+        
+        try {
+            const isMuted = await globalCallService.toggleMute();
+            const muteBtn = document.querySelector('.mute-btn');
+            if (muteBtn) {
+                if (isMuted) {
+                    muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                    muteBtn.style.background = 'linear-gradient(45deg, #ff9500, #ff5e3a)';
+                } else {
+                    muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                    muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
                 }
-            } catch (error) {
-                console.error("Toggle mute failed:", error);
             }
-        };
+        } catch (error) {
+            console.error("Toggle mute failed:", error);
+        }
+    };
 
-        window.endCall = () => {
-            if (globalCallService) {
-                globalCallService.endCall();
-            }
-            setTimeout(() => {
-                window.history.back();
-            }, 1000);
-        };
-    </script>
+    window.endCall = () => {
+        if (globalCallService) {
+            globalCallService.endCall();
+        }
+        setTimeout(() => {
+            window.history.back();
+        }, 1000);
+    };
+
+    // Call this from call.js when everything is ready
+    window.setCallServiceReady = function(callService, supabase, callId) {
+        globalCallService = callService;
+        globalSupabase = supabase;
+        currentCallId = callId;
+        isInitialized = true;
+        console.log("✅ Global call service set as ready:", {
+            hasCallService: !!globalCallService,
+            callId: currentCallId
+        });
+    };
+</script>
 </body>
 </html>
