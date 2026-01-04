@@ -109,6 +109,28 @@
             background: linear-gradient(45deg, #ff3b30, #ff5e3a);
         }
 
+        /* Speaker button styles */
+        .speaker-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .speaker-btn.active {
+            background: linear-gradient(45deg, #4cd964, #5ac8fa);
+        }
+        
+        .speaker-label {
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
         .audio-container {
             display: none;
         }
@@ -128,21 +150,69 @@
             max-width: 400px;
         }
         
-        /* Audio indicator */
+        /* Audio status indicator */
+        .audio-status {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .audio-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4cd964;
+            animation: pulse 2s infinite;
+        }
+        
+        .audio-status-dot.inactive {
+            background: #ff3b30;
+        }
+
+        /* Simple audio indicator */
         .audio-indicator {
             position: fixed;
             top: 15px;
             left: 15px;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: #4cd964;
+            box-shadow: 0 0 10px #4cd964;
+            animation: pulse 2s infinite;
             z-index: 100;
+        }
+        
+        .audio-indicator.muted {
+            background: #ff3b30;
+            box-shadow: 0 0 10px #ff3b30;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
         }
     </style>
 </head>
 <body>
-    <!-- Audio indicator -->
+    <!-- Audio status indicator -->
+    <div class="audio-status" id="audioStatus">
+        <div class="audio-status-dot" id="audioStatusDot"></div>
+        <span id="audioStatusText">Audio: Connecting...</span>
+    </div>
+
+    <!-- Simple audio indicator -->
     <div class="audio-indicator" id="audioIndicator"></div>
     
     <div class="call-container" id="callContainer">
@@ -155,12 +225,56 @@
             <!-- Controls will be added by JavaScript -->
         </div>
 
-        <!-- CRITICAL: Audio elements MUST be present -->
-        <audio id="remoteAudio" autoplay playsinline></audio>
-        <audio id="localAudio" autoplay muted playsinline></audio>
+        <audio id="remoteAudio" autoplay playsinline class="audio-container"></audio>
+        <audio id="localAudio" autoplay muted playsinline class="audio-container"></audio>
 
         <div class="loading" id="loadingMessage">Setting up call...</div>
         <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <!-- Simple audio help overlay (shown only when needed) -->
+    <div id="audioHelpOverlay" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(10, 10, 26, 0.95);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    ">
+        <div style="
+            background: rgba(26, 26, 46, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 350px;
+            text-align: center;
+            border: 2px solid #667eea;
+            backdrop-filter: blur(20px);
+        ">
+            <div style="font-size: 3rem; margin-bottom: 15px; color: #667eea;">
+                <i class="fas fa-volume-up"></i>
+            </div>
+            <h3 style="margin-bottom: 10px; color: white;">Enable Audio</h3>
+            <p style="color: #a0a0c0; margin-bottom: 20px;">
+                Click anywhere on screen to enable audio for this call
+            </p>
+            <button onclick="document.getElementById('audioHelpOverlay').style.display = 'none';" style="
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                color: white;
+                border: none;
+                padding: 12px 30px;
+                border-radius: 20px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+            ">
+                Got it!
+            </button>
+        </div>
     </div>
 
     <script type="module" src="call.js"></script>
@@ -175,13 +289,66 @@
         }, true);
     }
     
-    // Click anywhere to enable audio
+    // Update audio status indicator
+    function updateAudioStatus() {
+        const audio = document.getElementById('remoteAudio');
+        const dot = document.getElementById('audioStatusDot');
+        const text = document.getElementById('audioStatusText');
+        const indicator = document.getElementById('audioIndicator');
+        
+        if (!audio) return;
+        
+        if (audio.srcObject) {
+            const stream = audio.srcObject;
+            const audioTracks = stream.getAudioTracks();
+            
+            if (audioTracks.length > 0) {
+                const track = audioTracks[0];
+                if (audio.paused || !track.enabled) {
+                    text.textContent = 'Audio: Click to enable';
+                    dot.className = 'audio-status-dot inactive';
+                    if (indicator) indicator.className = 'audio-indicator muted';
+                    
+                    // Show help overlay if audio is muted/paused for too long
+                    setTimeout(() => {
+                        if (audio.paused && !document.getElementById('audioHelpOverlay').style.display) {
+                            document.getElementById('audioHelpOverlay').style.display = 'flex';
+                        }
+                    }, 3000);
+                } else {
+                    text.textContent = 'Audio: Active';
+                    dot.className = 'audio-status-dot';
+                    if (indicator) indicator.className = 'audio-indicator';
+                    
+                    // Hide help overlay if shown
+                    document.getElementById('audioHelpOverlay').style.display = 'none';
+                }
+            } else {
+                text.textContent = 'Audio: No stream';
+                dot.className = 'audio-status-dot inactive';
+                if (indicator) indicator.className = 'audio-indicator muted';
+            }
+        } else {
+            text.textContent = 'Audio: Connecting...';
+            dot.className = 'audio-status-dot inactive';
+            if (indicator) indicator.className = 'audio-indicator muted';
+        }
+    }
+    
+    // Click anywhere to try to enable audio
     document.addEventListener('click', function() {
         const audio = document.getElementById('remoteAudio');
-        if (audio && audio.paused) {
+        if (audio && audio.paused && audio.srcObject) {
             audio.play().catch(() => {});
         }
+        document.getElementById('audioHelpOverlay').style.display = 'none';
     });
+    
+    // Initialize audio status updates
+    setInterval(updateAudioStatus, 1000);
+    
+    // Show audio status after page loads
+    setTimeout(updateAudioStatus, 1000);
     </script>
 </body>
 </html>
