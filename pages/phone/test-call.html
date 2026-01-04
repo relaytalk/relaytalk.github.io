@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Call</title>
+</head>
+<body>
+    <h1>Test Speaker Toggle</h1>
+    <button onclick="startCall()">Start Call</button>
+    <button onclick="toggleSpeaker()">Toggle Speaker</button>
+    <button onclick="toggleMute()">Toggle Mute</button>
+    <button onclick="endCall()">End Call</button>
+    
+    <div id="status">Ready</div>
+    
+    <script type="module">
+        import callService from '/app/utils/callService.js';
+        
+        window.callService = callService;
+        
+        async function startCall() {
+            document.getElementById('status').textContent = 'Starting call...';
+            try {
+                // Use a test friend ID
+                await callService.initialize('test-user-123');
+                const call = await callService.initiateCall('test-friend-456', 'voice');
+                document.getElementById('status').textContent = 'Call started: ' + call.id;
+                
+                // Setup callbacks
+                callService.setOnSpeakerModeChange((mode) => {
+                    console.log('Speaker mode changed:', mode);
+                    document.getElementById('status').textContent = 'Speaker: ' + (mode ? 'ON' : 'OFF');
+                });
+                
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function toggleSpeaker() {
+            try {
+                const newMode = await callService.toggleSpeakerMode();
+                document.getElementById('status').textContent = 'Speaker toggled: ' + (newMode ? 'ON' : 'OFF');
+            } catch (error) {
+                console.error('Toggle error:', error);
+            }
+        }
+        
+        async function toggleMute() {
+            try {
+                const muted = await callService.toggleMute();
+                document.getElementById('status').textContent = 'Mute: ' + (muted ? 'ON' : 'OFF');
+            } catch (error) {
+                console.error('Mute error:', error);
+            }
+        }
+        
+        async function endCall() {
+            await callService.endCall();
+            document.getElementById('status').textContent = 'Call ended';
+        }
+    </script>
+</body>
+</html>
