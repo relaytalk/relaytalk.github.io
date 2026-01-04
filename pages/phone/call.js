@@ -1,11 +1,12 @@
-// /app/pages/phone/call.js - CORRECTED SPEAKER MODE (Audio Output)
+// /app/pages/phone/call.js - COMPLETELY FIXED VERSION
 console.log("📞 Call Page Loaded");
 
 let supabase;
 let callService;
 let currentCallId = null;
-let isSpeakerMode = false; // false = earpiece, true = loudspeaker
-let remoteAudio = null;
+let isSpeakerMode = false;
+let lastSpeakerMode = null;
+let isProcessingSpeakerToggle = false;
 
 async function initCallPage() {
     console.log("Initializing call page...");
@@ -19,6 +20,7 @@ async function initCallPage() {
     const callType = urlParams.get('type') || 'voice';
 
     window.currentCallId = currentCallId;
+    console.log("Call params:", { friendId, friendName, currentCallId, isIncoming, callType });
 
     // Get supabase
     if (window.supabase) {
@@ -43,6 +45,8 @@ async function initCallPage() {
         return;
     }
 
+    console.log("User authenticated:", user.id);
+
     // Update UI
     if (friendName) {
         document.getElementById('callerName').textContent = friendName;
@@ -64,9 +68,11 @@ async function initCallPage() {
 
         // Start or answer call
         if (isIncoming && currentCallId) {
+            console.log("Incoming call detected");
             document.getElementById('callStatus').textContent = 'Incoming call...';
             setupIncomingCallControls();
         } else if (friendId) {
+            console.log("Outgoing call to:", friendId);
             document.getElementById('callStatus').textContent = 'Calling...';
             startOutgoingCall(friendId, friendName || 'Friend', callType);
         } else {
@@ -83,7 +89,7 @@ function startOutgoingCall(friendId, friendName, type) {
     const controls = document.getElementById('callControls');
     controls.innerHTML = `
         <button class="control-btn speaker-btn" id="speakerBtn" onclick="window.toggleSpeaker()">
-            <i class="fas fa-volume-up"></i>
+            <i class="fas fa-headphones"></i>
             <span class="speaker-label">Speaker</span>
         </button>
         <button class="control-btn mute-btn" id="muteBtn" onclick="window.toggleMute()">
@@ -94,10 +100,16 @@ function startOutgoingCall(friendId, friendName, type) {
         </button>
     `;
 
-    callService.initiateCall(friendId, type).catch(error => {
-        console.error("Call initiation failed:", error);
-        showError("Call failed: " + error.message);
-    });
+    callService.initiateCall(friendId, type)
+        .then(call => {
+            console.log("Call initiated:", call);
+            // Update audio mode in database
+            updateAudioModeInDatabase('mic');
+        })
+        .catch(error => {
+            console.error("Call initiation failed:", error);
+            showError("Call failed: " + error.message);
+        });
 }
 
 function setupIncomingCallControls() {
@@ -114,6 +126,7 @@ function setupIncomingCallControls() {
 
 // Handle answer button click
 window.handleAnswerClick = async function() {
+    console.log("Answering call...");
     document.getElementById('callStatus').textContent = 'Answering...';
 
     if (window.globalCallService && window.currentCallId) {
@@ -124,7 +137,7 @@ window.handleAnswerClick = async function() {
             if (controls) {
                 controls.innerHTML = `
                     <button class="control-btn speaker-btn" id="speakerBtn" onclick="window.toggleSpeaker()">
-                        <i class="fas fa-volume-up"></i>
+                        <i class="fas fa-headphones"></i>
                         <span class="speaker-label">Speaker</span>
                     </button>
                     <button class="control-btn mute-btn" id="muteBtn" onclick="window.toggleMute()">
@@ -135,6 +148,10 @@ window.handleAnswerClick = async function() {
                     </button>
                 `;
             }
+            
+            // Update audio mode in database
+            updateAudioModeInDatabase('mic');
+            
         } catch (error) {
             console.error("Answer call failed:", error);
             showError("Failed to answer: " + error.message);
@@ -144,6 +161,8 @@ window.handleAnswerClick = async function() {
 
 // Handle decline button click
 window.handleDeclineClick = async function() {
+    console.log("Declining call...");
+    
     if (window.globalSupabase && window.currentCallId) {
         try {
             await window.globalSupabase
@@ -154,6 +173,7 @@ window.handleDeclineClick = async function() {
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', window.currentCallId);
+            console.log("Call rejected in database");
         } catch (error) {
             console.error("Decline failed:", error);
         }
@@ -162,81 +182,105 @@ window.handleDeclineClick = async function() {
     window.history.back();
 };
 
-// Toggle speaker output (loudspeaker vs earpiece)
+// Update audio mode in database
+async function updateAudioModeInDatabase(audioMode) {
+    if (!window.globalSupabase || !window.currentCallId) return;
+    
+    try {
+        await window.globalSupabase
+            .from('calls')
+            .update({ 
+                audio_mode: audioMode,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', window.currentCallId);
+        console.log("Audio mode updated to:", audioMode);
+    } catch (error) {
+        console.error("Failed to update audio mode:", error);
+    }
+}
+
+// Toggle speaker output
 window.toggleSpeaker = async () => {
-    if (!window.globalCallService) {
-        console.error("Call service not available");
+    if (!window.globalCallService || isProcessingSpeakerToggle) {
+        console.log("Speaker toggle blocked - service not available or already processing");
         return;
     }
 
     try {
-        // Toggle speaker mode in call service
-        isSpeakerMode = await window.globalCallService.toggleSpeakerMode();
+        isProcessingSpeakerToggle = true;
+        console.log("Toggling speaker...");
         
-        const speakerBtn = document.getElementById('speakerBtn');
-        const remoteAudio = document.getElementById('remoteAudio');
+        // Toggle in call service
+        const newMode = await window.globalCallService.toggleSpeakerMode();
         
-        if (speakerBtn && remoteAudio) {
-            const speakerIcon = speakerBtn.querySelector('i');
-            const speakerLabel = speakerBtn.querySelector('.speaker-label');
-            
-            if (isSpeakerMode) {
-                // Switch to LOUDSPEAKER (system audio)
-                speakerIcon.className = 'fas fa-volume-up';
-                speakerLabel.textContent = 'Speaker ON';
-                speakerBtn.style.background = 'linear-gradient(45deg, #4cd964, #5ac8fa)';
-                speakerBtn.style.boxShadow = '0 0 15px rgba(76, 217, 100, 0.4)';
-                
-                // Set audio output to loudspeaker
-                remoteAudio.setAttribute('playsinline', 'false');
-                
-                // On mobile, we might need to use different audio context
-                if (typeof remoteAudio.sinkId !== 'undefined') {
-                    try {
-                        await remoteAudio.setSinkId(''); // System default (speaker)
-                    } catch (err) {
-                        console.log("Could not set sinkId:", err);
-                    }
-                }
-                
-                showToast('🔊 Speaker Mode: Loudspeaker');
-                
-            } else {
-                // Switch to EARPIECE (normal phone mode)
-                speakerIcon.className = 'fas fa-headphones';
-                speakerLabel.textContent = 'Earpiece';
-                speakerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-                speakerBtn.style.boxShadow = 'none';
-                
-                // Set audio output to earpiece/headphones
-                remoteAudio.setAttribute('playsinline', 'true');
-                
-                // Try to use earpiece if available
-                if (typeof remoteAudio.sinkId !== 'undefined') {
-                    try {
-                        // Try to get earpiece/headphones sink
-                        const devices = await navigator.mediaDevices.enumerateDevices();
-                        const audioOutputs = devices.filter(device => 
-                            device.kind === 'audiooutput' && 
-                            (device.label.includes('earpiece') || device.label.includes('default'))
-                        );
-                        
-                        if (audioOutputs.length > 0) {
-                            await remoteAudio.setSinkId(audioOutputs[0].deviceId);
-                        }
-                    } catch (err) {
-                        console.log("Could not set earpiece sink:", err);
-                    }
-                }
-                
-                showToast('🎧 Speaker Mode: Earpiece');
-            }
-        }
+        // Update local state
+        isSpeakerMode = newMode;
+        
+        // Update UI immediately
+        updateSpeakerUI(isSpeakerMode);
+        
+        // Update database
+        await updateAudioModeInDatabase(isSpeakerMode ? 'speaker' : 'mic');
+        
+        isProcessingSpeakerToggle = false;
+        
     } catch (error) {
         console.error("Toggle speaker failed:", error);
+        isProcessingSpeakerToggle = false;
         showToast('❌ Failed to toggle speaker');
     }
 };
+
+// Update speaker UI
+function updateSpeakerUI(speakerOn) {
+    const speakerBtn = document.getElementById('speakerBtn');
+    const remoteAudio = document.getElementById('remoteAudio');
+    
+    if (!speakerBtn) {
+        console.error("Speaker button not found");
+        return;
+    }
+    
+    const speakerIcon = speakerBtn.querySelector('i');
+    const speakerLabel = speakerBtn.querySelector('.speaker-label');
+    
+    if (speakerOn) {
+        // Speaker Mode ON (Loudspeaker)
+        speakerIcon.className = 'fas fa-volume-up';
+        speakerLabel.textContent = 'Speaker ON';
+        speakerBtn.style.background = 'linear-gradient(45deg, #4cd964, #5ac8fa)';
+        speakerBtn.style.boxShadow = '0 0 15px rgba(76, 217, 100, 0.4)';
+        
+        // Set audio to loudspeaker
+        if (remoteAudio) {
+            remoteAudio.setAttribute('playsinline', 'false');
+            
+            // Try to use system speaker
+            if (typeof remoteAudio.sinkId !== 'undefined') {
+                remoteAudio.setSinkId('')
+                    .then(() => console.log("Audio output set to system speaker"))
+                    .catch(err => console.log("Could not set sinkId:", err));
+            }
+        }
+        
+        showToast('🔊 Speaker Mode: Loudspeaker');
+        
+    } else {
+        // Speaker Mode OFF (Earpiece)
+        speakerIcon.className = 'fas fa-headphones';
+        speakerLabel.textContent = 'Speaker';
+        speakerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        speakerBtn.style.boxShadow = 'none';
+        
+        // Set audio to earpiece
+        if (remoteAudio) {
+            remoteAudio.setAttribute('playsinline', 'true');
+        }
+        
+        showToast('🎧 Speaker Mode: Earpiece');
+    }
+}
 
 // Toggle microphone mute
 window.toggleMute = async () => {
@@ -269,27 +313,13 @@ window.toggleMute = async () => {
 };
 
 window.endCall = async () => {
+    console.log("Ending call...");
+    
     if (window.globalCallService) {
         try {
             await window.globalCallService.endCall();
         } catch (error) {
             console.error("Error ending call:", error);
-        }
-    }
-    
-    // Also update call status in database if we have call ID
-    if (window.globalSupabase && window.currentCallId) {
-        try {
-            await window.globalSupabase
-                .from('calls')
-                .update({ 
-                    status: 'ended',
-                    ended_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', window.currentCallId);
-        } catch (error) {
-            console.error("Failed to update call status:", error);
         }
     }
     
@@ -304,6 +334,8 @@ window.endCall = async () => {
 };
 
 function handleCallStateChange(state) {
+    console.log("Call state changed:", state);
+    
     const statusEl = document.getElementById('callStatus');
     const timerEl = document.getElementById('callTimer');
     const loadingEl = document.getElementById('loadingMessage');
@@ -335,7 +367,7 @@ function handleCallStateChange(state) {
 
 function handleRemoteStream(stream) {
     console.log("Remote stream received");
-
+    
     const audio = document.getElementById('remoteAudio');
     if (audio) {
         audio.srcObject = stream;
@@ -346,25 +378,35 @@ function handleRemoteStream(stream) {
         audio.setAttribute('playsinline', 'true');
         
         // Play audio
-        audio.play().then(() => {
-            console.log("Audio playing!");
-            // Ensure audio is at correct volume
-            audio.volume = 1.0;
-        }).catch(error => {
-            console.log("Audio play failed:", error.name);
-            showAudioHelp();
-        });
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log("Audio playing successfully");
+                    audio.volume = 1.0;
+                })
+                .catch(error => {
+                    console.log("Audio play failed:", error.name);
+                    showAudioHelp();
+                });
+        }
     }
 }
 
 function handleSpeakerModeChange(speakerMode) {
-    console.log("Speaker mode changed:", speakerMode);
-    isSpeakerMode = speakerMode;
+    console.log("Speaker mode changed in service:", speakerMode);
     
-    // Update UI to reflect the change
-    setTimeout(() => {
-        window.toggleSpeaker();
-    }, 100);
+    // Only update if different from current state
+    if (lastSpeakerMode !== speakerMode) {
+        lastSpeakerMode = speakerMode;
+        isSpeakerMode = speakerMode;
+        
+        // Update UI without triggering another toggle
+        setTimeout(() => {
+            updateSpeakerUI(isSpeakerMode);
+        }, 100);
+    }
 }
 
 function showAudioHelp() {
@@ -385,7 +427,7 @@ function showAudioHelp() {
             border: 2px solid #667eea;
         ">
             <p style="margin: 0; font-size: 14px;">Tap to enable audio playback</p>
-            <button onclick="enableAudio()" style="
+            <button onclick="window.enableAudio()" style="
                 margin-top: 10px;
                 background: #667eea;
                 color: white;
@@ -404,7 +446,9 @@ function showAudioHelp() {
 window.enableAudio = function() {
     const audio = document.getElementById('remoteAudio');
     if (audio) {
-        audio.play().catch(e => console.error("Audio play error:", e));
+        audio.play()
+            .then(() => console.log("Audio enabled"))
+            .catch(e => console.error("Audio play error:", e));
     }
     const helpEl = document.getElementById('audioHelp');
     if (helpEl) helpEl.remove();
@@ -459,6 +503,8 @@ function showToast(message) {
 }
 
 function handleCallEvent(event, data) {
+    console.log("Call event:", event, data);
+    
     if (event === 'call_ended') {
         document.getElementById('callStatus').textContent = 'Call ended';
         showToast('📞 Call ended');
@@ -492,7 +538,8 @@ function showError(message) {
     }
 
     document.getElementById('callStatus').textContent = 'Error';
-    document.getElementById('loadingMessage').style.display = 'none';
+    const loadingEl = document.getElementById('loadingMessage');
+    if (loadingEl) loadingEl.style.display = 'none';
     
     // Show error toast
     showToast('❌ ' + message);
@@ -506,4 +553,14 @@ window.addEventListener('beforeunload', () => {
     if (window.globalCallService) {
         window.globalCallService.endCall();
     }
+});
+
+// Add a global error handler
+window.addEventListener('error', function(event) {
+    console.error("Global error:", event.error);
+});
+
+// Add unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+    console.error("Unhandled promise rejection:", event.reason);
 });
