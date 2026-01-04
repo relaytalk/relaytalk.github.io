@@ -117,21 +117,24 @@ function setupIncomingCallControls() {
 
     const controls = document.getElementById('callControls');
     controls.innerHTML = `
-        <button class="control-btn accept-btn" onclick="handleAnswerClick()">
+        <button class="control-btn accept-btn" onclick="window.handleAnswerClick()">
             <i class="fas fa-phone"></i>
         </button>
-        <button class="control-btn decline-btn" onclick="handleDeclineClick()">
+        <button class="control-btn decline-btn" onclick="window.handleDeclineClick()">
             <i class="fas fa-phone-slash"></i>
         </button>
     `;
 }
 
 // Handle answer button click with waiting mechanism
-async function handleAnswerClick() {
+window.handleAnswerClick = async function() {
     console.log("Answer button clicked");
     
     // Show loading state
-    document.getElementById('callStatus').textContent = 'Answering...';
+    const statusEl = document.getElementById('callStatus');
+    if (statusEl) {
+        statusEl.textContent = 'Answering...';
+    }
     
     // Wait for call service to be ready (max 5 seconds)
     for (let i = 0; i < 50; i++) {
@@ -166,10 +169,10 @@ async function handleAnswerClick() {
     
     // If we get here, service never became ready
     showError("Call service is taking too long to load. Please try again.");
-}
+};
 
 // Handle decline button click
-async function handleDeclineClick() {
+window.handleDeclineClick = async function() {
     console.log("Decline button clicked");
     
     if (window.globalSupabase && window.currentCallId) {
@@ -188,7 +191,7 @@ async function handleDeclineClick() {
     }
     
     window.history.back();
-}
+};
 
 // Global functions (for inline onclick handlers)
 window.toggleMute = async () => {
