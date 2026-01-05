@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>✨ Relay - Call</title>
     <link rel="stylesheet" href="/app/pages/phone/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -20,76 +20,122 @@
             color: white;
             height: 100vh;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
 
         .call-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             height: 100vh;
-            padding: 20px;
+            padding: 30px 20px;
             text-align: center;
+            position: relative;
+        }
+
+        .top-section {
+            width: 100%;
+            margin-top: 30px;
         }
 
         .caller-avatar {
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             background: linear-gradient(45deg, #667eea, #764ba2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 4rem;
+            font-size: 3rem;
             font-weight: bold;
-            margin-bottom: 30px;
+            margin: 0 auto 20px;
             color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
 
         .caller-name {
-            font-size: 2.5rem;
+            font-size: 2rem;
             margin-bottom: 10px;
             font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 0 10px;
         }
 
         .call-status {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             color: #a0a0c0;
-            margin-bottom: 40px;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .call-timer {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: bold;
-            margin-bottom: 50px;
             background: linear-gradient(45deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-        }
-
-        .call-controls {
-            display: flex;
-            gap: 30px;
-            margin-top: 50px;
-        }
-
-        .control-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: none;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
+            margin: 10px 0;
+            min-height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
+        .middle-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .call-controls {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin: 30px 0;
+            padding: 0 10px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
         .control-btn:active {
             transform: scale(0.95);
+        }
+
+        .control-btn span {
+            font-size: 10px;
+            margin-top: 5px;
+            font-weight: 600;
+            opacity: 0.9;
         }
 
         .mute-btn {
@@ -99,36 +145,36 @@
 
         .end-btn {
             background: linear-gradient(45deg, #ff3b30, #ff5e3a);
+            border: 2px solid rgba(255, 59, 48, 0.3);
         }
 
         .accept-btn {
             background: linear-gradient(45deg, #4cd964, #5ac8fa);
+            border: 2px solid rgba(76, 217, 100, 0.3);
+            width: 80px;
+            height: 80px;
         }
 
         .decline-btn {
             background: linear-gradient(45deg, #ff3b30, #ff5e3a);
+            border: 2px solid rgba(255, 59, 48, 0.3);
+            width: 80px;
+            height: 80px;
         }
 
-        /* Speaker button styles */
         .speaker-btn {
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
         }
 
         .speaker-btn.active {
             background: linear-gradient(45deg, #4cd964, #5ac8fa);
+            border-color: rgba(76, 217, 100, 0.3);
         }
 
-        .speaker-label {
-            font-size: 10px;
-            font-weight: 600;
-            opacity: 0.8;
-            margin-top: 2px;
+        .debug-btn {
+            background: linear-gradient(45deg, #9c27b0, #673ab7);
+            border: 2px solid rgba(156, 39, 176, 0.3);
         }
 
         .audio-container {
@@ -137,34 +183,44 @@
 
         .loading {
             color: #a0a0c0;
-            font-size: 1.2rem;
-            margin-top: 20px;
+            font-size: 1.1rem;
+            margin: 20px 0;
+            min-height: 20px;
         }
 
         .error-message {
             background: rgba(255, 59, 48, 0.1);
             border: 1px solid rgba(255, 59, 48, 0.3);
             border-radius: 15px;
-            padding: 20px;
-            margin: 20px;
-            max-width: 400px;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 90%;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .bottom-section {
+            width: 100%;
+            padding: 20px 0;
         }
 
         /* Audio status indicator */
         .audio-status {
-            position: fixed;
+            position: absolute;
             top: 15px;
             left: 15px;
             display: flex;
             align-items: center;
             gap: 8px;
             background: rgba(0,0,0,0.5);
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 11px;
             z-index: 100;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 70%;
         }
 
         .audio-status-dot {
@@ -173,35 +229,164 @@
             border-radius: 50%;
             background: #4cd964;
             animation: pulse 2s infinite;
+            flex-shrink: 0;
         }
 
         .audio-status-dot.inactive {
             background: #ff3b30;
         }
 
-        /* Simple audio indicator */
-        .audio-indicator {
+        .audio-status-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        /* Toast notification */
+        #toastNotification {
             position: fixed;
-            top: 15px;
-            left: 15px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #4cd964;
-            box-shadow: 0 0 10px #4cd964;
-            animation: pulse 2s infinite;
-            z-index: 100;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 20px;
+            z-index: 9999;
+            font-size: 0.9rem;
+            text-align: center;
+            animation: fadeInOut 3s ease-in-out;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            max-width: 80%;
+            word-wrap: break-word;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
 
-        .audio-indicator.muted {
-            background: #ff3b30;
-            box-shadow: 0 0 10px #ff3b30;
+        /* Audio help overlay */
+        #audioHelpOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 26, 0.98);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
+        .audio-help-content {
+            background: rgba(26, 26, 46, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
+            border: 2px solid #667eea;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        .audio-help-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .audio-help-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        /* Animations */
         @keyframes pulse {
             0% { opacity: 0.7; }
             50% { opacity: 1; }
             100% { opacity: 0.7; }
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        @keyframes ringing {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .ringing-animation {
+            animation: ringing 1.5s infinite;
+        }
+
+        /* Connection status */
+        .connection-status {
+            font-size: 0.9rem;
+            color: #4cd964;
+            margin: 10px 0;
+            min-height: 20px;
+        }
+
+        .connection-status.error {
+            color: #ff3b30;
+        }
+
+        .connection-status.warning {
+            color: #ff9500;
+        }
+
+        /* For very small screens */
+        @media (max-height: 600px) {
+            .caller-avatar {
+                width: 90px;
+                height: 90px;
+                font-size: 2.5rem;
+            }
+            
+            .caller-name {
+                font-size: 1.6rem;
+            }
+            
+            .control-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+            
+            .accept-btn, .decline-btn {
+                width: 70px;
+                height: 70px;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .call-controls {
+                gap: 15px;
+            }
+            
+            .control-btn {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .caller-name {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -209,83 +394,69 @@
     <!-- Audio status indicator -->
     <div class="audio-status" id="audioStatus">
         <div class="audio-status-dot" id="audioStatusDot"></div>
-        <span id="audioStatusText">Audio: Connecting...</span>
+        <span class="audio-status-text" id="audioStatusText">Audio: Connecting...</span>
     </div>
-
-    <!-- Simple audio indicator -->
-    <div class="audio-indicator" id="audioIndicator"></div>
 
     <div class="call-container" id="callContainer">
-        <div class="caller-avatar" id="callerAvatar">?</div>
-        <h1 class="caller-name" id="callerName">Loading...</h1>
-        <p class="call-status" id="callStatus">Connecting...</p>
-        <div class="call-timer" id="callTimer" style="display: none;">00:00</div>
-
-        <div class="call-controls" id="callControls">
-            <!-- Controls will be added by JavaScript -->
+        <div class="top-section">
+            <div class="caller-avatar" id="callerAvatar">?</div>
+            <h1 class="caller-name" id="callerName">Connecting...</h1>
+            <p class="call-status" id="callStatus">Initializing call...</p>
+            <div class="call-timer" id="callTimer" style="display: none;">00:00</div>
+            <div class="connection-status" id="connectionStatus"></div>
         </div>
 
-        <audio id="remoteAudio" autoplay playsinline class="audio-container"></audio>
-        <audio id="localAudio" autoplay muted playsinline class="audio-container"></audio>
+        <div class="middle-section">
+            <!-- Audio elements (hidden) -->
+            <audio id="remoteAudio" autoplay playsinline class="audio-container"></audio>
+            <audio id="localAudio" autoplay muted playsinline class="audio-container"></audio>
 
-        <div class="loading" id="loadingMessage">Setting up call...</div>
-        <div class="error-message" id="errorMessage" style="display: none;"></div>
+            <!-- Loading/Error messages -->
+            <div class="loading" id="loadingMessage">Setting up call...</div>
+            <div class="error-message" id="errorMessage" style="display: none;"></div>
+        </div>
+
+        <div class="bottom-section">
+            <!-- Call controls will be inserted here by JavaScript -->
+            <div class="call-controls" id="callControls">
+                <!-- Dynamic controls -->
+            </div>
+        </div>
     </div>
 
-    <!-- Simple audio help overlay (shown only when needed) -->
-    <div id="audioHelpOverlay" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(10, 10, 26, 0.95);
-        z-index: 9999;
-        display: none;
-        align-items: center;
-        justify-content: center;
-    ">
-        <div style="
-            background: rgba(26, 26, 46, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 350px;
-            text-align: center;
-            border: 2px solid #667eea;
-            backdrop-filter: blur(20px);
-        ">
-            <div style="font-size: 3rem; margin-bottom: 15px; color: #667eea;">
+    <!-- Audio help overlay -->
+    <div id="audioHelpOverlay">
+        <div class="audio-help-content">
+            <div class="audio-help-icon">
                 <i class="fas fa-volume-up"></i>
             </div>
             <h3 style="margin-bottom: 10px; color: white;">Enable Audio</h3>
-            <p style="color: #a0a0c0; margin-bottom: 20px;">
-                Click anywhere on screen to enable audio for this call
+            <p style="color: #a0a0c0; margin-bottom: 20px; line-height: 1.5;">
+                Click anywhere on screen to enable audio for this call.
+                Some browsers require user interaction to play audio.
             </p>
-            <button onclick="document.getElementById('audioHelpOverlay').style.display = 'none';" style="
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                color: white;
-                border: none;
-                padding: 12px 30px;
-                border-radius: 20px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 600;
-            ">
-                Got it!
+            <button class="audio-help-button" onclick="enableAudioAndClose()">
+                Enable Audio Now
             </button>
+            <p style="color: #666; font-size: 12px; margin-top: 15px;">
+                If audio doesn't work, check your device volume
+            </p>
         </div>
     </div>
 
+    <!-- Main call script -->
     <script type="module" src="call.js"></script>
 
     <script>
-    // Block YouTube/Google postMessage errors
-    if (window.addEventListener) {
-        window.addEventListener('message', function(e) {
-            if (e.origin.includes('youtube.com') || e.origin.includes('google.com')) {
-                e.stopImmediatePropagation();
-            }
-        }, true);
+    // Audio helper functions
+    function enableAudioAndClose() {
+        const audio = document.getElementById('remoteAudio');
+        if (audio) {
+            audio.play().catch(e => {
+                console.log("Audio play attempt:", e.name);
+            });
+        }
+        document.getElementById('audioHelpOverlay').style.display = 'none';
     }
 
     // Update audio status indicator
@@ -293,61 +464,55 @@
         const audio = document.getElementById('remoteAudio');
         const dot = document.getElementById('audioStatusDot');
         const text = document.getElementById('audioStatusText');
-        const indicator = document.getElementById('audioIndicator');
-
+        
         if (!audio) return;
-
+        
         if (audio.srcObject) {
             const stream = audio.srcObject;
-            const audioTracks = stream.getAudioTracks();
-
-            if (audioTracks.length > 0) {
-                const track = audioTracks[0];
-                if (audio.paused || !track.enabled) {
-                    text.textContent = 'Audio: Click to enable';
-                    dot.className = 'audio-status-dot inactive';
-                    if (indicator) indicator.className = 'audio-indicator muted';
-
-                    // Show help overlay if audio is muted/paused for too long
-                    setTimeout(() => {
-                        if (audio.paused && document.getElementById('audioHelpOverlay').style.display === 'none') {
-                            document.getElementById('audioHelpOverlay').style.display = 'flex';
-                        }
-                    }, 3000);
-                } else {
-                    text.textContent = 'Audio: Active';
-                    dot.className = 'audio-status-dot';
-                    if (indicator) indicator.className = 'audio-indicator';
-
-                    // Hide help overlay if shown
-                    document.getElementById('audioHelpOverlay').style.display = 'none';
-                }
+            const tracks = stream.getAudioTracks();
+            
+            if (tracks.length > 0 && tracks[0].readyState === 'live') {
+                text.textContent = 'Audio: Active';
+                dot.className = 'audio-status-dot';
+                dot.style.animation = 'pulse 2s infinite';
             } else {
                 text.textContent = 'Audio: No stream';
                 dot.className = 'audio-status-dot inactive';
-                if (indicator) indicator.className = 'audio-indicator muted';
+                dot.style.animation = 'none';
             }
+        } else if (audio.readyState > 0) {
+            text.textContent = 'Audio: Ready';
+            dot.className = 'audio-status-dot';
+            dot.style.animation = 'pulse 2s infinite';
         } else {
             text.textContent = 'Audio: Connecting...';
             dot.className = 'audio-status-dot inactive';
-            if (indicator) indicator.className = 'audio-indicator muted';
+            dot.style.animation = 'none';
         }
     }
 
-    // Click anywhere to try to enable audio
+    // Click anywhere to enable audio
     document.addEventListener('click', function() {
         const audio = document.getElementById('remoteAudio');
-        if (audio && audio.paused && audio.srcObject) {
-            audio.play().catch(() => {});
+        if (audio && audio.paused) {
+            audio.play().catch(e => {
+                console.log("Auto-play blocked, showing help");
+                document.getElementById('audioHelpOverlay').style.display = 'flex';
+            });
         }
-        document.getElementById('audioHelpOverlay').style.display = 'none';
     });
 
     // Initialize audio status updates
     setInterval(updateAudioStatus, 1000);
-
-    // Show audio status after page loads
-    setTimeout(updateAudioStatus, 1000);
+    setTimeout(updateAudioStatus, 500);
+    
+    // Show audio help if audio is blocked for too long
+    setTimeout(() => {
+        const audio = document.getElementById('remoteAudio');
+        if (audio && audio.paused) {
+            document.getElementById('audioHelpOverlay').style.display = 'flex';
+        }
+    }, 3000);
     </script>
 </body>
 </html>
