@@ -24,6 +24,79 @@
             width: 100%;
         }
 
+/* Add these styles to your existing CSS */
+.call-status.connected {
+    color: #4cd964 !important;
+    animation: pulse 2s infinite;
+}
+
+.call-status.error {
+    color: #ff3b30 !important;
+}
+
+.call-status.warning {
+    color: #ff9500 !important;
+}
+
+.call-status.ringing {
+    color: #5ac8fa !important;
+}
+
+.connection-status {
+    margin: 10px 0;
+    font-size: 0.9rem;
+    min-height: 20px;
+    transition: all 0.3s;
+}
+
+.connection-status.connected {
+    color: #4cd964;
+}
+
+.connection-status.error {
+    color: #ff3b30;
+}
+
+.connection-status.warning {
+    color: #ff9500;
+}
+
+.connection-status.ringing {
+    color: #5ac8fa;
+    animation: pulse 1.5s infinite;
+}
+
+.connection-status.connecting {
+    color: #5ac8fa;
+}
+
+.audio-status-dot.active {
+    background: #4cd964;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 10px rgba(76, 217, 100, 0.5);
+}
+
+.audio-status-dot.inactive {
+    background: #ff9500;
+    animation: none;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+@keyframes ringing {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(90, 200, 250, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(90, 200, 250, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(90, 200, 250, 0); }
+}
+
+.ringing-animation {
+    animation: ringing 2s infinite;
+}
+
         .call-container {
             display: flex;
             flex-direction: column;
