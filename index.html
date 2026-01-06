@@ -2,32 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ Relay</title>
 
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="relay.png">
-    <link rel="shortcut icon" href="relay.png">
     <meta name="theme-color" content="#0a0a1a">
     <meta name="description" content="RelayTalk - Instant messaging with friends">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Relay">
+    <meta name="apple-mobile-web-app-title" content="RelayTalk">
     <link rel="apple-touch-icon" href="relay.png">
-    
-    <!-- Apple specific for icon background -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Relay">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <!-- Windows Metro -->
-    <meta name="msapplication-TileColor" content="#0a0a1a">
-    <meta name="msapplication-TileImage" content="relay.png">
-    
-    <!-- Android Chrome -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Relay">
 
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
@@ -37,91 +23,72 @@
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                try {
-                    const registration = await navigator.serviceWorker.register('/service-worker.js');
-                    console.log('✅ Service Worker registered:', registration.scope);
-                    
-                    // Check for updates
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        console.log('🔄 New service worker found:', newWorker);
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/app/service-worker.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('❌ Service Worker registration failed:', error);
                     });
-                } catch (error) {
-                    console.log('❌ Service Worker registration failed:', error);
-                }
             });
         }
 
         // PWA Installation Prompts
         let deferredPrompt;
-        let installButtonTimeout;
-        
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
-            // Check if app is already installed
-            if (!isAppInstalled()) {
-                // Show install button after 3 seconds
-                installButtonTimeout = setTimeout(() => {
-                    if (deferredPrompt) {
-                        showInstallButton();
-                    }
-                }, 3000);
-            }
+
+            // Show install button after 3 seconds
+            setTimeout(() => {
+                if (deferredPrompt) {
+                    showInstallButton();
+                }
+            }, 3000);
         });
 
-        function isAppInstalled() {
-            return window.matchMedia('(display-mode: standalone)').matches || 
-                   window.navigator.standalone === true ||
-                   document.referrer.includes('android-app://');
-        }
-
         function showInstallButton() {
-            // Remove existing install button if any
+            // Remove existing install button
             const existingBtn = document.getElementById('installPwaBtn');
             if (existingBtn) existingBtn.remove();
 
             // Create install button
             const installBtn = document.createElement('button');
             installBtn.id = 'installPwaBtn';
-            installBtn.innerHTML = '📱 Install Relay';
-            installBtn.className = 'pwa-install-btn';
-            installBtn.setAttribute('aria-label', 'Install Relay app');
-            
-            installBtn.onclick = async () => {
+            installBtn.innerHTML = '📱 Install App';
+            installBtn.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                right: 20px;
+                background: linear-gradient(45deg, #4A90E2, #6B46C1);
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-weight: bold;
+                cursor: pointer;
+                z-index: 9999;
+                box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+                animation: fadeIn 0.5s ease;
+            `;
+
+            installBtn.onclick = () => {
                 if (deferredPrompt) {
-                    try {
-                        deferredPrompt.prompt();
-                        const choiceResult = await deferredPrompt.userChoice;
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(choiceResult => {
                         if (choiceResult.outcome === 'accepted') {
                             console.log('✅ User installed the app');
-                            // Track installation
-                            localStorage.setItem('app_installed', 'true');
                         }
                         deferredPrompt = null;
                         installBtn.remove();
-                    } catch (error) {
-                        console.error('Installation error:', error);
-                    }
+                    });
                 }
             };
 
-            // Add hover and touch effects
-            installBtn.addEventListener('mousedown', () => {
-                installBtn.style.transform = 'scale(0.95)';
-            });
-            installBtn.addEventListener('mouseup', () => {
-                installBtn.style.transform = 'scale(1)';
-            });
-            installBtn.addEventListener('mouseleave', () => {
-                installBtn.style.transform = 'scale(1)';
-            });
-
             document.body.appendChild(installBtn);
 
-            // Auto-hide after 15 seconds
+            // Auto-hide after 10 seconds
             setTimeout(() => {
                 if (installBtn.parentNode) {
                     installBtn.style.opacity = '0';
@@ -130,27 +97,19 @@
                         if (installBtn.parentNode) installBtn.remove();
                     }, 500);
                 }
-            }, 15000);
+            }, 10000);
         }
 
         // Check if app is running in standalone mode
         function checkStandaloneMode() {
-            if (isAppInstalled()) {
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
                 console.log('📱 App running in standalone mode');
                 document.documentElement.classList.add('standalone-mode');
-                
-                // Clear install button timeout if app is installed
-                if (installButtonTimeout) {
-                    clearTimeout(installButtonTimeout);
-                }
-                
-                // Remove install button if present
-                const installBtn = document.getElementById('installPwaBtn');
-                if (installBtn) installBtn.remove();
             }
         }
 
-        // Add CSS for standalone mode and install button
+        // Add CSS for standalone mode
         const style = document.createElement('style');
         style.textContent = `
             @keyframes fadeIn {
@@ -158,64 +117,14 @@
                 to { opacity: 1; transform: translateY(0); }
             }
             
-            @keyframes pulse {
-                0% { box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4); }
-                50% { box-shadow: 0 5px 25px rgba(74, 144, 226, 0.8); }
-                100% { box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4); }
-            }
-            
             .standalone-mode .bottom-nav {
                 padding-bottom: env(safe-area-inset-bottom);
-            }
-            
-            .pwa-install-btn {
-                position: fixed;
-                bottom: 100px;
-                right: 20px;
-                background: linear-gradient(45deg, #4A90E2, #6B46C1);
-                color: white;
-                border: none;
-                padding: 14px 22px;
-                border-radius: 25px;
-                font-weight: bold;
-                cursor: pointer;
-                z-index: 9999;
-                box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
-                animation: fadeIn 0.5s ease, pulse 2s infinite;
-                font-size: 16px;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            .pwa-install-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(74, 144, 226, 0.6);
-            }
-            
-            .pwa-install-btn:active {
-                transform: scale(0.95);
-            }
-            
-            /* Mobile adjustments */
-            @media (max-width: 480px) {
-                .pwa-install-btn {
-                    bottom: 80px;
-                    right: 50%;
-                    transform: translateX(50%);
-                    white-space: nowrap;
-                }
             }
         `;
         document.head.appendChild(style);
 
-        // Check on load and resize
+        // Check on load
         window.addEventListener('load', checkStandaloneMode);
-        window.addEventListener('resize', checkStandaloneMode);
-        
-        // Listen for app mode changes
-        window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandaloneMode);
     </script>
 </head>
 <body>
@@ -252,10 +161,10 @@
             </div>
 
             <div class="action-buttons">
-                <button class="btn-primary" onclick="window.goToSignup()">
+                <button class="btn-primary" onclick="window.location.href='pages/auth/index.html'">
                     Create Account
                 </button>
-                <button class="btn-secondary" onclick="window.goToLogin()">
+                <button class="btn-secondary" onclick="goToLogin()">
                     I Have an Account
                 </button>
             </div>
@@ -272,10 +181,10 @@
         function goToLogin() {
             window.location.href = 'pages/login/index.html';
         }
-
+        
         // Make it globally available immediately
         window.goToLogin = goToLogin;
-
+        
         // Also define goToSignup for consistency
         function goToSignup() {
             window.location.href = 'pages/auth/index.html';
