@@ -649,6 +649,35 @@ window.clearChatPrompt = async function() {
     );
 };
 
+
+// Add this function to ensure messages are always visible
+function ensureMessagesVisible() {
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messages = messagesContainer.querySelectorAll('.message');
+    
+    messages.forEach(msg => {
+        msg.style.opacity = '1';
+        msg.style.visibility = 'visible';
+        msg.style.display = 'block';
+    });
+    
+    // Scroll to bottom to see new messages
+    scrollToBottom();
+}
+
+// Call this when loading messages or adding new ones
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    container.scrollTop = container.scrollHeight;
+}
+
+// Force messages to be visible on load
+window.addEventListener('load', ensureMessagesVisible);
+document.addEventListener('DOMContentLoaded', ensureMessagesVisible);
+
+// Check visibility periodically (remove if not needed)
+setInterval(ensureMessagesVisible, 1000);
+
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
