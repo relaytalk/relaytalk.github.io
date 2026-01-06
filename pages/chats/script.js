@@ -3,6 +3,9 @@ import { supabase } from '../../utils/supabase.js';
 
 console.log('✨ Chat Loaded');
 
+// ====================
+// GLOBAL VARIABLES
+// ====================
 let currentUser = null;
 let chatFriend = null;
 let chatChannel = null;
@@ -14,7 +17,9 @@ let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
 
-// GLOBAL FUNCTIONS
+// ====================
+// GLOBAL FUNCTION EXPORTS
+// ====================
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
@@ -25,12 +30,17 @@ window.startVoiceCall = startVoiceCall;
 window.viewSharedMedia = viewSharedMedia;
 window.blockUserPrompt = blockUserPrompt;
 window.clearChatPrompt = clearChatPrompt;
-window.showCustomAlert = showCustomAlert;
-window.showConfirmAlert = showConfirmAlert;
-window.showToast = showToast;
 
+// ====================
+// INITIALIZATION
+// ====================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Hide all alerts on load
+        document.getElementById('customAlert').style.display = 'none';
+        document.getElementById('customToast').style.display = 'none';
+        document.getElementById('userInfoModal').style.display = 'none';
+        
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
             showLoginAlert();
@@ -68,10 +78,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupTypingListener();
         updateInputListener();
 
-        // Force resize on load
         setTimeout(() => {
             const input = document.getElementById('messageInput');
             if (input) autoResize(input);
+            scrollToBottom();
         }, 100);
 
         console.log('✅ Chat ready!');
@@ -83,14 +93,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// ====================
+// TYPING FUNCTIONS
+// ====================
 function handleTyping() {
     if (!isTyping) {
         isTyping = true;
         sendTypingStatus(true);
     }
-    
+
     if (typingTimeout) clearTimeout(typingTimeout);
-    
+
     typingTimeout = setTimeout(() => {
         isTyping = false;
         sendTypingStatus(false);
@@ -130,9 +143,9 @@ function setupTypingListener() {
 function showTypingIndicator(show) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
-    
+
     let indicator = document.getElementById('typingIndicator');
-    
+
     if (!indicator) {
         const typingHTML = `
             <div id="typingIndicator" class="typing-indicator" style="display: none;">
@@ -146,25 +159,15 @@ function showTypingIndicator(show) {
         container.insertAdjacentHTML('beforeend', typingHTML);
         indicator = document.getElementById('typingIndicator');
     }
-    
+
     if (indicator) {
         indicator.style.display = show ? 'flex' : 'none';
-        
+
         if (show) {
             if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
             friendTypingTimeout = setTimeout(() => {
                 indicator.style.display = 'none';
             }, 3000);
-        }
-        
-        // Scroll to show typing indicator
-        if (show) {
-            setTimeout(() => {
-                const messagesContainer = document.getElementById('messagesContainer');
-                if (messagesContainer) {
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
-            }, 100);
         }
     }
 }
@@ -176,6 +179,9 @@ function updateInputListener() {
     }
 }
 
+// ====================
+// SOUND FUNCTIONS
+// ====================
 function playSentSound() {
     try {
         const audio = new Audio('sent.mp3');
@@ -196,6 +202,9 @@ function playReceivedSound() {
     }
 }
 
+// ====================
+// ALERT FUNCTIONS
+// ====================
 function showLoginAlert() {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
@@ -210,14 +219,12 @@ function showLoginAlert() {
     alertCancel.style.display = 'inline-block';
 
     alertConfirm.textContent = 'Login';
-    alertConfirm.className = 'alert-btn confirm';
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
         window.location.href = '../login/index.html';
     };
 
     alertCancel.textContent = 'Signup';
-    alertCancel.className = 'alert-btn cancel';
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
         window.location.href = '../auth/index.html';
@@ -226,6 +233,73 @@ function showLoginAlert() {
     alertOverlay.style.display = 'flex';
 }
 
+function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'none';
+
+    alertConfirm.textContent = 'OK';
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, onCancel = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'inline-block';
+
+    alertConfirm.textContent = 'Yes';
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertCancel.textContent = 'No';
+    alertCancel.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onCancel) onCancel();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showToast(message, icon = 'ℹ️', duration = 3000) {
+    const toast = document.getElementById('customToast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastMessage = document.getElementById('toastMessage');
+
+    toastIcon.textContent = icon;
+    toastMessage.textContent = message;
+    toast.style.display = 'flex';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, duration);
+}
+
+// ====================
+// MESSAGE FUNCTIONS
+// ====================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -296,11 +370,9 @@ function showMessages(messages) {
         `;
     });
 
-    // Add spacer at the end to ensure no overflow below input
-    html += `<div style="height: 10px; opacity: 0;"></div>`;
+    html += `<div style="height: 20px;"></div>`;
     container.innerHTML = html;
     
-    // Scroll to bottom after a short delay
     setTimeout(() => {
         scrollToBottom();
     }, 50);
@@ -310,7 +382,6 @@ function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
-    // Direct scroll to bottom (most reliable)
     container.scrollTop = container.scrollHeight;
 }
 
@@ -318,7 +389,6 @@ function addMessageToUI(message, isFromRealtime = false) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
 
-    // Remove empty state if it exists
     if (container.querySelector('.empty-chat')) {
         container.innerHTML = '';
     }
@@ -338,18 +408,15 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     container.insertAdjacentHTML('beforeend', messageHTML);
     
-    // Check for duplicate
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
         currentMessages.push(message);
     }
 
-    // Always scroll to bottom for new messages
     setTimeout(() => {
         scrollToBottom();
     }, 10);
 
-    // Play sound for received messages
     if (message.sender_id === chatFriend.id) {
         playReceivedSound();
         if (!document.hasFocus()) {
@@ -360,6 +427,9 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 }
 
+// ====================
+// STATUS FUNCTIONS
+// ====================
 function updateFriendStatus(status) {
     const isOnline = status === 'online';
     const statusText = document.getElementById('statusText');
@@ -378,10 +448,12 @@ function updateFriendStatus(status) {
     }
 }
 
+// ====================
+// REALTIME FUNCTIONS
+// ====================
 function setupRealtime(friendId) {
     console.log('🔧 Setting up realtime for friend:', friendId);
 
-    // Clean up old channels
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
@@ -437,6 +509,9 @@ function setupRealtime(friendId) {
     console.log('✅ Realtime active');
 }
 
+// ====================
+// SEND MESSAGE
+// ====================
 async function sendMessage() {
     if (isSending) {
         console.log('🔄 Message already being sent, skipping...');
@@ -476,9 +551,8 @@ async function sendMessage() {
         console.log('✅ Message sent to database:', data.id);
         playSentSound();
         input.value = '';
-        autoResize(input); // Reset input height
+        autoResize(input);
         
-        // Clear typing indicator
         isTyping = false;
         if (typingTimeout) {
             clearTimeout(typingTimeout);
@@ -501,6 +575,9 @@ async function sendMessage() {
     }
 }
 
+// ====================
+// INPUT HANDLERS
+// ====================
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -528,68 +605,9 @@ function autoResize(textarea) {
     }
 }
 
-function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
-    const alertOverlay = document.getElementById('customAlert');
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.textContent = icon;
-    alertTitle.textContent = title;
-    alertMessage.textContent = message;
-    alertCancel.style.display = 'none';
-
-    alertConfirm.textContent = 'OK';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.display = 'none';
-        if (onConfirm) onConfirm();
-    };
-
-    alertOverlay.style.display = 'flex';
-}
-
-function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, onCancel = null) {
-    const alertOverlay = document.getElementById('customAlert');
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.textContent = icon;
-    alertTitle.textContent = title;
-    alertMessage.textContent = message;
-    alertCancel.style.display = 'inline-block';
-
-    alertConfirm.textContent = 'Yes';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.display = 'none';
-        if (onConfirm) onConfirm();
-    };
-
-    alertCancel.textContent = 'No';
-    alertCancel.onclick = () => {
-        alertOverlay.style.display = 'none';
-        if (onCancel) onCancel();
-    };
-
-    alertOverlay.style.display = 'flex';
-}
-
-function showToast(message, icon = 'ℹ️', duration = 3000) {
-    const toast = document.getElementById('customToast');
-    const toastIcon = document.getElementById('toastIcon');
-    const toastMessage = document.getElementById('toastMessage');
-
-    toastIcon.textContent = icon;
-    toastMessage.textContent = message;
-    toast.style.display = 'flex';
-
-    setTimeout(() => toast.style.display = 'none', duration);
-}
-
+// ====================
+// NAVIGATION
+// ====================
 function goBack() {
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -600,6 +618,9 @@ function goBack() {
     window.location.href = '../home/index.html';
 }
 
+// ====================
+// USER INFO MODAL
+// ====================
 function showUserInfo() {
     if (!chatFriend) {
         showToast('User information not available', '⚠️');
@@ -623,15 +644,9 @@ function showUserInfo() {
             </div>
         </div>
         <div class="user-info-actions">
-            <button class="info-action-btn primary" onclick="startVoiceCall()">
-                🎤 Voice Call
-            </button>
-            <button class="info-action-btn secondary" onclick="viewSharedMedia()">
-                📷 Shared Media
-            </button>
-            <button class="info-action-btn danger" onclick="blockUserPrompt()">
-                🚫 Block User
-            </button>
+            <button class="info-action-btn primary" onclick="startVoiceCall()">🎤 Voice Call</button>
+            <button class="info-action-btn secondary" onclick="viewSharedMedia()">📷 Shared Media</button>
+            <button class="info-action-btn danger" onclick="blockUserPrompt()">🚫 Block User</button>
         </div>
     `;
 
@@ -662,6 +677,9 @@ function blockUserPrompt() {
     );
 }
 
+// ====================
+// CLEAR CHAT
+// ====================
 async function clearChatPrompt() {
     showConfirmAlert(
         'Are you sure you want to clear all messages?',
