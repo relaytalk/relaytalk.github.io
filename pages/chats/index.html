@@ -1,12 +1,18 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>✨ Relay - Chat</title>
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Critical inline styles to prevent FOUC */
+        body {
+            overflow: hidden !important;
+            height: 100vh !important;
+        }
+    </style>
 </head>
 <body>
     <!-- Chat Header - FIXED AT TOP -->
@@ -34,8 +40,8 @@
         </div>
     </header>
 
-    <!-- MAIN CONTENT - ONLY THIS SCROLLS -->
-    <main class="main-content">
+    <!-- MAIN CONTENT - FIXED LAYOUT -->
+    <main class="main-content" id="mainContent">
         <!-- Messages Container - SCROLLABLE -->
         <div class="messages-container" id="messagesContainer">
             <!-- Messages will be loaded here by JavaScript -->
@@ -43,7 +49,7 @@
     </main>
 
     <!-- Message Input - FIXED AT BOTTOM -->
-    <div class="message-input-wrapper">
+    <div class="message-input-wrapper" id="messageInputWrapper">
         <div class="message-input-container">
             <textarea class="message-input" id="messageInput" 
                       placeholder="Type a message..." 
