@@ -1,7 +1,7 @@
 import { auth } from '../../utils/auth.js';
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Chat Loaded - Edge Keyboard Fixed');
+console.log('✨ Chat Loaded');
 
 let currentUser = null;
 let chatFriend = null;
@@ -13,8 +13,6 @@ let isSending = false;
 let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
-let keyboardHeight = 0;
-let isKeyboardVisible = false;
 
 // GLOBAL FUNCTIONS
 window.sendMessage = sendMessage;
@@ -33,27 +31,6 @@ window.showToast = showToast;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Edge mobile: Prevent pull-to-refresh
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        
-        // Edge: Touch event handling
-        document.addEventListener('touchmove', function(e) {
-            if (e.scale !== 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-        // Edge keyboard detection
-        setupKeyboardDetection();
-        
-        // Handle resize/orientation change
-        window.addEventListener('resize', handleResize);
-        window.addEventListener('orientationchange', handleOrientationChange);
-        
-        // Visibility change handling
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
             showLoginAlert();
@@ -91,14 +68,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupTypingListener();
         updateInputListener();
 
-        // Initial setup
+        // Force resize on load
         setTimeout(() => {
             const input = document.getElementById('messageInput');
             if (input) autoResize(input);
-            scrollToBottom();
-        }, 200);
+        }, 100);
 
-        console.log('✅ Chat ready - Edge keyboard optimized!');
+        console.log('✅ Chat ready!');
     } catch (error) {
         console.error('Init error:', error);
         showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
@@ -106,88 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
-
-// EDGE KEYBOARD DETECTION
-function setupKeyboardDetection() {
-    const visualViewport = window.visualViewport;
-    
-    if (visualViewport) {
-        visualViewport.addEventListener('resize', function() {
-            const keyboardHeight = window.innerHeight - visualViewport.height;
-            isKeyboardVisible = keyboardHeight > 100; // Keyboard is visible if height > 100px
-            
-            if (isKeyboardVisible) {
-                // Adjust layout when keyboard is shown
-                adjustForKeyboard(keyboardHeight);
-            } else {
-                // Reset when keyboard is hidden
-                resetKeyboardLayout();
-            }
-            
-            // Always scroll to bottom when keyboard changes
-            setTimeout(scrollToBottom, 100);
-        });
-    }
-    
-    // Fallback for browsers without visualViewport
-    window.addEventListener('resize', function() {
-        const viewportHeight = window.innerHeight;
-        const documentHeight = document.documentElement.clientHeight;
-        const keyboardHeight = Math.max(0, documentHeight - viewportHeight);
-        
-        if (keyboardHeight > 100) {
-            adjustForKeyboard(keyboardHeight);
-        } else {
-            resetKeyboardLayout();
-        }
-    });
-}
-
-function adjustForKeyboard(keyboardHeight) {
-    const messagesContainer = document.getElementById('messagesContainer');
-    if (!messagesContainer) return;
-    
-    // Add extra padding at bottom when keyboard is open
-    messagesContainer.style.paddingBottom = (keyboardHeight + 70) + 'px';
-    
-    // Scroll to bottom immediately
-    scrollToBottom();
-}
-
-function resetKeyboardLayout() {
-    const messagesContainer = document.getElementById('messagesContainer');
-    if (!messagesContainer) return;
-    
-    // Reset padding
-    messagesContainer.style.paddingBottom = '70px';
-    
-    // Scroll to bottom
-    setTimeout(scrollToBottom, 50);
-}
-
-function handleResize() {
-    setTimeout(() => {
-        const input = document.getElementById('messageInput');
-        if (input) autoResize(input);
-        scrollToBottom();
-    }, 100);
-}
-
-function handleOrientationChange() {
-    setTimeout(() => {
-        scrollToBottom();
-        const input = document.getElementById('messageInput');
-        if (input) autoResize(input);
-    }, 300);
-}
-
-function handleVisibilityChange() {
-    if (!document.hidden) {
-        setTimeout(() => {
-            scrollToBottom();
-        }, 100);
-    }
-}
 
 function handleTyping() {
     if (!isTyping) {
@@ -263,8 +157,14 @@ function showTypingIndicator(show) {
             }, 3000);
         }
         
+        // Scroll to show typing indicator
         if (show) {
-            setTimeout(scrollToBottom, 100);
+            setTimeout(() => {
+                const messagesContainer = document.getElementById('messagesContainer');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }, 100);
         }
     }
 }
@@ -273,9 +173,6 @@ function updateInputListener() {
     const input = document.getElementById('messageInput');
     if (input) {
         input.addEventListener('input', handleTyping);
-        input.addEventListener('focus', function() {
-            setTimeout(scrollToBottom, 300);
-        });
     }
 }
 
@@ -399,33 +296,22 @@ function showMessages(messages) {
         `;
     });
 
-    // Spacer to prevent hiding behind input
-    html += `<div style="height: 20px; opacity: 0; pointer-events: none;"></div>`;
+    // Add spacer at the end to ensure no overflow below input
+    html += `<div style="height: 10px; opacity: 0;"></div>`;
     container.innerHTML = html;
     
+    // Scroll to bottom after a short delay
     setTimeout(() => {
         scrollToBottom();
     }, 50);
 }
 
-// ULTIMATE SCROLL FIX FOR EDGE
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
-    // Method 1: Direct scroll (works best in Edge)
+    // Direct scroll to bottom (most reliable)
     container.scrollTop = container.scrollHeight;
-    
-    // Method 2: Double check (Edge sometimes needs this)
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-        
-        // Method 3: Alternative approach for stubborn Edge
-        const lastChild = container.lastElementChild;
-        if (lastChild) {
-            lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-    }, 10);
 }
 
 function addMessageToUI(message, isFromRealtime = false) {
@@ -458,7 +344,7 @@ function addMessageToUI(message, isFromRealtime = false) {
         currentMessages.push(message);
     }
 
-    // Scroll to bottom
+    // Always scroll to bottom for new messages
     setTimeout(() => {
         scrollToBottom();
     }, 10);
@@ -590,7 +476,7 @@ async function sendMessage() {
         console.log('✅ Message sent to database:', data.id);
         playSentSound();
         input.value = '';
-        autoResize(input);
+        autoResize(input); // Reset input height
         
         // Clear typing indicator
         isTyping = false;
@@ -601,8 +487,7 @@ async function sendMessage() {
         sendTypingStatus(false);
         
         setTimeout(() => {
-            // Edge keyboard fix: focus without opening keyboard immediately
-            input.focus({ preventScroll: true });
+            input.focus();
             isSending = false;
             sendBtn.innerHTML = originalText;
             sendBtn.disabled = false;
@@ -627,13 +512,7 @@ function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         if (input && input.value.trim()) {
-            // Edge fix: prevent default keyboard behavior
-            input.blur();
-            setTimeout(() => {
-                sendMessage();
-                // Refocus but prevent keyboard from popping up immediately
-                setTimeout(() => input.focus({ preventScroll: true }), 100);
-            }, 50);
+            sendMessage();
         }
     }
 }
