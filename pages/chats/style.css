@@ -1,44 +1,34 @@
-/* Chat Page Main Styles - EDGE MOBILE FIXED */
+/* ========================== */
+/* RESET & BASE STYLES        */
+/* ========================== */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html {
+html, body {
     height: 100%;
     width: 100%;
     overflow: hidden;
-    -webkit-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
 }
 
 body {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     flex-direction: column;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
-/* EDGE SPECIFIC FIX - Prevents weird scrolling */
-@supports (-ms-ime-align: auto) {
-    body {
-        position: absolute;
-    }
-}
-
-/* Chat Header - EDGE FIXED */
+/* ========================== */
+/* CHAT HEADER STYLES         */
+/* ========================== */
 .chat-header {
     display: flex;
     align-items: center;
@@ -53,10 +43,8 @@ body {
     z-index: 100;
     height: 80px;
     flex-shrink: 0;
-    -webkit-appearance: none;
 }
 
-/* EDGE FIX for buttons */
 .back-btn {
     background: none;
     border: none;
@@ -71,12 +59,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s;
     flex-shrink: 0;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    touch-action: manipulation;
 }
 
 .chat-user-info {
@@ -101,18 +84,12 @@ body {
     flex-shrink: 0;
 }
 
-.chat-user-details {
-    min-width: 0;
-    flex: 1;
-}
-
 .chat-user-details h3 {
     font-size: 1.3rem;
     margin: 0 0 4px 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: white;
 }
 
 .chat-user-status {
@@ -121,7 +98,6 @@ body {
     gap: 8px;
     font-size: 0.95rem;
     color: #a0a0c0;
-    white-space: nowrap;
 }
 
 .status-dot {
@@ -130,17 +106,11 @@ body {
     border-radius: 50%;
     background: #28a745;
     display: inline-block;
-    flex-shrink: 0;
-}
-
-.status-dot.offline {
-    background: #6c757d;
 }
 
 .chat-actions {
     display: flex;
     gap: 10px;
-    flex-shrink: 0;
 }
 
 .chat-action-btn {
@@ -156,15 +126,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s;
-    flex-shrink: 0;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    touch-action: manipulation;
 }
 
-/* MAIN CONTENT - EDGE SPECIFIC FIX */
+/* ========================== */
+/* MAIN CONTENT STYLES        */
+/* ========================== */
 .main-content {
     position: absolute;
     top: 80px;
@@ -174,76 +140,32 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: transparent;
-    -webkit-overflow-scrolling: touch;
 }
 
-/* EDGE FIX: Prevent bounce effect */
-.main-content {
-    overscroll-behavior: none;
-}
-
-/* Messages Container - EDGE MOBILE FIX */
 .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 60px 20px; /* Extra bottom padding for Edge */
+    padding: 20px 20px 30px 20px;
     display: flex;
     flex-direction: column;
     gap: 14px;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    scroll-behavior: smooth;
-    position: relative;
-    /* Edge-specific scrollbar hiding */
-    -ms-overflow-style: -ms-autohiding-scrollbar;
 }
 
-/* EDGE FIX: Hide scrollbar but keep functionality */
-.messages-container::-webkit-scrollbar {
-    display: none;
-}
-
-.messages-container {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* CRITICAL EDGE FIX: Prevent messages from hiding behind input */
-.messages-container::after {
-    content: '';
-    display: block;
-    height: 50px;
-    width: 100%;
-    flex-shrink: 0;
-    pointer-events: none;
-    opacity: 0;
-}
-
-/* Message Bubbles */
+/* ========================== */
+/* MESSAGE BUBBLE STYLES      */
+/* ========================== */
 .message {
     max-width: 70%;
     padding: 13px 17px;
     border-radius: 22px;
     position: relative;
-    animation: fadeIn 0.3s ease;
     word-wrap: break-word;
     line-height: 1.4;
     word-break: break-word;
     flex-shrink: 0;
-    /* Edge fix for word breaking */
-    -ms-word-break: break-all;
-    word-break: break-word;
-    -ms-hyphens: auto;
-    -moz-hyphens: auto;
-    -webkit-hyphens: auto;
-    hyphens: auto;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
 }
 
 .message.sent {
@@ -252,7 +174,6 @@ body {
     color: white;
     border-bottom-right-radius: 5px;
     margin-left: auto;
-    animation: slideInRight 0.3s ease;
 }
 
 .message.received {
@@ -261,17 +182,6 @@ body {
     color: white;
     border-bottom-left-radius: 5px;
     margin-right: auto;
-    animation: slideInLeft 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
 }
 
 .message-time {
@@ -286,24 +196,9 @@ body {
     text-align: left;
 }
 
-/* Date Separator */
-.date-separator {
-    text-align: center;
-    margin: 18px 0;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.date-separator span {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 6px 16px;
-    border-radius: 12px;
-    font-size: 0.82rem;
-    color: #a0a0c0;
-    font-weight: 300;
-}
-
-/* Empty Chat State */
+/* ========================== */
+/* EMPTY CHAT STATE           */
+/* ========================== */
 .empty-chat {
     display: flex;
     flex-direction: column;
@@ -314,11 +209,6 @@ body {
     color: #a0a0c0;
     height: 100%;
     width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
 }
 
 .empty-chat-icon {
@@ -332,7 +222,9 @@ body {
     margin: 0 0 10px 0;
 }
 
-/* Typing Indicator */
+/* ========================== */
+/* TYPING INDICATOR           */
+/* ========================== */
 .typing-indicator {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.1);
@@ -344,7 +236,27 @@ body {
     flex-shrink: 0;
 }
 
-/* Message Input - EDGE MOBILE FIX */
+.typing-dots {
+    display: flex;
+    gap: 5px;
+}
+
+.typing-dots div {
+    width: 7px;
+    height: 7px;
+    background: #a0a0c0;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+}
+
+/* ========================== */
+/* MESSAGE INPUT STYLES       */
+/* ========================== */
 .message-input-wrapper {
     position: fixed;
     bottom: 0;
@@ -354,22 +266,17 @@ body {
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 100;
-    padding: 15px 20px 25px 20px; /* Extra bottom padding for Edge mobile */
+    padding: 15px 20px 18px 20px;
     height: 95px;
     flex-shrink: 0;
-    /* Edge fix for keyboard */
-    -webkit-appearance: none;
 }
 
-/* EDGE FIX: Prevent input zoom on focus */
 .message-input-container {
     display: flex;
     gap: 14px;
     align-items: flex-end;
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    -webkit-appearance: none;
 }
 
 .message-input {
@@ -386,24 +293,8 @@ body {
     min-height: 50px;
     max-height: 130px;
     box-sizing: border-box;
-    transition: all 0.2s ease;
     overflow-y: auto;
     width: 100%;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    /* Edge mobile specific */
-    -ms-touch-action: manipulation;
-    touch-action: manipulation;
-}
-
-/* EDGE FIX: Remove default styling */
-.message-input::-ms-clear {
-    display: none;
-}
-
-.message-input::-ms-reveal {
-    display: none;
 }
 
 .send-btn {
@@ -418,15 +309,17 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s;
     flex-shrink: 0;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    touch-action: manipulation;
 }
 
-/* Custom Alerts - EDGE FIX */
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ========================== */
+/* ALERT & MODAL STYLES       */
+/* ========================== */
 .custom-alert-overlay,
 .modal-overlay {
     position: fixed;
@@ -440,12 +333,27 @@ body {
     align-items: center;
     z-index: 2000;
     backdrop-filter: blur(5px);
-    -webkit-appearance: none;
 }
 
-/* RESPONSIVE DESIGN - EDGE MOBILE SPECIFIC */
+.custom-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(26, 26, 46, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 16px 22px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    z-index: 2000;
+    max-width: 320px;
+    backdrop-filter: blur(10px);
+}
 
-/* Tablet - Edge specific */
+/* ========================== */
+/* RESPONSIVE STYLES          */
+/* ========================== */
 @media (max-width: 768px) {
     .chat-header {
         padding: 14px 16px;
@@ -458,12 +366,12 @@ body {
     }
     
     .message-input-wrapper {
-        padding: 12px 16px 20px 16px; /* Extra bottom padding */
+        padding: 12px 16px 15px 16px;
         height: 85px;
     }
     
     .messages-container {
-        padding: 16px 16px 50px 16px; /* Extra bottom padding for Edge */
+        padding: 16px 16px 25px 16px;
     }
     
     .message {
@@ -471,33 +379,18 @@ body {
         padding: 12px 16px;
     }
     
-    /* EDGE MOBILE: Prevent textarea zoom */
     .message-input {
         padding: 12px 16px;
         min-height: 46px;
         font-size: 16px !important;
-        line-height: 1.5;
     }
     
     .send-btn {
         width: 46px;
         height: 46px;
     }
-    
-    /* Edge mobile viewport fix */
-    @media screen and (orientation: landscape) {
-        .main-content {
-            bottom: 75px;
-        }
-        
-        .message-input-wrapper {
-            height: 75px;
-            padding-bottom: 15px;
-        }
-    }
 }
 
-/* Mobile - Edge specific */
 @media (max-width: 600px) {
     .chat-header {
         padding: 12px 14px;
@@ -510,12 +403,12 @@ body {
     }
     
     .message-input-wrapper {
-        padding: 10px 14px 18px 14px;
+        padding: 10px 14px 13px 14px;
         height: 80px;
     }
     
     .messages-container {
-        padding: 14px 14px 45px 14px;
+        padding: 14px 14px 20px 14px;
     }
     
     .message {
@@ -526,7 +419,6 @@ body {
     .message-input {
         min-height: 44px;
         padding: 10px 14px;
-        font-size: 16px !important;
     }
     
     .send-btn {
@@ -535,7 +427,6 @@ body {
     }
 }
 
-/* Small Mobile - Edge specific */
 @media (max-width: 480px) {
     .chat-header {
         padding: 10px 12px;
@@ -548,12 +439,12 @@ body {
     }
     
     .message-input-wrapper {
-        padding: 8px 12px 16px 12px;
+        padding: 8px 12px 11px 12px;
         height: 75px;
     }
     
     .messages-container {
-        padding: 12px 12px 40px 12px;
+        padding: 12px 12px 15px 12px;
     }
     
     .message {
@@ -564,7 +455,6 @@ body {
     .message-input {
         min-height: 42px;
         padding: 9px 13px;
-        font-size: 16px !important;
     }
     
     .send-btn {
@@ -573,79 +463,17 @@ body {
     }
 }
 
-/* EDGE MOBILE LANDSCAPE FIX */
-@media (max-width: 900px) and (orientation: landscape) {
-    .chat-header {
-        height: 60px;
-        padding: 10px 15px;
-    }
-    
-    .main-content {
-        top: 60px;
-        bottom: 70px;
-    }
-    
-    .message-input-wrapper {
-        height: 70px;
-        padding: 10px 15px 15px 15px;
-    }
-    
-    .messages-container {
-        padding: 12px 15px 35px 15px;
-    }
-    
-    .message-input {
-        min-height: 40px;
-        max-height: 60px;
-    }
+/* ========================== */
+/* CRITICAL HIDE ALERTS       */
+/* ========================== */
+.custom-alert-overlay,
+.custom-toast,
+.modal-overlay {
+    display: none !important;
 }
 
-/* EDGE SPECIFIC VIEWPORT FIXES */
-@supports (-ms-ime-align: auto) {
-    /* Microsoft Edge specific fixes */
-    html, body {
-        height: 100vh;
-        width: 100vw;
-    }
-    
-    .main-content {
-        height: calc(100vh - 175px);
-    }
-    
-    /* Fix for Edge mobile scroll */
-    .messages-container {
-        -webkit-overflow-scrolling: auto;
-    }
-}
-
-/* Prevent iOS zoom on input focus - Works on Edge too */
-@media (max-width: 768px) {
-    input, textarea {
-        font-size: 16px !important;
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-    }
-    
-    /* Edge mobile keyboard fix */
-    textarea {
-        max-height: 120px;
-    }
-}
-
-/* EDGE TOUCH ACTION FIXES */
-.back-btn,
-.chat-action-btn,
-.send-btn,
-.alert-btn,
-.info-action-btn {
-    -ms-touch-action: manipulation;
-    touch-action: manipulation;
-}
-
-/* EDGE SCROLLBAR FIX */
-@supports (-ms-ime-align: auto) {
-    .messages-container {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(102, 126, 234, 0.5) rgba(255, 255, 255, 0.03);
-    }
+#customAlert,
+#customToast,
+#userInfoModal {
+    display: none !important;
 }
