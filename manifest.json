@@ -2,10 +2,13 @@
   "name": "RelayTalk",
   "short_name": "Relay",
   "description": "Message friends instantly",
+  "id": "/relaytalk/",
   "start_url": "/app/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a1a",
   "theme_color": "#0a0a1a",
+  "categories": ["social", "messenger"],
   "icons": [
     {
       "src": "relay.png",
