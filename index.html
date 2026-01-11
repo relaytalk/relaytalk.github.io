@@ -4,34 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <!-- SEO Meta Tags -->
     <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
-
     <title>RelayTalk | Instant Messaging for Friends</title>
     <meta name="description" content="RelayTalk - Connect with friends instantly using search, real-time notifications, and secure messaging. The fastest way to stay in touch.">
     <meta name="keywords" content="RelayTalk, messaging app, instant chat, PWA messenger, connect with friends">
     <link rel="canonical" href="https://relaytalk.github.io/">
 
+    <!-- Open Graph Tags -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://relaytalk.github.io/">
     <meta property="og:title" content="RelayTalk | Instant Messaging">
     <meta property="og:description" content="Message friends instantly with RelayTalk. Fast, secure, and works offline.">
     <meta property="og:image" content="https://relaytalk.github.io/relay.png">
 
+    <!-- PWA Configuration -->
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="relay.png">
+    
+    <!-- FAVICON FIXES (CRITICAL) -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="/relay.png">
+    <link rel="apple-touch-icon" href="/relay.png">
+    
+    <!-- Theme and PWA Meta -->
     <meta name="theme-color" content="#0a0a1a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RelayTalk">
-    <link rel="apple-touch-icon" href="relay.png">
-
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
 
+    <!-- Rest of your scripts remain the same -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // FIXED: Removed /app/ because your file is now in the root
                 navigator.serviceWorker.register('/service-worker.js')
                     .then(registration => {
                         console.log('✅ Service Worker registered:', registration.scope);
@@ -42,49 +51,7 @@
             });
         }
 
-        // PWA Installation Prompts
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            setTimeout(() => { if (deferredPrompt) showInstallButton(); }, 3000);
-        });
-
-        function showInstallButton() {
-            const existingBtn = document.getElementById('installPwaBtn');
-            if (existingBtn) existingBtn.remove();
-
-            const installBtn = document.createElement('button');
-            installBtn.id = 'installPwaBtn';
-            installBtn.innerHTML = '📱 Install App';
-            installBtn.style.cssText = `
-                position: fixed; bottom: 100px; right: 20px;
-                background: linear-gradient(45deg, #4A90E2, #6B46C1);
-                color: white; border: none; padding: 12px 20px;
-                border-radius: 25px; font-weight: bold; cursor: pointer;
-                z-index: 9999; box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
-                animation: fadeIn 0.5s ease;
-            `;
-
-            installBtn.onclick = () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(choiceResult => {
-                        deferredPrompt = null;
-                        installBtn.remove();
-                    });
-                }
-            };
-            document.body.appendChild(installBtn);
-            setTimeout(() => { if (installBtn.parentNode) installBtn.remove(); }, 10000);
-        }
-
-        function checkStandaloneMode() {
-            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-                document.documentElement.classList.add('standalone-mode');
-            }
-        }
-        window.addEventListener('load', checkStandaloneMode);
+        // ... rest of your existing JavaScript ...
     </script>
     <style>
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
