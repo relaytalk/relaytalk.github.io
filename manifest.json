@@ -1,9 +1,9 @@
 {
-  "name": "RelayTalk",
-  "short_name": "Relay",
-  "description": "Message friends instantly",
-  "id": "/",
+  "name": "RelayTalk | Instant Messaging for Friends",
+  "short_name": "RelayTalk",
+  "description": "Connect with friends instantly using search, real-time notifications, and secure messaging",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a1a",
@@ -11,16 +11,21 @@
   "categories": ["social", "messenger"],
   "icons": [
     {
-      "src": "relay.png",
-      "sizes": "192x192 512x512",
+      "src": "/relay.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "relay.png",
-      "sizes": "192x192 512x512",
+      "src": "/relay.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
     }
   ]
 }
