@@ -1,68 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- CHARACTER SET & VIEWPORT MUST BE FIRST -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- SEO Meta Tags -->
-    <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
+    <!-- CACHE CONTROL - Force fresh load -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- TITLE - MOST IMPORTANT FOR GOOGLE -->
     <title>RelayTalk | Instant Messaging for Friends</title>
+    
+    <!-- DESCRIPTION -->
     <meta name="description" content="RelayTalk - Connect with friends instantly using search, real-time notifications, and secure messaging. The fastest way to stay in touch.">
+    
+    <!-- KEYWORDS -->
     <meta name="keywords" content="RelayTalk, messaging app, instant chat, PWA messenger, connect with friends">
-    <link rel="canonical" href="https://relaytalk.github.io/">
-
-    <!-- Open Graph Tags -->
+    
+    <!-- GOOGLE SITE VERIFICATION -->
+    <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
+    
+    <!-- OPEN GRAPH - CRITICAL FOR SOCIAL MEDIA -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:title" content="RelayTalk | Instant Messaging for Friends">
+    <meta property="og:description" content="Connect with friends instantly using search, real-time notifications, and secure messaging.">
     <meta property="og:url" content="https://relaytalk.github.io/">
-    <meta property="og:title" content="RelayTalk | Instant Messaging">
-    <meta property="og:description" content="Message friends instantly with RelayTalk. Fast, secure, and works offline.">
     <meta property="og:image" content="https://relaytalk.github.io/relay.png">
-
-    <!-- PWA Configuration -->
-    <link rel="manifest" href="manifest.json">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="RelayTalk Messenger Logo">
+    <meta property="og:locale" content="en_US">
     
-    <!-- FAVICON FIXES (CRITICAL) -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" href="/relay.png">
+    <!-- TWITTER CARD -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@RelayTalk">
+    <meta name="twitter:title" content="RelayTalk | Instant Messaging">
+    <meta name="twitter:description" content="Message friends instantly with RelayTalk. Fast, secure, and works offline.">
+    <meta name="twitter:image" content="https://relaytalk.github.io/relay.png">
+    <meta name="twitter:creator" content="@RelayTalk">
+    
+    <!-- CANONICAL URL -->
+    <link rel="canonical" href="https://relaytalk.github.io/">
+    
+    <!-- FAVICON SECTION - MULTIPLE FALLBACKS -->
+    <!-- Primary favicon -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    
+    <!-- PNG versions for modern browsers -->
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="512x512">
+    
+    <!-- Apple touch icon -->
     <link rel="apple-touch-icon" href="/relay.png">
+    <link rel="apple-touch-icon-precomposed" href="/relay.png">
     
-    <!-- Theme and PWA Meta -->
+    <!-- SVG FALLBACK - Will show if PNG/ICO fails -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%23637dff%22>✨</text></svg>" type="image/svg+xml">
+    
+    <!-- MICROSOFT TILE ICON -->
+    <meta name="msapplication-TileImage" content="/relay.png">
+    <meta name="msapplication-TileColor" content="#0a0a1a">
+    <meta name="msapplication-config" content="none">
+    
+    <!-- PWA MANIFEST -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
+    
+    <!-- PWA META TAGS -->
     <meta name="theme-color" content="#0a0a1a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RelayTalk">
     
-    <!-- Stylesheets -->
+    <!-- APPLICATION NAME -->
+    <meta name="application-name" content="RelayTalk">
+    
+    <!-- FORMAT DETECTION -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="address=no">
+    <meta name="format-detection" content="email=no">
+    
+    <!-- STYLESHEETS -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
-
-    <!-- Rest of your scripts remain the same -->
+    
+    <!-- SERVICE WORKER REGISTRATION -->
     <script>
+        // Service Worker with cache control
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => {
-                        console.log('✅ Service Worker registered:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('❌ Service Worker registration failed:', error);
+            window.addEventListener('load', function() {
+                // Force update service worker
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                    }
+                }).then(function() {
+                    // Register fresh service worker
+                    return navigator.serviceWorker.register('/service-worker.js', {
+                        updateViaCache: 'none',
+                        scope: '/'
                     });
+                }).then(function(registration) {
+                    console.log('✅ Service Worker registered fresh:', registration.scope);
+                    // Force immediate update
+                    registration.update();
+                }).catch(function(error) {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
             });
         }
-
-        // ... rest of your existing JavaScript ...
+        
+        // Clear localStorage cache for fresh load
+        if (window.location.search.indexOf('fresh') !== -1) {
+            localStorage.clear();
+            sessionStorage.clear();
+            console.log('🧹 Cleared all cache for fresh load');
+        }
     </script>
+    
+    <!-- STYLES -->
     <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .standalone-mode .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .standalone-mode .bottom-nav { 
+            padding-bottom: env(safe-area-inset-bottom); 
+        }
+        
+        /* Hide during PWA install */
+        @media (display-mode: standalone) {
+            .install-prompt { display: none !important; }
+        }
     </style>
 </head>
 <body>
+    <!-- OPENING ANIMATION -->
     <div class="opening-screen" id="openingScreen">
         <div class="luster-text">✨Relay</div>
     </div>
 
+    <!-- MAIN CONTENT -->
     <div class="main-content" id="mainContent">
         <div class="welcome-container">
             <div class="logo">✨</div>
@@ -94,24 +176,63 @@
         </div>
     </div>
 
+    <!-- SCRIPTS -->
     <script>
-        function goToLogin() { window.location.href = 'pages/login/index.html'; }
-        function goToSignup() { window.location.href = 'pages/auth/index.html'; }
+        // Navigation functions
+        function goToLogin() { 
+            window.location.href = 'pages/login/index.html?v=' + Date.now();
+        }
+        
+        function goToSignup() { 
+            window.location.href = 'pages/auth/index.html?v=' + Date.now();
+        }
+        
+        // Make global
         window.goToLogin = goToLogin;
         window.goToSignup = goToSignup;
+        
+        // Add cache busting parameter to all internal links
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('a[href^="/"]');
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && !href.includes('?')) {
+                    link.setAttribute('href', href + '?v=' + Date.now());
+                }
+            });
+        });
     </script>
 
+    <!-- AUTH CHECK -->
     <script type="module">
         import { auth } from './utils/auth.js';
+        
         async function checkUserAndRedirect() {
             try {
                 const { success, user } = await auth.getCurrentUser();
                 if (success && user) {
-                    window.location.href = 'pages/home/index.html';
+                    window.location.href = 'pages/home/index.html?v=' + Date.now();
                     return;
                 }
-            } catch (error) { console.error("Auth check error:", error); }
+            } catch (error) { 
+                console.error("Auth check error:", error);
+            }
+            
+            // Show main content after check
+            setTimeout(() => {
+                const openingScreen = document.getElementById('openingScreen');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (openingScreen) openingScreen.style.opacity = '0';
+                if (mainContent) {
+                    mainContent.style.display = 'block';
+                    setTimeout(() => {
+                        mainContent.style.opacity = '1';
+                    }, 100);
+                }
+            }, 1000);
         }
+        
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
     </script>
 </body>
