@@ -13,16 +13,23 @@
     <!-- TITLE - MOST IMPORTANT FOR GOOGLE -->
     <title>RelayTalk | Instant Messaging for Friends</title>
     
+    <!-- ====== GOOGLE-SPECIFIC METADATA ====== -->
+    <!-- Google Site Verification -->
+    <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
+    
+    <!-- Google-specific meta tags -->
+    <meta itemprop="name" content="RelayTalk | Instant Messaging for Friends">
+    <meta itemprop="description" content="Connect with friends instantly using search, real-time notifications, and secure messaging">
+    <meta itemprop="image" content="https://relaytalk.github.io/relay.png">
+    
+    <!-- ====== BASIC SEO ====== -->
     <!-- DESCRIPTION -->
     <meta name="description" content="RelayTalk - Connect with friends instantly using search, real-time notifications, and secure messaging. The fastest way to stay in touch.">
     
     <!-- KEYWORDS -->
-    <meta name="keywords" content="RelayTalk, messaging app, instant chat, PWA messenger, connect with friends">
+    <meta name="keywords" content="RelayTalk, messaging app, instant chat, PWA messenger, connect with friends, real-time chat, friend finder">
     
-    <!-- GOOGLE SITE VERIFICATION -->
-    <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
-    
-    <!-- OPEN GRAPH - CRITICAL FOR SOCIAL MEDIA -->
+    <!-- ====== OPEN GRAPH ====== -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
     <meta property="og:title" content="RelayTalk | Instant Messaging for Friends">
@@ -34,7 +41,7 @@
     <meta property="og:image:alt" content="RelayTalk Messenger Logo">
     <meta property="og:locale" content="en_US">
     
-    <!-- TWITTER CARD -->
+    <!-- ====== TWITTER CARD ====== -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
     <meta name="twitter:title" content="RelayTalk | Instant Messaging">
@@ -42,10 +49,11 @@
     <meta name="twitter:image" content="https://relaytalk.github.io/relay.png">
     <meta name="twitter:creator" content="@RelayTalk">
     
-    <!-- CANONICAL URL -->
+    <!-- ====== CANONICAL & ALTERNATE URLs ====== -->
     <link rel="canonical" href="https://relaytalk.github.io/">
+    <link rel="alternate" href="https://relaytalk.github.io/" hreflang="en">
     
-    <!-- FAVICON SECTION - MULTIPLE FALLBACKS -->
+    <!-- ====== FAVICON SECTION ====== -->
     <!-- Primary favicon -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     
@@ -65,7 +73,7 @@
     <meta name="msapplication-TileColor" content="#0a0a1a">
     <meta name="msapplication-config" content="none">
     
-    <!-- PWA MANIFEST -->
+    <!-- ====== PWA CONFIGURATION ====== -->
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
     
     <!-- PWA META TAGS -->
@@ -83,11 +91,59 @@
     <meta name="format-detection" content="address=no">
     <meta name="format-detection" content="email=no">
     
-    <!-- STYLESHEETS -->
+    <!-- ====== STRUCTURED DATA FOR GOOGLE ====== -->
+    <!-- This is CRITICAL to fix "GitHub" showing in search results -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "RelayTalk",
+      "alternateName": "RelayTalk Messenger",
+      "url": "https://relaytalk.github.io/",
+      "logo": "https://relaytalk.github.io/relay.png",
+      "description": "Instant messaging app for friends with real-time notifications and search functionality",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "RelayTalk",
+        "url": "https://relaytalk.github.io/"
+      },
+      "publisher": {
+        "@type": "Organization", 
+        "name": "RelayTalk",
+        "url": "https://relaytalk.github.io/"
+      },
+      "sameAs": [
+        "https://relaytalk.github.io/"
+      ]
+    }
+    </script>
+    
+    <!-- Breadcrumb Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://relaytalk.github.io/"
+      }]
+    }
+    </script>
+    
+    <!-- ====== STYLESHEETS ====== -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
     
-    <!-- SERVICE WORKER REGISTRATION -->
+    <!-- ====== SERVICE WORKER ====== -->
     <script>
         // Service Worker with cache control
         if ('serviceWorker' in navigator) {
@@ -119,9 +175,13 @@
             sessionStorage.clear();
             console.log('🧹 Cleared all cache for fresh load');
         }
+        
+        // Log structured data for debugging
+        console.log('🔍 RelayTalk Structured Data Loaded');
+        console.log('📱 PWA: Manifest loaded');
     </script>
     
-    <!-- STYLES -->
+    <!-- ====== INLINE STYLES ====== -->
     <style>
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(20px); } 
@@ -135,6 +195,11 @@
         /* Hide during PWA install */
         @media (display-mode: standalone) {
             .install-prompt { display: none !important; }
+        }
+        
+        /* Print styles */
+        @media print {
+            .no-print { display: none !important; }
         }
     </style>
 </head>
@@ -176,7 +241,7 @@
         </div>
     </div>
 
-    <!-- SCRIPTS -->
+    <!-- ====== SCRIPTS ====== -->
     <script>
         // Navigation functions
         function goToLogin() { 
@@ -200,6 +265,11 @@
                     link.setAttribute('href', href + '?v=' + Date.now());
                 }
             });
+            
+            // Log for debugging
+            console.log('🚀 RelayTalk v1.0 loaded');
+            console.log('📄 Title:', document.title);
+            console.log('🏷️ Description:', document.querySelector('meta[name="description"]').content);
         });
     </script>
 
@@ -223,17 +293,37 @@
                 const openingScreen = document.getElementById('openingScreen');
                 const mainContent = document.getElementById('mainContent');
                 
-                if (openingScreen) openingScreen.style.opacity = '0';
+                if (openingScreen) {
+                    openingScreen.style.transition = 'opacity 0.5s ease';
+                    openingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        openingScreen.style.display = 'none';
+                    }, 500);
+                }
+                
                 if (mainContent) {
                     mainContent.style.display = 'block';
                     setTimeout(() => {
                         mainContent.style.opacity = '1';
+                        mainContent.style.transition = 'opacity 0.5s ease';
                     }, 100);
                 }
             }, 1000);
         }
         
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
+    </script>
+    
+    <!-- Structured Data for Page Content -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "RelayTalk Home",
+      "description": "Welcome to RelayTalk instant messaging app",
+      "url": "https://relaytalk.github.io/",
+      "lastReviewed": "2024-01-12"
+    }
     </script>
 </body>
 </html>
