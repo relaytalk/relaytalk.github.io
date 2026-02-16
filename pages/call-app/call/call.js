@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - COMPLETE FIXED VERSION
+// /pages/call-app/call/call.js - COMPLETE FINAL VERSION WITH HANG BUTTON
 
 import { initializeSupabase } from '/pages/call-app/utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '/pages/call-app/utils/userSync.js'
@@ -144,11 +144,10 @@ async function startOutgoingCall(friendId, friendName) {
         callRoom = await createCallRoom()
         console.log('2️⃣ Room created:', callRoom)
         
-        // FIXED: Added callee_id to match database schema
         const callData = {
             caller_id: currentUser.id,
             receiver_id: friendId,
-            callee_id: friendId,        // ← ADDED THIS LINE
+            callee_id: friendId,
             room_name: callRoom.name,
             room_url: callRoom.url,
             status: 'ringing',
@@ -289,6 +288,7 @@ async function joinCall(roomName) {
         container.appendChild(wrapper)
         jitsiIframe = iframe
         
+        // Add CSS to hide any remaining Jitsi UI
         const style = document.createElement('style')
         style.textContent = `
             .prejoin-screen, .welcome-page, .join-dialog,
@@ -304,6 +304,7 @@ async function joinCall(roomName) {
         `
         wrapper.appendChild(style)
         
+        // AUTO-JOIN: Click join button repeatedly
         iframe.onload = function() {
             console.log('Iframe loaded, auto-joining...')
             
@@ -334,6 +335,7 @@ async function joinCall(roomName) {
             setTimeout(() => clearInterval(joinInterval), 10000)
         }
         
+        // Hide loading after delay
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none'
             document.getElementById('activeCallScreen').style.display = 'block'
@@ -347,6 +349,7 @@ async function joinCall(roomName) {
     }
 }
 
+// Video toggle
 window.toggleVideo = function() {
     const btn = document.getElementById('videoBtn')
     isVideoOn = !isVideoOn
@@ -369,6 +372,7 @@ window.toggleVideo = function() {
     }
 }
 
+// Mute toggle
 window.toggleMute = function() {
     const btn = document.getElementById('muteBtn')
     btn.classList.toggle('muted')
@@ -386,6 +390,7 @@ window.toggleMute = function() {
     }
 }
 
+// Speaker toggle
 window.toggleSpeaker = function() {
     const btn = document.getElementById('speakerBtn')
     btn.classList.toggle('speaker-off')
@@ -394,8 +399,16 @@ window.toggleSpeaker = function() {
         : '<i class="fas fa-volume-up"></i>'
 }
 
+// HANG BUTTON FUNCTION - ENDS CALL AND CLOSES TAB
+window.hangUp = async function() {
+    console.log('🔴 Hanging up call...')
+    await endCall(false)
+}
+
+// End call
 window.endCall = async function(silent = false) {
     console.log('Ending call...')
+    
     if (currentCall && supabase && !silent) {
         await supabase
             .from('calls')
