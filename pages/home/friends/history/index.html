@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Call History · RelayTalk</title>
+    <link rel="stylesheet" href="../../../call-app/styles/main.css">
+    <link rel="stylesheet" href="history.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="loading-spinner"></div>
+        <div>Loading history...</div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <h1 class="header-title">📋 Call History</h1>
+            <div class="header-actions">
+                <button class="header-btn" onclick="window.location.href='../../index.html'">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="history-container" id="historyContent">
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterHistory('all')">All</button>
+                <button class="filter-btn" onclick="filterHistory('active')">Answered</button>
+                <button class="filter-btn" onclick="filterHistory('missed')">Missed</button>
+                <button class="filter-btn" onclick="filterHistory('outgoing')">Outgoing</button>
+            </div>
+            <div id="historyList"></div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="../../index.html" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="nav-item active" id="historyNavItem">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+            <span class="badge" id="missedCallBadge" style="display: none;">1</span>
+        </a>
+        <a href="../../profile/index.html" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <script type="module" src="history.js"></script>
+</body>
+</html>
