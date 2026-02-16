@@ -1,12 +1,27 @@
-// call.js - COMPLETE WITH TAB MANAGEMENT AND UI FIXES
+// call.js - COMPLETE WITH JAAS (Jitsi as a Service)
 
 import { initializeSupabase } from '../utils/supabase.js';
 import { getRelayTalkUser } from '../utils/userSync.js';
-import DailyIframe from 'https://esm.sh/@daily-co/daily-js@0.52.0';
+
+// JaaS configuration from your old files
+const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'; // Your JaaS app ID
+const JAAS_API_KEY = 'your-api-key-here'; // You'll need to add your API key
+
+// Load Jitsi API with JaaS
+const loadJitsiScript = () => {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `https://${JAAS_APP_ID}.jaas.jitsi.net/external_api.js`;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+};
 
 let supabase = null;
 let currentUser = null;
-let callFrame = null;
+let jitsiApi = null;
 let callId = null;
 let callStatus = 'pending';
 let heartbeatInterval = null;
@@ -24,9 +39,8 @@ const friendName = urlParams.get('friendName');
 const callerId = urlParams.get('callerId');
 const callIdParam = urlParams.get('callId');
 
-// Create UI elements if they don't exist
+// Create UI elements
 function createUI() {
-    // Create container if it doesn't exist
     if (!document.getElementById('callContainer')) {
         const container = document.createElement('div');
         container.id = 'callContainer';
@@ -42,7 +56,6 @@ function createUI() {
         document.body.appendChild(container);
     }
 
-    // Create status element if it doesn't exist
     if (!document.getElementById('callStatus')) {
         const statusEl = document.createElement('div');
         statusEl.id = 'callStatus';
@@ -58,10 +71,6 @@ function createUI() {
             background: rgba(0,0,0,0.7);
             padding: 20px 40px;
             border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
         `;
         statusEl.innerHTML = `
             <div class="spinner" style="
@@ -71,13 +80,13 @@ function createUI() {
                 border-top: 3px solid #007acc;
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
+                margin: 0 auto 16px;
             "></div>
             <div>Initializing call...</div>
         `;
         document.body.appendChild(statusEl);
     }
 
-    // Add spinner animation
     const style = document.createElement('style');
     style.textContent = `
         @keyframes spin {
@@ -92,32 +101,18 @@ function createUI() {
 function updateStatusDisplay(message, details) {
     const statusEl = document.getElementById('callStatus');
     if (statusEl) {
-        const spinner = statusEl.querySelector('.spinner');
-        if (spinner) {
-            if (message === 'connected' || message === 'active') {
-                spinner.style.display = 'none';
-                statusEl.innerHTML = `
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#4CAF50"/>
-                    </svg>
-                    <div style="color: #4CAF50; margin-top: 8px;">Connected</div>
-                `;
-            } else {
-                statusEl.innerHTML = `
-                    <div class="spinner" style="
-                        width: 40px;
-                        height: 40px;
-                        border: 3px solid #f3f3f3;
-                        border-top: 3px solid #007acc;
-                        border-radius: 50%;
-                        animation: spin 1s linear infinite;
-                    "></div>
-                    <div style="margin-top: 8px;">${details || message}</div>
-                `;
-            }
-        } else {
-            statusEl.innerHTML = details || message;
-        }
+        statusEl.innerHTML = `
+            <div class="spinner" style="
+                width: 40px;
+                height: 40px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #007acc;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 16px;
+            "></div>
+            <div>${details || message}</div>
+        `;
     }
 }
 
@@ -129,13 +124,16 @@ function hideStatusDisplay() {
     }
 }
 
-// Generate a room name if not provided
+// Generate a room name for JaaS
 function getOrCreateRoomName() {
-    if (roomName) return roomName;
+    if (roomName) {
+        // Room name already includes the JaaS prefix
+        return roomName;
+    }
     
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(7);
-    return `vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4/CallApp-${timestamp}-${random}`;
+    return `${JAAS_APP_ID}/CallApp-${timestamp}-${random}`;
 }
 
 // Register this tab
@@ -173,10 +171,9 @@ function unregisterTab() {
 }
 
 async function initCall() {
-    console.log('📞 Initializing call...');
+    console.log('📞 Initializing call with JaaS...');
 
     try {
-        // Create UI first
         createUI();
         updateStatusDisplay('initializing', 'Initializing call...');
 
@@ -194,7 +191,7 @@ async function initCall() {
         console.log('✅ Supabase connected');
 
         const finalRoomName = getOrCreateRoomName();
-        console.log('🎯 Using room:', finalRoomName);
+        console.log('🎯 Using JaaS room:', finalRoomName);
 
         callId = callIdParam;
         
@@ -202,7 +199,10 @@ async function initCall() {
             await createOutgoingCall(user, finalRoomName);
         }
 
-        await joinDailyRoom(finalRoomName);
+        // Load Jitsi script with JaaS
+        await loadJitsiScript();
+        await joinJaaSRoom(finalRoomName);
+
         startHeartbeat();
 
         window.addEventListener('beforeunload', handleBeforeUnload);
@@ -247,6 +247,7 @@ async function createOutgoingCall(user, room) {
 
         const callData = {
             room_name: room,
+            room_url: `https://${JAAS_APP_ID}.jaas.jitsi.net/${room}`,
             caller_id: user.id,
             callee_id: friendId,
             status: 'pending',
@@ -289,107 +290,81 @@ async function createOutgoingCall(user, room) {
     }
 }
 
-async function joinDailyRoom(room) {
+async function joinJaaSRoom(room) {
     try {
         if (!room) throw new Error('Room name is required');
 
         updateStatusDisplay('joining', 'Joining call...');
 
-        // Create Daily iframe
-        callFrame = DailyIframe.createFrame({
-            showLeaveButton: false,
-            showFullscreenButton: true,
-            showParticipantsBar: true,
-            iframeStyle: {
-                position: 'fixed',
-                width: '100%',
-                height: '100%',
-                top: '0',
-                left: '0',
-                border: '0',
-                zIndex: '1000'
+        const domain = `${JAAS_APP_ID}.jaas.jitsi.net`;
+        const options = {
+            roomName: room,
+            width: '100%',
+            height: '100%',
+            parentNode: document.getElementById('callContainer'),
+            jwt: JAAS_API_KEY, // Add your JWT/token here
+            configOverwrite: {
+                startWithAudioMuted: false,
+                startWithVideoMuted: false,
+                enableWelcomePage: false,
+                disableDeepLinking: true,
+                enableClosePage: false,
+                prejoinPageEnabled: false
+            },
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'closedcaptions', 'desktop',
+                    'fullscreen', 'fodeviceselection', 'hangup',
+                    'profile', 'chat', 'recording',
+                    'livestreaming', 'etherpad', 'sharedvideo',
+                    'settings', 'raisehand', 'videoquality',
+                    'filmstrip', 'invite', 'feedback', 'stats',
+                    'shortcuts', 'tileview', 'videobackgroundblur',
+                    'download', 'help', 'mute-everyone', 'security'
+                ],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                DEFAULT_BACKGROUND: '#1a1a1a',
+                MOBILE_APP_PROMO: false,
+                DEFAULT_REMOTE_DISPLAY_NAME: 'Caller'
+            },
+            userInfo: {
+                displayName: currentUser?.username || 'User',
+                email: currentUser?.email
+            }
+        };
+
+        jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+        // Event handlers
+        jitsiApi.addEventListener('videoConferenceJoined', () => {
+            console.log('🎥 Conference joined');
+            hideStatusDisplay();
+            
+            if (!isIncoming && callStatus === 'pending') {
+                updateCallStatusInDB('active');
             }
         });
 
-        // Add custom hangup button after iframe is created
-        setTimeout(() => addCustomHangupButton(), 1000);
-
-        const roomUrl = `https://${room}`;
-        console.log('🔗 Joining room:', roomUrl);
-
-        await callFrame.join({
-            url: roomUrl,
-            showLeaveButton: false,
-            userName: currentUser?.username || 'User'
+        jitsiApi.addEventListener('participantJoined', (event) => {
+            console.log('👤 Participant joined:', event);
         });
 
-        console.log('✅ Joined Daily room');
-        
-        // Hide status after successful join
-        setTimeout(() => hideStatusDisplay(), 2000);
+        jitsiApi.addEventListener('participantLeft', (event) => {
+            console.log('👤 Participant left:', event);
+        });
 
-        callFrame.on('participant-joined', handleParticipantJoined);
-        callFrame.on('participant-left', handleParticipantLeft);
-        callFrame.on('error', handleCallError);
+        jitsiApi.addEventListener('readyToClose', () => {
+            console.log('🔴 Ready to close');
+            endCall(false);
+        });
 
-        if (isIncoming) {
-            await updateCallStatusInDB('active');
-        }
+        console.log('✅ Joined JaaS room');
 
     } catch (error) {
-        console.error('❌ Failed to join Daily room:', error);
+        console.error('❌ Failed to join JaaS room:', error);
         throw error;
     }
-}
-
-function addCustomHangupButton() {
-    // Remove existing button if any
-    const existingBtn = document.getElementById('custom-hangup-btn');
-    if (existingBtn) existingBtn.remove();
-
-    const hangupBtn = document.createElement('button');
-    hangupBtn.id = 'custom-hangup-btn';
-    hangupBtn.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-3-9h6v2H9v-2z" fill="white"/>
-        </svg>
-        <span>End Call</span>
-    `;
-    
-    hangupBtn.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #dc2626;
-        color: white;
-        border: none;
-        border-radius: 50px;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        z-index: 1002;
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-        transition: all 0.2s;
-    `;
-
-    hangupBtn.addEventListener('mouseenter', () => {
-        hangupBtn.style.background = '#b91c1c';
-        hangupBtn.style.transform = 'translateX(-50%) scale(1.05)';
-    });
-
-    hangupBtn.addEventListener('mouseleave', () => {
-        hangupBtn.style.background = '#dc2626';
-        hangupBtn.style.transform = 'translateX(-50%) scale(1)';
-    });
-
-    hangupBtn.addEventListener('click', () => endCall(false));
-
-    document.body.appendChild(hangupBtn);
 }
 
 async function endCall(silent = false) {
@@ -404,12 +379,11 @@ async function endCall(silent = false) {
         await updateCallStatusInDB('completed');
     }
 
-    if (callFrame) {
+    if (jitsiApi) {
         try {
-            await callFrame.leave();
-            callFrame.destroy();
+            jitsiApi.dispose();
         } catch (e) {
-            console.log('Error leaving call:', e);
+            console.log('Error disposing Jitsi:', e);
         }
     }
 
@@ -471,36 +445,7 @@ function startHeartbeat() {
     }, 10000);
 }
 
-function handleParticipantJoined(event) {
-    console.log('👤 Participant joined:', event);
-    
-    if (!isIncoming && callStatus === 'pending') {
-        updateCallStatusInDB('active');
-    }
-
-    updateStatusDisplay('connected', 'Connected');
-    setTimeout(() => hideStatusDisplay(), 2000);
-}
-
-function handleParticipantLeft(event) {
-    console.log('👤 Participant left:', event);
-    
-    if (callFrame && callFrame.participantCount() < 2) {
-        updateStatusDisplay('waiting', 'Waiting for other participant...');
-        setTimeout(() => {
-            endCall(false);
-        }, 3000);
-    }
-}
-
-function handleCallError(error) {
-    console.error('❌ Call error:', error);
-    showError('Call failed: ' + error.message);
-    endCall(false);
-}
-
 function showError(message) {
-    // Remove any existing error
     const existingError = document.getElementById('callError');
     if (existingError) existingError.remove();
 
