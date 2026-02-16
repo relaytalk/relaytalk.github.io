@@ -1,4 +1,4 @@
-// friends.js - USING BOTH SUPABASE INSTANCES (Main for auth/friends, Call-app for calls)
+// friends.js - UPDATED with new tab and correct URLs
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -9,10 +9,10 @@ import {
 } from '../../call-app/utils/userSync.js';
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
-let mainSupabase = null;      // For auth and friends (your main app)
-let callAppSupabase = null;   // For calls (the special Daily.co Supabase)
-let currentUser = null;       // Call-app user (from call-app DB)
-let authUser = null;          // Main app user (from auth)
+let mainSupabase = null;
+let callAppSupabase = null;
+let currentUser = null;
+let authUser = null;
 let allFriends = [];
 let filteredFriends = [];
 let callListenerInitialized = false;
@@ -22,111 +22,79 @@ let oscillator = null;
 let gainNode = null;
 let ringtoneInterval = null;
 
-// Initialize with both Supabase instances
+// Initialize
 async function initFriendsPage() {
-    console.log('🚀 Loading friends with call features (dual Supabase mode)...');
+    console.log('🚀 Loading friends with call features...');
 
     try {
-        // Initialize MAIN Supabase (for auth and friends)
-        console.log('📡 Initializing MAIN Supabase...');
+        // Initialize MAIN Supabase
         mainSupabase = await initMainSupabase();
         
-        // Initialize CALL-APP Supabase (for calls)
-        console.log('📞 Initializing CALL-APP Supabase...');
+        // Initialize CALL-APP Supabase
         callAppSupabase = await initCallAppSupabase();
 
         if (!mainSupabase || !mainSupabase.auth) {
             throw new Error('Main Supabase not initialized');
         }
 
-        if (!callAppSupabase) {
-            throw new Error('Call-app Supabase not initialized');
-        }
-
-        // Get session from MAIN Supabase
+        // Get session
         const { data: { session }, error } = await mainSupabase.auth.getSession();
 
         if (error) throw error;
 
         if (!session) {
-            console.log('🚫 No session, redirecting to login...');
             window.location.href = '../../../pages/login/index.html';
             return;
         }
 
         authUser = session.user;
         console.log('✅ MAIN Auth user:', authUser.email);
-        console.log('✅ MAIN User ID:', authUser.id);
 
-        // Sync user to CALL-APP database (this creates user in call-app DB with same ID)
-        console.log('🔄 Syncing user to CALL-APP database...');
+        // Sync to CALL-APP database
         currentUser = await syncUserToDatabase(callAppSupabase, {
             id: authUser.id,
             email: authUser.email,
             username: authUser.user_metadata?.username || authUser.email.split('@')[0],
             avatar_url: authUser.user_metadata?.avatar_url || null
         });
-        console.log('✅ CALL-APP user synced:', currentUser);
 
         if (!currentUser || !currentUser.id) {
             throw new Error('Failed to sync user to call-app database');
         }
 
-        console.log('✅ CALL-APP User ID:', currentUser.id);
-
-        // Load friends from MAIN Supabase
+        // Load friends
         await loadFriends();
 
-        // Initialize call listener with CALL-APP Supabase
+        // Initialize call listener
         if (!callListenerInitialized && currentUser && currentUser.id) {
-            console.log('📞 Initializing call listener with CALL-APP Supabase for user:', currentUser.id);
+            console.log('📞 Initializing call listener...');
             
-            // Make sure we pass the correct user object
-            const callListenerUser = {
-                id: currentUser.id,
-                username: currentUser.username || authUser.email.split('@')[0]
-            };
-            
-            // Initialize listener with callback
-            initCallListener(callAppSupabase, callListenerUser, {
+            initCallListener(callAppSupabase, currentUser, {
                 onIncomingCall: (callData) => {
-                    console.log('📞🔥 INCOMING CALL RECEIVED:', callData);
+                    console.log('📞🔥 INCOMING CALL:', callData);
                     
-                    if (!callData || !callData.callerId) {
-                        console.error('❌ Invalid call data:', callData);
-                        return;
-                    }
+                    if (!callData || !callData.callerId) return;
                     
-                    // Check if this call is for the current user
                     if (callData.calleeId === currentUser.id) {
-                        console.log('✅ This call is for me! Showing modal...');
                         incomingCallData = callData;
-                        showIncomingCallModal(callData);
-                    } else {
-                        console.log('⏭️ Call not for me (me:', currentUser.id, 'callee:', callData.calleeId, ')');
+                        showIncomingCallNotification(callData); // Using new SVG notification
                     }
                 }
             });
             
             callListenerInitialized = true;
-            console.log('✅ Call listener initialized successfully with CALL-APP Supabase');
-        } else {
-            console.log('⚠️ Call listener NOT initialized - missing user or already initialized');
         }
 
-        // Update status periodically in CALL-APP database
+        // Status updates
         setInterval(() => {
             if (currentUser && currentUser.id && callAppSupabase) {
                 updateUserStatus(callAppSupabase, currentUser.id, 'online');
-                console.log('🟢 Updated online status in CALL-APP DB');
             }
         }, 30000);
 
-        // Hide loading indicator
+        // Hide loading
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
-
-        console.log('✅ Friends page ready with call features!');
 
     } catch (error) {
         console.error('❌ Init error:', error);
@@ -134,26 +102,17 @@ async function initFriendsPage() {
     }
 }
 
-// Load friends from MAIN Supabase
+// Load friends
 async function loadFriends() {
     try {
-        if (!authUser || !mainSupabase) {
-            console.log('⏳ Waiting for auth user or main Supabase...');
-            return;
-        }
+        if (!authUser || !mainSupabase) return;
 
-        console.log('🔍 Loading friends for user:', authUser.id);
-        
-        // Get friend IDs from MAIN Supabase
-        const { data: friendsData, error: friendsError } = await mainSupabase
+        const { data: friendsData } = await mainSupabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', authUser.id);
 
-        if (friendsError) throw friendsError;
-
         if (!friendsData || friendsData.length === 0) {
-            console.log('📭 No friends found in MAIN DB');
             allFriends = [];
             filteredFriends = [];
             renderFriendsList();
@@ -161,22 +120,16 @@ async function loadFriends() {
         }
 
         const friendIds = friendsData.map(f => f.friend_id);
-        console.log('👥 Friend IDs:', friendIds);
         
-        // Get friend profiles from MAIN Supabase
-        const { data: profiles, error: profilesError } = await mainSupabase
+        const { data: profiles } = await mainSupabase
             .from('profiles')
             .select('id, username, avatar_url, status, last_seen')
             .in('id', friendIds)
             .order('username');
 
-        if (profilesError) throw profilesError;
-
-        // For online status, we need to check CALL-APP DB
-        // But for now, we'll use MAIN DB status
         allFriends = profiles || [];
         
-        // Try to get real-time status from CALL-APP DB
+        // Get real-time status from CALL-APP DB
         if (callAppSupabase && friendIds.length > 0) {
             try {
                 const { data: callAppProfiles } = await callAppSupabase
@@ -185,7 +138,6 @@ async function loadFriends() {
                     .in('id', friendIds);
                 
                 if (callAppProfiles) {
-                    // Merge CALL-APP status into MAIN profiles
                     allFriends = allFriends.map(friend => {
                         const callAppFriend = callAppProfiles.find(cf => cf.id === friend.id);
                         if (callAppFriend) {
@@ -199,12 +151,11 @@ async function loadFriends() {
                     });
                 }
             } catch (e) {
-                console.log('Could not fetch CALL-APP status:', e);
+                console.log('Could not fetch CALL-APP status');
             }
         }
         
         filteredFriends = [...allFriends];
-        console.log(`✅ Loaded ${allFriends.length} friends`);
         renderFriendsList();
 
     } catch (error) {
@@ -213,7 +164,7 @@ async function loadFriends() {
     }
 }
 
-// Render friends list WITH CALL BUTTONS
+// Render friends list
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -234,12 +185,12 @@ function renderFriendsList() {
             <div class="friend-item" data-friend-id="${friend.id}">
                 <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative;">
                     ${friend.avatar_url 
-                        ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                        : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
+                        ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
+                        : `<span>${initial}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
                 </div>
-                <div class="friend-info-clean" style="flex: 1; cursor: pointer;" onclick="openChat('${friend.id}', '${friend.username}')">
+                <div class="friend-info-clean" onclick="openChat('${friend.id}', '${friend.username}')">
                     <div class="friend-name-status">
                         <div class="friend-name-clean">${friend.username || 'User'}</div>
                         <div class="friend-status-clean">
@@ -247,8 +198,10 @@ function renderFriendsList() {
                         </div>
                     </div>
                 </div>
-                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
-                    <i class="fas fa-phone"></i>
+                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled' : ''}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="white"/>
+                    </svg>
                 </button>
             </div>
         `;
@@ -257,68 +210,127 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL - with correct URL
+// START CALL - OPEN IN NEW TAB
 window.startCall = function(friendId, friendName) {
-    // Check if friend is online
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
         showToast('error', `${friendName} is offline`);
         return;
     }
     
-    console.log(`📞 Starting call to ${friendName} (${friendId})`);
-    // CORRECT URL: /pages/call-app/call/index.html
-    window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
+    console.log(`📞 Starting call to ${friendName}`);
+    
+    // OPEN IN NEW TAB
+    const callUrl = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
+    window.open(callUrl, '_blank');
 };
 
-// Show incoming call modal
-function showIncomingCallModal(callData) {
-    const modal = document.getElementById('incomingCallModal');
-    if (!modal) return;
-    
-    const callerNameEl = document.getElementById('callerName');
-    const callerInitialEl = document.getElementById('callerInitial');
-    
-    // Find caller in friends list
+// Show incoming call notification with SVG
+function showIncomingCallNotification(callData) {
+    // Remove any existing notification
+    const existing = document.getElementById('incomingCallNotification');
+    if (existing) existing.remove();
+
     const caller = allFriends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' };
     
-    callerNameEl.textContent = caller.username;
-    callerInitialEl.textContent = caller.username.charAt(0).toUpperCase();
-    
-    modal.style.display = 'flex';
+    const notification = document.createElement('div');
+    notification.id = 'incomingCallNotification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,122,204,0.2);
+        width: 320px;
+        padding: 20px;
+        border-left: 4px solid #007acc;
+        z-index: 9999;
+        animation: slideInRight 0.3s ease;
+    `;
+
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 50px; height: 50px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
+                ${caller.username.charAt(0).toUpperCase()}
+            </div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${caller.username}</div>
+                <div style="color: #007acc; font-size: 14px; display: flex; align-items: center; gap: 4px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="#007acc"/>
+                    </svg>
+                    Incoming call...
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="rejectCall()" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc2626"/>
+                </svg>
+                Decline
+            </button>
+            <button onclick="acceptCall()" style="flex: 1; background: #007acc; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="white"/>
+                </svg>
+                Accept
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Play ringtone
     playRingtone();
-    
-    console.log('📲 Showing incoming call modal for:', caller.username);
+
+    // Auto-hide after 30 seconds
+    setTimeout(() => {
+        if (document.getElementById('incomingCallNotification')) {
+            rejectCall();
+        }
+    }, 30000);
 }
 
-// Accept call
+// Accept call - FIXED URL
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
     stopRingtone();
-    document.getElementById('incomingCallModal').style.display = 'none';
     
-    // CORRECT URL for incoming call
+    // Remove notification
+    const notification = document.getElementById('incomingCallNotification');
+    if (notification) notification.remove();
+
+    // CORRECT URL
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
-    window.location.href = url;
+    
+    // Open in new tab
+    window.open(url, '_blank');
 };
 
 // Reject call
-window.rejectCall = function() {
+window.rejectCall = async function() {
     stopRingtone();
-    document.getElementById('incomingCallModal').style.display = 'none';
     
-    // TODO: Add API call to reject call in call-app DB
-    console.log('❌ Call rejected:', incomingCallData?.callId);
-    
-    // You could call an API to update call status
+    const notification = document.getElementById('incomingCallNotification');
+    if (notification) notification.remove();
+
     if (incomingCallData?.callId && callAppSupabase) {
-        callAppSupabase
-            .from('calls')
-            .update({ status: 'rejected' })
-            .eq('id', incomingCallData.callId)
-            .then(() => console.log('Call marked as rejected'));
+        try {
+            await callAppSupabase
+                .from('calls')
+                .update({ 
+                    status: 'rejected',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', incomingCallData.callId);
+            console.log('Call rejected');
+        } catch (error) {
+            console.error('Error rejecting call:', error);
+        }
     }
     
     incomingCallData = null;
@@ -342,10 +354,7 @@ function playRingtone() {
         
         let isOn = true;
         ringtoneInterval = setInterval(() => {
-            if (!audioContext) {
-                clearInterval(ringtoneInterval);
-                return;
-            }
+            if (!audioContext) return;
             gainNode.gain.value = isOn ? 0.5 : 0;
             isOn = !isOn;
         }, 500);
@@ -392,12 +401,10 @@ function formatLastSeen(timestamp) {
 // Search friends
 window.searchFriends = function() {
     const input = document.getElementById('searchInput');
-    const clearBtn = document.getElementById('clearSearch');
     if (!input) return;
 
     const term = input.value.toLowerCase().trim();
-
-    if (clearBtn) clearBtn.style.display = term ? 'flex' : 'none';
+    document.getElementById('clearSearch').style.display = term ? 'flex' : 'none';
 
     filteredFriends = term 
         ? allFriends.filter(f => f.username?.toLowerCase().includes(term))
@@ -408,11 +415,8 @@ window.searchFriends = function() {
 
 // Clear search
 window.clearSearch = function() {
-    const input = document.getElementById('searchInput');
-    if (input) {
-        input.value = '';
-        window.searchFriends();
-    }
+    document.getElementById('searchInput').value = '';
+    window.searchFriends();
 };
 
 // Show empty state
@@ -458,7 +462,7 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
-// Search users to add as friends (using MAIN Supabase)
+// Search users
 window.searchUsers = async function() {
     if (!mainSupabase || !authUser) return;
 
@@ -469,12 +473,11 @@ window.searchUsers = async function() {
     const term = input.value.toLowerCase().trim();
 
     if (!term || term.length < 2) {
-        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Type at least 2 characters to search</p></div>`;
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Type at least 2 characters</p></div>`;
         return;
     }
 
     try {
-        // Get existing friends
         const { data: friends } = await mainSupabase
             .from('friends')
             .select('friend_id')
@@ -482,7 +485,6 @@ window.searchUsers = async function() {
 
         const friendIds = friends?.map(f => f.friend_id) || [];
 
-        // Get pending requests
         const { data: pending } = await mainSupabase
             .from('friend_requests')
             .select('receiver_id')
@@ -491,15 +493,12 @@ window.searchUsers = async function() {
 
         const pendingIds = pending?.map(r => r.receiver_id) || [];
 
-        // Search users
-        const { data: users, error } = await mainSupabase
+        const { data: users } = await mainSupabase
             .from('profiles')
             .select('id, username, avatar_url')
             .neq('id', authUser.id)
             .ilike('username', `%${term}%`)
             .limit(20);
-
-        if (error) throw error;
 
         if (!users || users.length === 0) {
             container.innerHTML = `<div class="empty-search"><i class="fas fa-user-slash"></i><p>No users found</p></div>`;
@@ -516,8 +515,8 @@ window.searchUsers = async function() {
                 <div class="search-result-item">
                     <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
                         ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
+                            : `<span>${initial}</span>`
                         }
                     </div>
                     <div class="search-result-info">
@@ -538,11 +537,11 @@ window.searchUsers = async function() {
 
     } catch (error) {
         console.error('Search error:', error);
-        container.innerHTML = `<div class="empty-search"><i class="fas fa-exclamation-triangle"></i><p>Error searching users</p></div>`;
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-exclamation-triangle"></i><p>Error searching</p></div>`;
     }
 };
 
-// Send friend request (in MAIN Supabase)
+// Send friend request
 window.sendFriendRequest = async function(userId, username, btn) {
     try {
         btn.disabled = true;
@@ -561,7 +560,7 @@ window.sendFriendRequest = async function(userId, username, btn) {
 
         btn.textContent = '✓ Sent';
         btn.classList.add('added');
-        showToast('success', `Friend request sent to ${username}`);
+        showToast('success', `Request sent to ${username}`);
 
     } catch (error) {
         console.error('Request error:', error);
@@ -571,57 +570,39 @@ window.sendFriendRequest = async function(userId, username, btn) {
     }
 };
 
-// Toast notification
+// Toast
 function showToast(type, message) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
-    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-    
     toast.innerHTML = `
-        <i class="fas fa-${icon}"></i>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            ${type === 'success' 
+                ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#22c55e"/>'
+                : type === 'error'
+                ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#ef4444"/>'
+                : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#007acc"/>'
+            }
+        </svg>
         <span>${message}</span>
     `;
-
     container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // Navigation
 window.goToHome = () => window.location.href = '../../home/index.html';
-
 window.openSearch = () => {
-    const modal = document.getElementById('searchModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
-    }
+    document.getElementById('searchModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
 };
-
 window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
     document.getElementById('userSearchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
 };
 
-window.logout = async () => {
-    if (mainSupabase) await mainSupabase.auth.signOut();
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    document.cookie.split(";").forEach(function(c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-    
-    window.location.href = '../../../pages/login/index.html';
-};
-
-// Start the app
+// Start
 document.addEventListener('DOMContentLoaded', initFriendsPage);
