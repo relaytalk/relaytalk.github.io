@@ -1,4 +1,4 @@
-// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND RINGTONES
+// friends.js - COMPLETE WITH FIXED URL AND MODERN NOTIFICATION
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -276,7 +276,7 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL - OPEN IN NEW TAB WITH RINGTONE
+// START CALL - OPEN IN NEW TAB WITH CORRECT URL
 window.startCall = function(friendId, friendName) {
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
@@ -289,12 +289,12 @@ window.startCall = function(friendId, friendName) {
     // Play outgoing ringtone
     playOutgoingRingtone();
     
-    // OPEN IN NEW TAB
+    // CORRECT URL for outgoing calls
     const callUrl = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
     window.open(callUrl, '_blank');
 };
 
-// Show incoming call notification
+// Show incoming call notification - MODERN STYLE
 function showIncomingCallNotification(callData) {
     // Remove any existing notification
     const existing = document.getElementById('incomingCallNotification');
@@ -308,28 +308,32 @@ function showIncomingCallNotification(callData) {
     notification.setAttribute('data-caller-id', callData.callerId);
     notification.setAttribute('data-call-id', callData.callId);
     notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-            <div style="width: 48px; height: 48px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
-                ${caller.username.charAt(0).toUpperCase()}
+        <div class="incoming-call-content">
+            <div class="incoming-call-avatar">
+                ${caller.avatar_url 
+                    ? `<img src="${caller.avatar_url}" alt="${caller.username}">`
+                    : caller.username.charAt(0).toUpperCase()
+                }
             </div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; color: #1e293b;">${caller.username}</div>
-                <div style="color: #007acc; font-size: 14px;">Incoming call...</div>
+            <div class="incoming-call-info">
+                <div class="incoming-call-name">${caller.username}</div>
+                <div class="incoming-call-status">
+                    <span class="pulsing-dot"></span>
+                    <span>Incoming call...</span>
+                </div>
             </div>
-        </div>
-        <div style="display: flex; gap: 8px;">
-            <button onclick="rejectCall('${callData.callId}')" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer;">
-                Decline
-            </button>
-            <button onclick="acceptCall()" style="flex: 1; background: #007acc; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer;">
-                Accept
-            </button>
+            <div class="incoming-call-actions">
+                <button class="incoming-call-btn decline" onclick="rejectCall('${callData.callId}')">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+                <button class="incoming-call-btn accept" onclick="acceptCall()">
+                    <i class="fas fa-phone"></i>
+                </button>
+            </div>
         </div>
     `;
 
     document.body.appendChild(notification);
-
-    // Play incoming ringtone (Xiaomi/Redmi style)
     playIncomingRingtone();
 
     // Auto-hide after 30 seconds
@@ -340,19 +344,18 @@ function showIncomingCallNotification(callData) {
     }, 30000);
 }
 
-// Play incoming ringtone (Xiaomi/Redmi style)
+// Play incoming ringtone
 function playIncomingRingtone() {
     const audio = document.getElementById('incomingRingtone');
     if (audio) {
         audio.currentTime = 0;
         audio.play().catch(e => console.log('Audio play failed:', e));
     } else {
-        // Fallback to Web Audio
         playWebAudioRingtone();
     }
 }
 
-// Play outgoing ringtone (ringing.mp3)
+// Play outgoing ringtone
 function playOutgoingRingtone() {
     const audio = document.getElementById('outgoingRingtone');
     if (audio) {
@@ -363,7 +366,6 @@ function playOutgoingRingtone() {
 
 // Stop all ringtones
 function stopRingtone() {
-    // Stop audio elements
     const incomingAudio = document.getElementById('incomingRingtone');
     const outgoingAudio = document.getElementById('outgoingRingtone');
     
@@ -377,7 +379,6 @@ function stopRingtone() {
         outgoingAudio.currentTime = 0;
     }
     
-    // Stop Web Audio fallback
     if (ringtoneInterval) {
         clearInterval(ringtoneInterval);
         ringtoneInterval = null;
@@ -397,7 +398,7 @@ function stopRingtone() {
     }
 }
 
-// Web Audio fallback ringtone
+// Web Audio fallback
 function playWebAudioRingtone() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -424,17 +425,15 @@ function playWebAudioRingtone() {
     }
 }
 
-// Accept call - FIXED URL
+// Accept call - FIXED CORRECT URL
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
     stopRingtone();
     
-    // Remove notification
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
 
-    // Mark any other pending calls from this caller as missed
     if (callAppSupabase && incomingCallData.callerId) {
         callAppSupabase
             .from('calls')
@@ -453,11 +452,10 @@ window.acceptCall = function() {
             });
     }
 
-    // CORRECT URL - Changed from /pages/home/friends/call/ to /pages/call-app/call/
+    // CORRECT URL - points to call-app/call, NOT home/friends/call
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
     
-    // Open in new tab
     window.open(url, '_blank');
 };
 
@@ -481,8 +479,6 @@ window.rejectCall = async function(callId) {
                 })
                 .eq('id', callToReject);
             console.log('Call rejected');
-            
-            // Check missed calls again
             await checkMissedCalls();
             
         } catch (error) {
