@@ -1,15 +1,22 @@
-// friends.js - WITH AVATAR SUPPORT
+// friends.js - WITH FULL CALL FUNCTIONALITY (friends theme)
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
+import { initCallListener } from '../../call-app/utils/callListener.js';
 
 let supabase = null;
 let currentUser = null;
 let allFriends = [];
 let filteredFriends = [];
+let callListenerInitialized = false;
+let incomingCallData = null;
+let audioContext = null;
+let oscillator = null;
+let gainNode = null;
+let ringtoneInterval = null;
 
 // Initialize with Supabase wait
 async function initFriendsPage() {
-    console.log('Loading friends...');
+    console.log('Loading friends with call features...');
 
     try {
         supabase = await initializeSupabase();
@@ -32,6 +39,18 @@ async function initFriendsPage() {
 
         await loadFriends();
 
+        // Initialize call listener for incoming calls
+        if (!callListenerInitialized && currentUser) {
+            initCallListener(supabase, currentUser, {
+                onIncomingCall: (callData) => {
+                    console.log('📞 Incoming call received:', callData);
+                    incomingCallData = callData;
+                    showIncomingCallModal(callData);
+                }
+            });
+            callListenerInitialized = true;
+        }
+
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
 
@@ -41,7 +60,7 @@ async function initFriendsPage() {
     }
 }
 
-// 🔥 UPDATED: Load friends WITH AVATAR URL
+// Load friends WITH AVATAR
 async function loadFriends() {
     try {
         if (!currentUser || !supabase) return;
@@ -60,7 +79,6 @@ async function loadFriends() {
 
         const friendIds = friendsData.map(f => f.friend_id);
         
-        // 🔥 UPDATED: Include avatar_url
         const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
             .select('id, username, avatar_url, status, last_seen')
@@ -79,7 +97,7 @@ async function loadFriends() {
     }
 }
 
-// 🔥 UPDATED: Render friends list WITH AVATAR URL
+// Render friends list WITH CALL BUTTONS
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -97,7 +115,7 @@ function renderFriendsList() {
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
 
         html += `
-            <div class="friend-item" onclick="openChat('${friend.id}', '${friend.username}')">
+            <div class="friend-item" data-friend-id="${friend.id}">
                 <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative;">
                     ${friend.avatar_url 
                         ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
@@ -105,20 +123,126 @@ function renderFriendsList() {
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}" style="position: absolute; bottom: 5px; right: 5px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; ${online ? 'background: #28a745;' : 'background: #888888;'}"></span>
                 </div>
-                <div class="friend-info-clean">
+                <div class="friend-info-clean" style="flex: 1; cursor: pointer;" onclick="openChat('${friend.id}', '${friend.username}')">
                     <div class="friend-name-status">
                         <div class="friend-name-clean">${friend.username || 'User'}</div>
                         <div class="friend-status-clean">
                             ${online ? 'Online' : `Last seen ${lastSeen}`}
                         </div>
                     </div>
-                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
                 </div>
+                <button class="call-btn" style="background: #007acc; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 8px;" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')">
+                    <i class="fas fa-phone"></i>
+                </button>
             </div>
         `;
     });
 
     container.innerHTML = html;
+}
+
+// START CALL - with correct URL
+window.startCall = function(friendId, friendName) {
+    // Check if friend is online
+    const friend = allFriends.find(f => f.id === friendId);
+    if (!friend || friend.status !== 'online') {
+        showToast('error', `${friendName} is offline`);
+        return;
+    }
+    
+    // CORRECT URL: /pages/call-app/call/index.html
+    window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
+};
+
+// Show incoming call modal
+function showIncomingCallModal(callData) {
+    const modal = document.getElementById('incomingCallModal');
+    if (!modal) return;
+    
+    const callerNameEl = document.getElementById('callerName');
+    const callerInitialEl = document.getElementById('callerInitial');
+    
+    // Find caller in friends list
+    const caller = allFriends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' };
+    
+    callerNameEl.textContent = caller.username;
+    callerInitialEl.textContent = caller.username.charAt(0).toUpperCase();
+    
+    modal.style.display = 'flex';
+    
+    // Play ringtone
+    playRingtone();
+}
+
+// Accept call
+window.acceptCall = function() {
+    if (!incomingCallData) return;
+    
+    stopRingtone();
+    document.getElementById('incomingCallModal').style.display = 'none';
+    
+    // CORRECT URL for incoming call
+    const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
+    window.location.href = url;
+};
+
+// Reject call
+window.rejectCall = function() {
+    stopRingtone();
+    document.getElementById('incomingCallModal').style.display = 'none';
+    incomingCallData = null;
+    showToast('info', 'Call rejected');
+};
+
+// Play ringtone
+function playRingtone() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        oscillator = audioContext.createOscillator();
+        gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 440;
+        gainNode.gain.value = 0.5;
+        oscillator.start();
+        
+        let isOn = true;
+        ringtoneInterval = setInterval(() => {
+            if (!audioContext) {
+                clearInterval(ringtoneInterval);
+                return;
+            }
+            gainNode.gain.value = isOn ? 0.5 : 0;
+            isOn = !isOn;
+        }, 500);
+        
+    } catch (e) {
+        console.log('Ringtone not supported:', e);
+    }
+}
+
+// Stop ringtone
+function stopRingtone() {
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+    if (oscillator) {
+        try {
+            oscillator.stop();
+            oscillator.disconnect();
+        } catch (e) {}
+        oscillator = null;
+    }
+    if (audioContext) {
+        try {
+            audioContext.close();
+        } catch (e) {}
+        audioContext = null;
+    }
 }
 
 // Format last seen
@@ -169,7 +293,7 @@ function showEmptyState() {
         <div class="empty-state">
             <div class="empty-icon">👥</div>
             <h3>No friends yet</h3>
-            <p>Add friends to start chatting</p>
+            <p>Add friends to start calling</p>
             <button class="add-friends-btn" onclick="openSearch()">
                 <i class="fas fa-user-plus"></i> Add Friends
             </button>
@@ -194,7 +318,7 @@ function showError(message) {
     `;
 }
 
-// Open chat with correct path
+// Open chat
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
@@ -203,12 +327,9 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
-// 🔥 UPDATED: Search users WITH AVATAR URL
+// Search users
 window.searchUsers = async function() {
-    if (!supabase || !currentUser) {
-        console.log('Waiting for Supabase...');
-        return;
-    }
+    if (!supabase || !currentUser) return;
 
     const input = document.getElementById('userSearchInput');
     const container = document.getElementById('searchResults');
@@ -237,7 +358,6 @@ window.searchUsers = async function() {
 
         const pendingIds = pending?.map(r => r.receiver_id) || [];
 
-        // 🔥 UPDATED: Include avatar_url
         const { data: users, error } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
@@ -325,8 +445,8 @@ function showToast(type, message) {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
 
-    let icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
-    let color = type === 'success' ? '#22c55e' : '#ef4444';
+    let icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    let color = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#007acc';
 
     toast.innerHTML = `
         <i class="fas fa-${icon}" style="color:${color};"></i>
@@ -358,7 +478,6 @@ window.logout = async () => {
     localStorage.clear();
     sessionStorage.clear();
     
-    // Clear cookies
     document.cookie.split(";").forEach(function(c) {
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
     });
