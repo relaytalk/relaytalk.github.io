@@ -1,4 +1,4 @@
-// call.js - COMPLETE WITH TAB MANAGEMENT
+// call.js - COMPLETE WITH TAB MANAGEMENT (FIXED duplicate function)
 
 import { initializeSupabase } from '../utils/supabase.js';
 import { getRelayTalkUser } from '../utils/userSync.js';
@@ -152,7 +152,7 @@ async function createOutgoingCall(user, room) {
             callId = existingCall.id;
             
             // Update call status
-            updateCallStatus('calling', `Calling ${friendName}...`);
+            updateStatusDisplay('calling', `Calling ${friendName}...`);
             return;
         }
 
@@ -176,7 +176,7 @@ async function createOutgoingCall(user, room) {
         console.log('✅ New call created:', call);
 
         // Show calling status
-        updateCallStatus('calling', `Calling ${friendName}...`);
+        updateStatusDisplay('calling', `Calling ${friendName}...`);
 
     } catch (error) {
         console.error('❌ Failed to create call:', error);
@@ -220,7 +220,7 @@ async function joinDailyRoom() {
 
         // If this is an incoming call, update status to active when answered
         if (isIncoming) {
-            await updateCallStatus('active');
+            await updateCallStatusInDB('active');
         }
 
     } catch (error) {
@@ -286,7 +286,7 @@ async function endCall(silent = false) {
 
     // Update call status in database only if not silent
     if (!silent && callId && supabase) {
-        await updateCallStatus('completed');
+        await updateCallStatusInDB('completed');
     }
 
     // Leave Daily room
@@ -318,11 +318,12 @@ function handleBeforeUnload(event) {
     // Update call status when user closes tab/window
     if (callId && supabase && callStatus !== 'completed') {
         const status = callStatus === 'active' ? 'completed' : 'missed';
-        updateCallStatus(status);
+        updateCallStatusInDB(status);
     }
 }
 
-async function updateCallStatus(status) {
+// Renamed from updateCallStatus to avoid duplicate
+async function updateCallStatusInDB(status) {
     try {
         if (!callId || !supabase) return;
 
@@ -370,10 +371,10 @@ function handleParticipantJoined(event) {
     
     // Update call status to active if it's the callee joining
     if (!isIncoming && callStatus === 'pending') {
-        updateCallStatus('active');
+        updateCallStatusInDB('active');
     }
 
-    updateCallStatus('connected', 'Connected');
+    updateStatusDisplay('connected', 'Connected');
 }
 
 function handleParticipantLeft(event) {
@@ -393,7 +394,8 @@ function handleCallError(error) {
     endCall(false);
 }
 
-function updateCallStatus(message, details) {
+// Renamed from updateCallStatus to avoid duplicate
+function updateStatusDisplay(message, details) {
     const statusEl = document.getElementById('callStatus');
     if (statusEl) {
         statusEl.textContent = details || message;
