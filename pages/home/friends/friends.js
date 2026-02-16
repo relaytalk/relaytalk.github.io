@@ -1,4 +1,4 @@
-// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED user sync)
+// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED paths)
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 import { 
