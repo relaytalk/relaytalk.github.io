@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Friends · RelayTalk</title>
+    <title>CallApp · Voice Calls</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
     
-    <!-- Styles - Both local and call-app -->
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="friends.css">
+    <!-- Styles -->
     <link rel="stylesheet" href="../../call-app/styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Additional styles for friends page specific elements -->
     <style>
-        /* Override any conflicting styles */
+        /* Keep the friends page specific styles that don't conflict with call-app */
         .friends-header {
             background: white;
             padding: 16px;
@@ -26,7 +25,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            max-width: 1200px;
+            max-width: 600px;
             margin: 0 auto;
         }
         .header-left {
@@ -50,29 +49,6 @@
         }
         .back-btn:hover {
             background: #f5f5f5;
-        }
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
-        .header-btn {
-            background: none;
-            border: none;
-            font-size: 20px;
-            color: #f5b342;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .header-btn:hover {
-            background: #fff9e6;
         }
         .search-container {
             padding: 12px 16px;
@@ -208,45 +184,36 @@
         .call-btn:active {
             transform: scale(0.95);
         }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-            max-width: 400px;
-            margin: 0 auto;
+        .call-btn.small {
+            width: 36px;
+            height: 36px;
+            font-size: 14px;
         }
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
+        .recent-friend-item {
             display: flex;
-            justify-content: space-around;
-            padding: 8px 0;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 100;
-        }
-        .nav-item {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
             align-items: center;
-            text-decoration: none;
-            color: #999;
-            font-size: 12px;
-            padding: 8px 4px;
-            transition: color 0.2s;
+            padding: 12px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border: 1px solid #f0f0f0;
         }
-        .nav-item i {
-            font-size: 20px;
-            margin-bottom: 4px;
+        .friend-avatar.small {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
         }
-        .nav-item.active {
-            color: #f5b342;
+        .status-dot {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid white;
         }
-        .nav-item:hover {
-            color: #f5b342;
+        .status-dot.online {
+            background: #4caf50;
         }
         .modal-overlay {
             position: fixed;
@@ -552,7 +519,7 @@
     <!-- Loading Screen -->
     <div class="loading-indicator" id="loadingIndicator" style="display: none;">
         <div class="loading-spinner"></div>
-        <div id="loadingText">Loading friends...</div>
+        <div id="loadingText">Accessing CallApp...</div>
     </div>
 
     <!-- Incoming Call Modal -->
@@ -585,50 +552,33 @@
     </div>
 
     <!-- Header -->
-    <header class="friends-header">
+    <header class="app-header">
         <div class="header-content">
-            <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='../../home/index.html'">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <h1 class="header-title">Friends</h1>
-            </div>
+            <h1 class="header-title">📞 CallApp</h1>
             <div class="header-actions">
-                <button class="header-btn" onclick="openSearch()">
-                    <i class="fas fa-user-plus"></i>
+                <button class="header-btn" onclick="window.location.href='../../home/index.html'">
+                    <i class="fas fa-arrow-left"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <div class="search-box">
-            <i class="fas fa-search search-icon"></i>
-            <input type="text" 
-                   id="searchInput" 
-                   class="search-input" 
-                   placeholder="Search friends..." 
-                   autocomplete="off"
-                   oninput="searchFriends()">
-            <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- Friends List -->
-    <main class="friends-list" id="friendsList"></main>
+    <!-- Main Content - Dynamic -->
+    <main id="mainContent"></main>
 
     <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <a href="../../home/index.html" class="nav-item">
+    <nav class="bottom-nav" id="bottomNav" style="display: none;">
+        <a href="#" class="nav-item active" onclick="loadDashboard()">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
-        <a href="#" class="nav-item active">
+        <a href="#" class="nav-item" onclick="loadFriends()">
             <i class="fas fa-users"></i>
             <span>Friends</span>
+        </a>
+        <a href="../../call-app/pages/history/index.html" class="nav-item">
+            <i class="fas fa-history"></i>
+            <span>History</span>
         </a>
         <a href="../../call-app/profile.html" class="nav-item">
             <i class="fas fa-user"></i>
@@ -679,7 +629,7 @@
         let incomingCallData = null
         
         async function init() {
-            showLoading(true, 'Loading friends...')
+            showLoading(true, 'Accessing CallApp...')
             
             try {
                 // 1. Get user from RelayTalk
@@ -699,7 +649,9 @@
                 console.log('✅ User synced')
                 
                 // 4. Load friends
-                await loadFriends()
+                friends = await getUserFriends(supabase, currentUser.id)
+                allFriends = [...friends]
+                console.log(`✅ Loaded ${friends.length} friends`)
                 
                 // 5. Initialize call listener with incoming call handler
                 initCallListener(supabase, currentUser, {
@@ -710,8 +662,10 @@
                     }
                 })
                 
-                // 6. Hide loading
+                // 6. Show dashboard
                 showLoading(false)
+                document.getElementById('bottomNav').style.display = 'flex'
+                loadDashboard()
                 
                 // 7. Update status periodically
                 setInterval(() => {
@@ -724,38 +678,154 @@
             }
         }
         
-        async function loadFriends() {
-            friends = await getUserFriends(supabase, currentUser.id)
-            allFriends = [...friends]
-            console.log(`✅ Loaded ${friends.length} friends`)
-            renderFriendsList()
+        window.loadDashboard = function() {
+            updateActiveNav('home')
+            
+            const onlineFriends = friends.filter(f => f.status === 'online').length
+            
+            document.getElementById('mainContent').innerHTML = `
+                <div class="dashboard-container">
+                    <div class="welcome-card" style="background: #fff9e6; border-color: #f5b342;">
+                        <div class="welcome-avatar" style="background: #f5b342;">
+                            ${currentUser.avatar_url 
+                                ? `<img src="${currentUser.avatar_url}" alt="${currentUser.username}">`
+                                : `<span>${currentUser.username.charAt(0).toUpperCase()}</span>`
+                            }
+                        </div>
+                        <div class="welcome-info">
+                            <h2>Welcome back, ${currentUser.username}!</h2>
+                            <p style="color: #666;">${friends.length} friends · ${onlineFriends} online</p>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <div class="action-card" onclick="loadFriends()" style="border-color: #f5b342;">
+                            <div class="action-icon" style="background: #f5b342;">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="action-info">
+                                <h3>Friends</h3>
+                                <p>Call your friends instantly</p>
+                            </div>
+                        </div>
+                        
+                        <div class="action-card" onclick="window.location.href='../../call-app/pages/history/index.html'" style="border-color: #f5b342;">
+                            <div class="action-icon" style="background: #f5b342;">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="action-info">
+                                <h3>Call History</h3>
+                                <p>View your past calls</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recent-section" style="border-color: #f5b342;">
+                        <h3>Quick Call</h3>
+                        <div class="recent-list" id="quickCallList">
+                            ${renderQuickCallList()}
+                        </div>
+                    </div>
+                </div>
+            `
         }
         
-        function renderFriendsList() {
-            const container = document.getElementById('friendsList')
-            
+        function renderQuickCallList() {
             if (!friends || friends.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-users" style="font-size: 48px; color: #f5b342; margin-bottom: 16px;"></i>
-                        <h3 style="margin-bottom: 8px;">No friends yet</h3>
-                        <p style="color: #666; margin-bottom: 20px;">Add friends to start calling</p>
-                        <button onclick="openSearch()" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border: none; border-radius: 25px; font-size: 16px; cursor: pointer;">
-                            <i class="fas fa-user-plus"></i> Add Friends
-                        </button>
+                return `
+                    <div class="empty-small" style="text-align: center; padding: 20px;">
+                        <p style="color: #666;">No friends yet</p>
+                        <button onclick="loadFriends()" class="link-btn" style="color: #f5b342; margin-top: 8px;">View friends</button>
                     </div>
                 `
-                return
+            }
+            
+            const onlineFriends = friends.filter(f => f.status === 'online').slice(0, 3)
+            
+            if (onlineFriends.length === 0) {
+                return `
+                    <div class="empty-small" style="text-align: center; padding: 20px;">
+                        <p style="color: #666;">No friends online</p>
+                    </div>
+                `
             }
             
             let html = ''
-            friends.forEach(friend => {
+            onlineFriends.forEach(friend => {
+                html += `
+                    <div class="recent-friend-item">
+                        <div class="friend-avatar small" style="background: #f5b342;">
+                            ${friend.avatar_url 
+                                ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
+                                : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
+                            }
+                            <span class="status-dot online"></span>
+                        </div>
+                        <div class="friend-info">
+                            <div class="friend-name">${friend.username}</div>
+                            <div class="friend-status">Online</div>
+                        </div>
+                        <button class="call-btn small" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
+                            <i class="fas fa-phone"></i>
+                        </button>
+                    </div>
+                `
+            })
+            
+            return html
+        }
+        
+        window.loadFriends = async function() {
+            updateActiveNav('friends')
+            
+            // Refresh friends list
+            friends = await getUserFriends(supabase, currentUser.id)
+            allFriends = [...friends]
+            
+            document.getElementById('mainContent').innerHTML = `
+                <div class="friends-container">
+                    <div class="search-box" style="margin: 16px auto; max-width: 600px;">
+                        <i class="fas fa-search" style="color: #f5b342; left: 16px;"></i>
+                        <input type="text" id="friendSearch" placeholder="Search friends..." oninput="searchFriends()" style="border-color: #f5b342; padding-left: 45px;">
+                        <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="friendsList" class="friends-list">
+                        ${renderFriendsList(friends)}
+                    </div>
+                </div>
+            `
+        }
+        
+        function renderFriendsList(friendsToRender) {
+            if (!friendsToRender || friendsToRender.length === 0) {
+                return `
+                    <div class="empty-state">
+                        <i class="fas fa-users" style="color: #f5b342; font-size: 48px;"></i>
+                        <h3 style="margin: 16px 0 8px;">No friends yet</h3>
+                        <p style="color: #666; margin-bottom: 20px;">Add friends in RelayTalk and they'll appear here automatically</p>
+                        <div style="background: #fff9e6; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                            <p style="color: #666; font-size: 14px;">
+                                <i class="fas fa-sync" style="color: #f5b342;"></i> 
+                                Friends sync automatically from RelayTalk
+                            </p>
+                        </div>
+                        <button onclick="window.location.href='../../home/index.html'" class="primary-btn" style="background: #f5b342; color: #333; margin-top: 20px;">
+                            Go to RelayTalk
+                        </button>
+                    </div>
+                `
+            }
+            
+            let html = ''
+            friendsToRender.forEach(friend => {
                 const online = friend.status === 'online'
                 const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Offline'
                 
                 html += `
-                    <div class="friend-item">
-                        <div class="friend-avatar">
+                    <div class="friend-item" style="border-color: #f5b342;">
+                        <div class="friend-avatar" style="background: #f5b342;">
                             ${friend.avatar_url 
                                 ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
                                 : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
@@ -766,38 +836,36 @@
                             <div class="friend-name">${friend.username}</div>
                             <div class="friend-status-text">${online ? 'Online' : lastSeen}</div>
                         </div>
-                        <button class="call-btn" onclick="startCall('${friend.id}', '${friend.username}')">
+                        <button class="call-btn" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
                             <i class="fas fa-phone"></i>
                         </button>
                     </div>
                 `
             })
             
-            container.innerHTML = html
+            return html
         }
         
         window.searchFriends = function() {
-            const term = document.getElementById('searchInput').value.toLowerCase()
+            const term = document.getElementById('friendSearch').value.toLowerCase()
             const clearBtn = document.getElementById('clearSearch')
             
             if (term) {
                 clearBtn.style.display = 'block'
-                friends = allFriends.filter(f => 
+                const filtered = allFriends.filter(f => 
                     f.username.toLowerCase().includes(term)
                 )
+                document.getElementById('friendsList').innerHTML = renderFriendsList(filtered)
             } else {
                 clearBtn.style.display = 'none'
-                friends = [...allFriends]
+                document.getElementById('friendsList').innerHTML = renderFriendsList(allFriends)
             }
-            
-            renderFriendsList()
         }
         
         window.clearSearch = function() {
-            document.getElementById('searchInput').value = ''
+            document.getElementById('friendSearch').value = ''
             document.getElementById('clearSearch').style.display = 'none'
-            friends = [...allFriends]
-            renderFriendsList()
+            document.getElementById('friendsList').innerHTML = renderFriendsList(allFriends)
         }
         
         window.openSearch = function() {
@@ -887,8 +955,8 @@
                 return
             }
             
-            // Redirect to call page with correct path
-            window.location.href = `../../call-app/pages/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`
+            // CORRECT URL: /pages/call-app/call/index.html (not /pages/call-app/pages/call/index.html)
+            window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`
         }
         
         function showIncomingCallModal(callData) {
@@ -914,21 +982,14 @@
             stopRingtone()
             document.getElementById('incomingCallModal').style.display = 'none'
             
-            // Redirect to call page with incoming call parameters
-            const url = `../../call-app/pages/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`
+            // CORRECT URL for incoming call
+            const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`
             window.location.href = url
         }
         
         window.rejectCall = function() {
             stopRingtone()
             document.getElementById('incomingCallModal').style.display = 'none'
-            
-            // You can add API call to reject call here
-            if (incomingCallData?.callId) {
-                // Call reject API
-                console.log('Call rejected:', incomingCallData.callId)
-            }
-            
             incomingCallData = null
         }
         
@@ -1001,6 +1062,14 @@
             return time.toLocaleDateString()
         }
         
+        function updateActiveNav(active) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active')
+            })
+            if (active === 'home') document.querySelector('.nav-item:nth-child(1)').classList.add('active')
+            if (active === 'friends') document.querySelector('.nav-item:nth-child(2)').classList.add('active')
+        }
+        
         function showLoading(show, text) {
             const loader = document.getElementById('loadingIndicator')
             if (loader) {
@@ -1023,14 +1092,14 @@
         
         function showError(message) {
             showLoading(false)
-            document.getElementById('friendsList').innerHTML = `
-                <div class="error-container" style="text-align: center; padding: 40px;">
+            document.getElementById('mainContent').innerHTML = `
+                <div class="error-container" style="max-width: 400px; margin: 50px auto; text-align: center; padding: 20px;">
                     <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #f5b342; margin-bottom: 16px;"></i>
-                    <h3 style="margin-bottom: 8px;">Error</h3>
+                    <h3 style="margin-bottom: 8px;">Access Denied</h3>
                     <p style="color: #666; margin: 16px 0;">${message}</p>
-                    <button onclick="window.location.href='../../home/index.html'" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border: none; border-radius: 25px; cursor: pointer;">
-                        Go to Home
-                    </button>
+                    <a href="../../home/index.html" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border-radius: 25px; text-decoration: none; display: inline-block;">
+                        Go to RelayTalk
+                    </a>
                 </div>
             `
         }
