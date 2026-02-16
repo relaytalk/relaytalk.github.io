@@ -3,51 +3,327 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CallApp · Voice Calls</title>
+    <title>Friends · RelayTalk</title>
+    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
+    
+    <!-- Styles - Using call-app styles for consistency -->
     <link rel="stylesheet" href="../../call-app/styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Additional styles to maintain friends page look */
+        .friends-header {
+            background: white;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #333;
+            cursor: pointer;
+            padding: 8px;
+        }
+        .search-container {
+            padding: 12px 16px;
+            background: white;
+            border-bottom: 1px solid #eee;
+        }
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+        .search-input {
+            width: 100%;
+            padding: 12px 40px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus {
+            border-color: #f5b342;
+        }
+        .clear-search {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .friend-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+        .friend-item:active {
+            background: #f5f5f5;
+        }
+        .friend-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #f5b342;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            position: relative;
+            margin-right: 12px;
+        }
+        .friend-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .status-indicator {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .status-indicator.online {
+            background: #4caf50;
+        }
+        .status-indicator.offline {
+            background: #9e9e9e;
+        }
+        .friend-info {
+            flex: 1;
+        }
+        .friend-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .friend-status-text {
+            font-size: 13px;
+            color: #666;
+        }
+        .call-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #f5b342;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .call-btn:active {
+            transform: scale(0.95);
+        }
+        .call-btn.small {
+            width: 36px;
+            height: 36px;
+            font-size: 14px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #999;
+            font-size: 12px;
+            padding: 4px;
+        }
+        .nav-item i {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        .nav-item.active {
+            color: #f5b342;
+        }
+        .toast-container {
+            position: fixed;
+            bottom: 80px;
+            left: 16px;
+            right: 16px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            animation: slideUp 0.3s ease;
+            pointer-events: auto;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
 <body>
     <!-- Loading Screen -->
-    <div class="loading-indicator" id="loadingIndicator">
+    <div class="loading-indicator" id="loadingIndicator" style="display: none;">
         <div class="loading-spinner"></div>
-        <div id="loadingText">Accessing CallApp...</div>
+        <div id="loadingText">Loading friends...</div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div class="modal-overlay" id="incomingCallModal" style="display: none;">
+        <div class="modal-content incoming-call">
+            <div class="incoming-call-header">
+                <i class="fas fa-phone-ring" style="font-size: 48px; color: #f5b342; animation: ring 1s infinite;"></i>
+                <h2>Incoming Call</h2>
+            </div>
+            <div class="caller-info" id="callerInfo">
+                <div class="caller-avatar" id="callerAvatar" style="background: #f5b342;">
+                    <span id="callerInitial"></span>
+                </div>
+                <div class="caller-details">
+                    <div class="caller-name" id="callerName">Loading...</div>
+                    <div class="call-status">Calling...</div>
+                </div>
+            </div>
+            <div class="call-actions">
+                <button class="call-action-btn decline" onclick="rejectCall()">
+                    <i class="fas fa-times"></i>
+                    <span>Decline</span>
+                </button>
+                <button class="call-action-btn accept" onclick="acceptCall()">
+                    <i class="fas fa-phone"></i>
+                    <span>Accept</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Header -->
-    <header class="app-header">
+    <header class="friends-header">
         <div class="header-content">
-            <h1 class="header-title">📞 CallApp</h1>
-            <div class="header-actions">
-                <button class="header-btn" onclick="window.location.href='../../home/index.html'">
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='../../home/index.html'">
                     <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1 class="header-title">Friends</h1>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" onclick="openSearch()">
+                    <i class="fas fa-user-plus"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main id="mainContent"></main>
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   id="searchInput" 
+                   class="search-input" 
+                   placeholder="Search friends..." 
+                   autocomplete="off"
+                   oninput="searchFriends()">
+            <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Friends List -->
+    <main class="friends-list" id="friendsList" style="padding-bottom: 80px;"></main>
 
     <!-- Bottom Navigation -->
-    <nav class="bottom-nav" id="bottomNav" style="display: none;">
-        <a href="#" class="nav-item active" onclick="loadDashboard()">
+    <nav class="bottom-nav">
+        <a href="../../home/index.html" class="nav-item">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
-        <a href="#" class="nav-item" onclick="loadFriends()">
+        <a href="#" class="nav-item active">
             <i class="fas fa-users"></i>
             <span>Friends</span>
-        </a>
-        <a href="../../call-app/pages/history/index.html" class="nav-item">
-            <i class="fas fa-history"></i>
-            <span>History</span>
         </a>
         <a href="../../call-app/profile.html" class="nav-item">
             <i class="fas fa-user"></i>
             <span>Profile</span>
         </a>
     </nav>
+
+    <!-- Add Friends Modal -->
+    <div class="modal-overlay" id="searchModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus" style="color:#f5b342;"></i> Add Friends</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="search-input-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" 
+                           id="userSearchInput" 
+                           placeholder="Search by username..." 
+                           autocomplete="off"
+                           oninput="searchUsers()">
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
@@ -57,19 +333,23 @@
         import { 
             getRelayTalkUser, 
             syncUserToDatabase, 
-            syncFriendsFromOldDatabase,
-            saveFriendsToCallApp,
             getUserFriends,
-            updateUserStatus 
+            updateUserStatus,
+            searchAllUsers,
+            sendFriendRequest,
+            getFriendRequests,
+            respondToFriendRequest
         } from '../../call-app/utils/userSync.js'
-        import { initCallListener } from '../../call-app/utils/callListener.js'
+        import { initCallListener, showIncomingCall } from '../../call-app/utils/callListener.js'
         
         let supabase
         let currentUser
         let friends = []
+        let allFriends = [] // For search filtering
+        let incomingCallData = null
         
         async function init() {
-            showLoading(true, 'Accessing CallApp...')
+            showLoading(true, 'Loading friends...')
             
             try {
                 // 1. Get user from RelayTalk
@@ -80,44 +360,36 @@
                 }
                 
                 console.log('✅ Got user from RelayTalk:', user.email)
-                console.log('✅ User ID:', user.id)
                 
-                // 2. Initialize CallApp Supabase
+                // 2. Initialize Supabase
                 supabase = await initializeSupabase()
                 
-                // 3. Sync user to CallApp DB
+                // 3. Sync user to database
                 currentUser = await syncUserToDatabase(supabase, user)
-                console.log('✅ User synced to CallApp DB')
+                console.log('✅ User synced')
                 
-                // 4. Try to get friends from old database
-                showLoading(true, 'Syncing friends...')
-                console.log('🔍 Fetching friends from old database...')
+                // 4. Load friends
+                await loadFriends()
                 
-                const oldFriends = await syncFriendsFromOldDatabase(currentUser.id)
+                // 5. Initialize call listener with incoming call handler
+                initCallListener(supabase, currentUser, {
+                    onIncomingCall: (callData) => {
+                        console.log('📞 Incoming call received:', callData)
+                        incomingCallData = callData
+                        showIncomingCallModal(callData)
+                    }
+                })
                 
-                if (oldFriends && oldFriends.length > 0) {
-                    console.log(`📝 Found ${oldFriends.length} friends in old DB:`, oldFriends)
-                    await saveFriendsToCallApp(supabase, currentUser.id, oldFriends)
-                } else {
-                    console.log('ℹ️ No friends found in old database')
-                }
-                
-                // 5. Load friends list from CallApp DB
-                friends = await getUserFriends(supabase, currentUser.id)
-                console.log(`✅ Loaded ${friends.length} friends from CallApp DB:`, friends)
-                
-                // 6. Initialize call listener
-                initCallListener(supabase, currentUser)
-                
-                // 7. Show dashboard
+                // 6. Hide loading
                 showLoading(false)
-                document.getElementById('bottomNav').style.display = 'flex'
-                loadDashboard()
                 
-                // 8. Update status periodically
+                // 7. Update status periodically
                 setInterval(() => {
                     updateUserStatus(supabase, currentUser.id, 'online')
                 }, 30000)
+                
+                // 8. Check for pending friend requests
+                checkFriendRequests()
                 
             } catch (error) {
                 console.error('❌ Init error:', error)
@@ -125,158 +397,38 @@
             }
         }
         
-        window.loadDashboard = function() {
-            updateActiveNav('home')
-            
-            const onlineFriends = friends.filter(f => f.status === 'online').length
-            
-            document.getElementById('mainContent').innerHTML = `
-                <div class="dashboard-container">
-                    <div class="welcome-card" style="background: #fff9e6; border-color: #f5b342;">
-                        <div class="welcome-avatar" style="background: #f5b342;">
-                            ${currentUser.avatar_url 
-                                ? `<img src="${currentUser.avatar_url}" alt="${currentUser.username}">`
-                                : `<span>${currentUser.username.charAt(0).toUpperCase()}</span>`
-                            }
-                        </div>
-                        <div class="welcome-info">
-                            <h2>Welcome back, ${currentUser.username}!</h2>
-                            <p style="color: #666;">${friends.length} friends · ${onlineFriends} online</p>
-                        </div>
-                    </div>
-                    
-                    <div class="quick-actions">
-                        <div class="action-card" onclick="loadFriends()" style="border-color: #f5b342;">
-                            <div class="action-icon" style="background: #f5b342;">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <div class="action-info">
-                                <h3>Friends</h3>
-                                <p>Call your friends instantly</p>
-                            </div>
-                        </div>
-                        
-                        <div class="action-card" onclick="window.location.href='../../call-app/pages/history/index.html'" style="border-color: #f5b342;">
-                            <div class="action-icon" style="background: #f5b342;">
-                                <i class="fas fa-history"></i>
-                            </div>
-                            <div class="action-info">
-                                <h3>Call History</h3>
-                                <p>View your past calls</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="recent-section" style="border-color: #f5b342;">
-                        <h3>Quick Call</h3>
-                        <div class="recent-list" id="quickCallList">
-                            ${renderQuickCallList()}
-                        </div>
-                    </div>
-                </div>
-            `
-        }
-        
-        function renderQuickCallList() {
-            if (!friends || friends.length === 0) {
-                return `
-                    <div class="empty-small" style="text-align: center; padding: 20px;">
-                        <p style="color: #666;">No friends yet</p>
-                        <button onclick="loadFriends()" class="link-btn" style="color: #f5b342; margin-top: 8px;">View friends</button>
-                    </div>
-                `
-            }
-            
-            const onlineFriends = friends.filter(f => f.status === 'online').slice(0, 3)
-            
-            if (onlineFriends.length === 0) {
-                return `
-                    <div class="empty-small" style="text-align: center; padding: 20px;">
-                        <p style="color: #666;">No friends online</p>
-                    </div>
-                `
-            }
-            
-            let html = ''
-            onlineFriends.forEach(friend => {
-                html += `
-                    <div class="recent-friend-item">
-                        <div class="friend-avatar small" style="background: #f5b342;">
-                            ${friend.avatar_url 
-                                ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
-                                : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
-                            }
-                            <span class="status-dot online"></span>
-                        </div>
-                        <div class="friend-info">
-                            <div class="friend-name">${friend.username}</div>
-                            <div class="friend-status">Online</div>
-                        </div>
-                        <button class="call-btn small" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
-                            <i class="fas fa-phone"></i>
-                        </button>
-                    </div>
-                `
-            })
-            
-            return html
-        }
-        
-        window.loadFriends = async function() {
-            updateActiveNav('friends')
-            
-            // Show loading in friends list
-            document.getElementById('mainContent').innerHTML = `
-                <div class="friends-container">
-                    <div class="search-box">
-                        <i class="fas fa-search" style="color: #f5b342;"></i>
-                        <input type="text" id="friendSearch" placeholder="Search friends..." oninput="searchFriends()" style="border-color: #f5b342;">
-                    </div>
-                    <div id="friendsList" class="friends-list">
-                        <div style="text-align: center; padding: 40px;">
-                            <div class="loading-spinner" style="margin: 0 auto 20px;"></div>
-                            <p>Loading friends...</p>
-                        </div>
-                    </div>
-                </div>
-            `
-            
-            // Refresh friends list from database
+        async function loadFriends() {
             friends = await getUserFriends(supabase, currentUser.id)
-            console.log('📋 Refreshed friends list:', friends)
-            
-            // Render friends
-            document.getElementById('friendsList').innerHTML = renderFriendsList(friends)
+            allFriends = [...friends]
+            console.log(`✅ Loaded ${friends.length} friends`)
+            renderFriendsList()
         }
         
-        function renderFriendsList(friendsToRender) {
-            if (!friendsToRender || friendsToRender.length === 0) {
-                return `
+        function renderFriendsList() {
+            const container = document.getElementById('friendsList')
+            
+            if (!friends || friends.length === 0) {
+                container.innerHTML = `
                     <div class="empty-state">
-                        <i class="fas fa-users" style="color: #f5b342; font-size: 48px;"></i>
-                        <h3 style="margin: 16px 0 8px;">No friends yet</h3>
-                        <p style="color: #666; margin-bottom: 20px;">Add friends in RelayTalk and they'll appear here automatically</p>
-                        <div style="background: #fff9e6; padding: 16px; border-radius: 8px; margin-top: 20px;">
-                            <p style="color: #666; font-size: 14px;">
-                                <i class="fas fa-sync" style="color: #f5b342;"></i> 
-                                Friends sync automatically from RelayTalk
-                            </p>
-                        </div>
-                        <button onclick="window.location.href='../../home/index.html'" class="primary-btn" style="background: #f5b342; color: #333; margin-top: 20px;">
-                            Go to RelayTalk
+                        <i class="fas fa-users" style="font-size: 48px; color: #f5b342; margin-bottom: 16px;"></i>
+                        <h3 style="margin-bottom: 8px;">No friends yet</h3>
+                        <p style="color: #666; margin-bottom: 20px;">Add friends to start calling</p>
+                        <button onclick="openSearch()" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border: none; border-radius: 25px; font-size: 16px; cursor: pointer;">
+                            <i class="fas fa-user-plus"></i> Add Friends
                         </button>
                     </div>
                 `
+                return
             }
             
             let html = ''
-            friendsToRender.forEach(friend => {
+            friends.forEach(friend => {
                 const online = friend.status === 'online'
                 const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Offline'
                 
                 html += `
-                    <div class="friend-item" style="border-color: #f5b342;">
-                        <div class="friend-avatar" style="background: #f5b342;">
+                    <div class="friend-item">
+                        <div class="friend-avatar">
                             ${friend.avatar_url 
                                 ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
                                 : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
@@ -287,33 +439,238 @@
                             <div class="friend-name">${friend.username}</div>
                             <div class="friend-status-text">${online ? 'Online' : lastSeen}</div>
                         </div>
-                        <button class="call-btn" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
+                        <button class="call-btn" onclick="startCall('${friend.id}', '${friend.username}')">
                             <i class="fas fa-phone"></i>
                         </button>
                     </div>
                 `
             })
             
-            return html
+            container.innerHTML = html
         }
         
         window.searchFriends = function() {
-            const term = document.getElementById('friendSearch').value.toLowerCase()
+            const term = document.getElementById('searchInput').value.toLowerCase()
+            const clearBtn = document.getElementById('clearSearch')
             
-            if (!term) {
-                document.getElementById('friendsList').innerHTML = renderFriendsList(friends)
+            if (term) {
+                clearBtn.style.display = 'block'
+                friends = allFriends.filter(f => 
+                    f.username.toLowerCase().includes(term)
+                )
+            } else {
+                clearBtn.style.display = 'none'
+                friends = [...allFriends]
+            }
+            
+            renderFriendsList()
+        }
+        
+        window.clearSearch = function() {
+            document.getElementById('searchInput').value = ''
+            document.getElementById('clearSearch').style.display = 'none'
+            friends = [...allFriends]
+            renderFriendsList()
+        }
+        
+        window.openSearch = function() {
+            document.getElementById('searchModal').style.display = 'flex'
+            document.getElementById('userSearchInput').focus()
+        }
+        
+        window.closeModal = function() {
+            document.getElementById('searchModal').style.display = 'none'
+            document.getElementById('userSearchInput').value = ''
+            document.getElementById('searchResults').innerHTML = ''
+        }
+        
+        window.searchUsers = async function() {
+            const term = document.getElementById('userSearchInput').value.toLowerCase()
+            
+            if (term.length < 2) {
+                document.getElementById('searchResults').innerHTML = ''
                 return
             }
             
-            const filtered = friends.filter(f => 
-                f.username.toLowerCase().includes(term)
-            )
+            try {
+                const users = await searchAllUsers(supabase, term, currentUser.id)
+                displaySearchResults(users)
+            } catch (error) {
+                console.error('Search error:', error)
+            }
+        }
+        
+        function displaySearchResults(users) {
+            const resultsDiv = document.getElementById('searchResults')
             
-            document.getElementById('friendsList').innerHTML = renderFriendsList(filtered)
+            if (users.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="empty-search">
+                        <p>No users found</p>
+                    </div>
+                `
+                return
+            }
+            
+            let html = ''
+            users.forEach(user => {
+                const isFriend = friends.some(f => f.id === user.id)
+                
+                html += `
+                    <div class="search-result-item">
+                        <div class="result-avatar" style="background: #f5b342;">
+                            ${user.avatar_url 
+                                ? `<img src="${user.avatar_url}" alt="${user.username}">`
+                                : `<span>${user.username.charAt(0).toUpperCase()}</span>`
+                            }
+                        </div>
+                        <div class="result-info">
+                            <div class="result-name">${user.username}</div>
+                            <div class="result-email">${user.email || ''}</div>
+                        </div>
+                        ${!isFriend ? `
+                            <button class="add-friend-btn" onclick="addFriend('${user.id}')">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        ` : `
+                            <span class="friend-badge">Friend</span>
+                        `}
+                    </div>
+                `
+            })
+            
+            resultsDiv.innerHTML = html
+        }
+        
+        window.addFriend = async function(userId) {
+            try {
+                await sendFriendRequest(supabase, currentUser.id, userId)
+                showToast('Friend request sent!', 'success')
+                closeModal()
+            } catch (error) {
+                showToast(error.message, 'error')
+            }
+        }
+        
+        async function checkFriendRequests() {
+            try {
+                const requests = await getFriendRequests(supabase, currentUser.id)
+                if (requests.length > 0) {
+                    // You can implement a notification badge here
+                    console.log('📨 Pending friend requests:', requests.length)
+                }
+            } catch (error) {
+                console.error('Error checking friend requests:', error)
+            }
         }
         
         window.startCall = function(friendId, friendName) {
+            // Check if friend is online
+            const friend = friends.find(f => f.id === friendId)
+            if (!friend || friend.status !== 'online') {
+                showToast(`${friendName} is offline`, 'error')
+                return
+            }
+            
+            // Redirect to call page with correct path
             window.location.href = `../../call-app/pages/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`
+        }
+        
+        function showIncomingCallModal(callData) {
+            const modal = document.getElementById('incomingCallModal')
+            const callerNameEl = document.getElementById('callerName')
+            const callerInitialEl = document.getElementById('callerInitial')
+            
+            // Find caller in friends list or create temp display
+            const caller = friends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' }
+            
+            callerNameEl.textContent = caller.username
+            callerInitialEl.textContent = caller.username.charAt(0).toUpperCase()
+            
+            modal.style.display = 'flex'
+            
+            // Play ringtone
+            playRingtone()
+        }
+        
+        window.acceptCall = function() {
+            if (!incomingCallData) return
+            
+            stopRingtone()
+            document.getElementById('incomingCallModal').style.display = 'none'
+            
+            // Redirect to call page with incoming call parameters
+            const url = `../../call-app/pages/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`
+            window.location.href = url
+        }
+        
+        window.rejectCall = function() {
+            stopRingtone()
+            document.getElementById('incomingCallModal').style.display = 'none'
+            
+            // You can add API call to reject call here
+            if (incomingCallData?.callId) {
+                // Call reject API
+                console.log('Call rejected:', incomingCallData.callId)
+            }
+            
+            incomingCallData = null
+        }
+        
+        // Simple ringtone using Web Audio API
+        let audioContext = null
+        let oscillator = null
+        let gainNode = null
+        
+        function playRingtone() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)()
+                oscillator = audioContext.createOscillator()
+                gainNode = audioContext.createGain()
+                
+                oscillator.connect(gainNode)
+                gainNode.connect(audioContext.destination)
+                
+                oscillator.type = 'sine'
+                oscillator.frequency.value = 440
+                
+                gainNode.gain.value = 0.5
+                
+                oscillator.start()
+                
+                // Create ring pattern
+                let isOn = true
+                const interval = setInterval(() => {
+                    if (!audioContext) {
+                        clearInterval(interval)
+                        return
+                    }
+                    gainNode.gain.value = isOn ? 0.5 : 0
+                    isOn = !isOn
+                }, 500)
+                
+                // Store interval for cleanup
+                window.ringtoneInterval = interval
+                
+            } catch (e) {
+                console.log('Ringtone not supported:', e)
+            }
+        }
+        
+        function stopRingtone() {
+            if (oscillator) {
+                oscillator.stop()
+                oscillator.disconnect()
+                oscillator = null
+            }
+            if (audioContext) {
+                audioContext.close()
+                audioContext = null
+            }
+            if (window.ringtoneInterval) {
+                clearInterval(window.ringtoneInterval)
+                window.ringtoneInterval = null
+            }
         }
         
         function formatLastSeen(timestamp) {
@@ -327,14 +684,6 @@
             return time.toLocaleDateString()
         }
         
-        function updateActiveNav(active) {
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active')
-            })
-            if (active === 'home') document.querySelector('.nav-item:nth-child(1)').classList.add('active')
-            if (active === 'friends') document.querySelector('.nav-item:nth-child(2)').classList.add('active')
-        }
-        
         function showLoading(show, text) {
             const loader = document.getElementById('loadingIndicator')
             if (loader) {
@@ -343,16 +692,28 @@
             }
         }
         
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer')
+            const toast = document.createElement('div')
+            toast.className = `toast ${type}`
+            toast.textContent = message
+            container.appendChild(toast)
+            
+            setTimeout(() => {
+                toast.remove()
+            }, 3000)
+        }
+        
         function showError(message) {
             showLoading(false)
-            document.getElementById('mainContent').innerHTML = `
-                <div class="error-container" style="max-width: 400px; margin: 50px auto; text-align: center; padding: 20px;">
+            document.getElementById('friendsList').innerHTML = `
+                <div class="error-container" style="text-align: center; padding: 40px;">
                     <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #f5b342; margin-bottom: 16px;"></i>
-                    <h3 style="margin-bottom: 8px;">Access Denied</h3>
+                    <h3 style="margin-bottom: 8px;">Error</h3>
                     <p style="color: #666; margin: 16px 0;">${message}</p>
-                    <a href="../../home/index.html" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border-radius: 25px; text-decoration: none; display: inline-block;">
-                        Go to RelayTalk
-                    </a>
+                    <button onclick="window.location.href='../../home/index.html'" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border: none; border-radius: 25px; cursor: pointer;">
+                        Go to Home
+                    </button>
                 </div>
             `
         }
