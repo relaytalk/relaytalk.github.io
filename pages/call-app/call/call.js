@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - COMPLETE FIXED VERSION WITH TAB MANAGEMENT
+// /pages/call-app/call/call.js - COMPLETE FIXED VERSION
 
 import { initializeSupabase } from '/pages/call-app/utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '/pages/call-app/utils/userSync.js'
@@ -144,9 +144,11 @@ async function startOutgoingCall(friendId, friendName) {
         callRoom = await createCallRoom()
         console.log('2️⃣ Room created:', callRoom)
         
+        // FIXED: Added callee_id to match database schema
         const callData = {
             caller_id: currentUser.id,
             receiver_id: friendId,
+            callee_id: friendId,        // ← ADDED THIS LINE
             room_name: callRoom.name,
             room_url: callRoom.url,
             status: 'ringing',
