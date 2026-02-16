@@ -1,10 +1,16 @@
-// friends.js - WITH FULL CALL FUNCTIONALITY (friends theme)
+// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED user sync)
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
+import { 
+    syncUserToDatabase, 
+    getUserFriends,
+    updateUserStatus 
+} from '../../call-app/utils/userSync.js';
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
 let supabase = null;
-let currentUser = null;
+let currentUser = null; // This will be the call-app user (with ID from call-app DB)
+let authUser = null;    // This is the auth user
 let allFriends = [];
 let filteredFriends = [];
 let callListenerInitialized = false;
@@ -34,22 +40,54 @@ async function initFriendsPage() {
             return;
         }
 
-        currentUser = session.user;
-        console.log('✅ Logged in as:', currentUser.email);
+        authUser = session.user;
+        console.log('✅ Auth user:', authUser.email);
 
+        // STEP 1: Sync user to call-app database FIRST (this gives us the correct user ID)
+        console.log('🔄 Syncing user to call-app database...');
+        currentUser = await syncUserToDatabase(supabase, authUser);
+        console.log('✅ Call-app user synced:', currentUser);
+
+        if (!currentUser || !currentUser.id) {
+            throw new Error('Failed to sync user to call-app database');
+        }
+
+        // STEP 2: Load friends
         await loadFriends();
 
-        // Initialize call listener for incoming calls
-        if (!callListenerInitialized && currentUser) {
-            initCallListener(supabase, currentUser, {
+        // STEP 3: Initialize call listener with the CORRECT user from call-app DB
+        if (!callListenerInitialized && currentUser && currentUser.id) {
+            console.log('📞 Initializing call listener for user:', currentUser.id);
+            
+            // Make sure we have a valid user object
+            const callListenerUser = {
+                id: currentUser.id,
+                username: currentUser.username || authUser.email.split('@')[0]
+            };
+            
+            initCallListener(supabase, callListenerUser, {
                 onIncomingCall: (callData) => {
                     console.log('📞 Incoming call received:', callData);
+                    
+                    // Validate call data
+                    if (!callData || !callData.callerId) {
+                        console.error('Invalid call data:', callData);
+                        return;
+                    }
+                    
                     incomingCallData = callData;
                     showIncomingCallModal(callData);
                 }
             });
             callListenerInitialized = true;
         }
+
+        // STEP 4: Update status periodically
+        setInterval(() => {
+            if (currentUser && currentUser.id) {
+                updateUserStatus(supabase, currentUser.id, 'online');
+            }
+        }, 30000);
 
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
@@ -63,32 +101,17 @@ async function initFriendsPage() {
 // Load friends WITH AVATAR
 async function loadFriends() {
     try {
-        if (!currentUser || !supabase) return;
-
-        const { data: friendsData, error: friendsError } = await supabase
-            .from('friends')
-            .select('friend_id')
-            .eq('user_id', currentUser.id);
-
-        if (friendsError) throw friendsError;
-
-        if (!friendsData || friendsData.length === 0) {
-            showEmptyState();
+        if (!currentUser || !currentUser.id || !supabase) {
+            console.log('Waiting for user...');
             return;
         }
 
-        const friendIds = friendsData.map(f => f.friend_id);
+        console.log('Loading friends for user:', currentUser.id);
+        const friends = await getUserFriends(supabase, currentUser.id);
         
-        const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, avatar_url, status, last_seen')
-            .in('id', friendIds)
-            .order('username');
-
-        if (profilesError) throw profilesError;
-
-        allFriends = profiles || [];
+        allFriends = friends || [];
         filteredFriends = [...allFriends];
+        console.log(`✅ Loaded ${allFriends.length} friends`);
         renderFriendsList();
 
     } catch (error) {
@@ -329,7 +352,7 @@ window.openChat = function(friendId, friendName) {
 
 // Search users
 window.searchUsers = async function() {
-    if (!supabase || !currentUser) return;
+    if (!supabase || !authUser) return;
 
     const input = document.getElementById('userSearchInput');
     const container = document.getElementById('searchResults');
@@ -346,14 +369,14 @@ window.searchUsers = async function() {
         const { data: friends } = await supabase
             .from('friends')
             .select('friend_id')
-            .eq('user_id', currentUser.id);
+            .eq('user_id', authUser.id);
 
         const friendIds = friends?.map(f => f.friend_id) || [];
 
         const { data: pending } = await supabase
             .from('friend_requests')
             .select('receiver_id')
-            .eq('sender_id', currentUser.id)
+            .eq('sender_id', authUser.id)
             .eq('status', 'pending');
 
         const pendingIds = pending?.map(r => r.receiver_id) || [];
@@ -361,7 +384,7 @@ window.searchUsers = async function() {
         const { data: users, error } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
-            .neq('id', currentUser.id)
+            .neq('id', authUser.id)
             .ilike('username', `%${term}%`)
             .limit(20);
 
@@ -417,7 +440,7 @@ window.sendFriendRequest = async function(userId, username, btn) {
         const { error } = await supabase
             .from('friend_requests')
             .insert({
-                sender_id: currentUser.id,
+                sender_id: authUser.id,
                 receiver_id: userId,
                 status: 'pending',
                 created_at: new Date().toISOString()
