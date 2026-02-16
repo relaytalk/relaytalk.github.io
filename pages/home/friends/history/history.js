@@ -1,4 +1,4 @@
-// pages/home/friends/history/history.js - Complete with Missed Call Counter
+// pages/home/friends/history/history.js - Complete with fixes
 
 import { initializeSupabase } from '../../../call-app/utils/supabase.js';
 import { getRelayTalkUser, syncUserToDatabase } from '../../../call-app/utils/userSync.js';
@@ -67,8 +67,6 @@ async function loadCallHistory() {
         return isMissed && isNew;
     }).length;
 
-    updateMissedCallBadge();
-
     // Get unique user IDs to fetch profiles
     const userIds = new Set();
     allCalls.forEach(call => {
@@ -76,14 +74,29 @@ async function loadCallHistory() {
         if (call.receiver_id !== currentUser.id) userIds.add(call.receiver_id);
     });
 
-    // Fetch profiles
-    const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .in('id', [...userIds]);
-
+    // Fetch profiles from both databases to ensure we get avatars
     const profileMap = {};
-    profiles?.forEach(p => profileMap[p.id] = p);
+    
+    if (userIds.size > 0) {
+        // Try main profiles table first
+        const { data: mainProfiles } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', [...userIds]);
+
+        mainProfiles?.forEach(p => profileMap[p.id] = p);
+
+        // For any missing profiles, try call-app profiles
+        const missingIds = [...userIds].filter(id => !profileMap[id]);
+        if (missingIds.length > 0) {
+            const { data: callProfiles } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', missingIds);
+            
+            callProfiles?.forEach(p => profileMap[p.id] = p);
+        }
+    }
 
     renderHistory(allCalls, profileMap);
 }
@@ -104,23 +117,6 @@ async function markMissedCallsAsSeen() {
         .from('calls')
         .update({ seen: true })
         .in('id', missedIds);
-
-    // Update badge immediately
-    missedCallCount = 0;
-    updateMissedCallBadge();
-}
-
-// Update missed call badge
-function updateMissedCallBadge() {
-    const badge = document.getElementById('missedCallBadge');
-    if (badge) {
-        if (missedCallCount > 0) {
-            badge.textContent = missedCallCount > 9 ? '9+' : missedCallCount;
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
 }
 
 // Render history with filter
@@ -131,7 +127,7 @@ function renderHistory(calls, profileMap) {
                 <i class="fas fa-history"></i>
                 <h3>No call history</h3>
                 <p>Your calls will appear here</p>
-                <button onclick="window.location.href='../../index.html'" class="primary-btn" style="background: #007acc; color: white; margin-top: 16px;">
+                <button onclick="window.location.href='../index.html'" class="primary-btn" style="background: #007acc; color: white; margin-top: 16px;">
                     Make a Call
                 </button>
             </div>
@@ -179,8 +175,11 @@ function renderHistory(calls, profileMap) {
 
         const isOutgoing = call.caller_id === currentUser.id;
         const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
-        const otherUser = profileMap[otherUserId] || { username: 'Unknown', avatar_url: null };
-        const initial = otherUser.username.charAt(0).toUpperCase();
+        const otherUser = profileMap[otherUserId] || { 
+            username: 'Unknown User', 
+            avatar_url: null 
+        };
+        const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
 
         let statusClass = '';
         let statusText = '';
@@ -205,7 +204,7 @@ function renderHistory(calls, profileMap) {
             statusText = call.status;
         }
 
-        // Calculate duration if available
+        // Calculate duration
         let duration = '';
         if (call.duration && call.duration > 0) {
             duration = formatDuration(call.duration);
@@ -239,12 +238,29 @@ function renderHistory(calls, profileMap) {
                     </div>
                 </div>
                 <div class="history-status ${statusClass}">${statusText}</div>
+                ${otherUser.id ? `
+                    <button class="call-btn-small" onclick="callAgain('${otherUser.id}', '${otherUser.username}')">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                ` : ''}
             </div>
         `;
     });
 
     document.getElementById('historyList').innerHTML = html;
 }
+
+// Call again function with ringtone
+window.callAgain = function(friendId, friendName) {
+    // Play outgoing ringtone
+    const audio = document.getElementById('outgoingRingtone');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+    
+    window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
+};
 
 // Format duration
 function formatDuration(seconds) {
@@ -262,23 +278,8 @@ window.filterHistory = function(filter) {
     });
     event.target.classList.add('active');
 
-    // Reload with filter (we already have allCalls)
-    const userIds = new Set();
-    allCalls.forEach(call => {
-        if (call.caller_id !== currentUser.id) userIds.add(call.caller_id);
-        if (call.receiver_id !== currentUser.id) userIds.add(call.receiver_id);
-    });
-
-    // We need profiles again
-    supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .in('id', [...userIds])
-        .then(({ data: profiles }) => {
-            const profileMap = {};
-            profiles?.forEach(p => profileMap[p.id] = p);
-            renderHistory(allCalls, profileMap);
-        });
+    // Reload with filter
+    loadCallHistory();
 };
 
 // Start
