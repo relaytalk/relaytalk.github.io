@@ -1,4 +1,4 @@
-// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND MISSED CALL BADGE
+// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND RINGTONES
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -276,7 +276,7 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL - OPEN IN NEW TAB
+// START CALL - OPEN IN NEW TAB WITH RINGTONE
 window.startCall = function(friendId, friendName) {
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
@@ -285,6 +285,9 @@ window.startCall = function(friendId, friendName) {
     }
     
     console.log(`📞 Starting call to ${friendName}`);
+    
+    // Play outgoing ringtone
+    playOutgoingRingtone();
     
     // OPEN IN NEW TAB
     const callUrl = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
@@ -326,8 +329,8 @@ function showIncomingCallNotification(callData) {
 
     document.body.appendChild(notification);
 
-    // Play ringtone
-    playRingtone();
+    // Play incoming ringtone (Xiaomi/Redmi style)
+    playIncomingRingtone();
 
     // Auto-hide after 30 seconds
     setTimeout(() => {
@@ -337,7 +340,91 @@ function showIncomingCallNotification(callData) {
     }, 30000);
 }
 
-// Accept call
+// Play incoming ringtone (Xiaomi/Redmi style)
+function playIncomingRingtone() {
+    const audio = document.getElementById('incomingRingtone');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    } else {
+        // Fallback to Web Audio
+        playWebAudioRingtone();
+    }
+}
+
+// Play outgoing ringtone (ringing.mp3)
+function playOutgoingRingtone() {
+    const audio = document.getElementById('outgoingRingtone');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+}
+
+// Stop all ringtones
+function stopRingtone() {
+    // Stop audio elements
+    const incomingAudio = document.getElementById('incomingRingtone');
+    const outgoingAudio = document.getElementById('outgoingRingtone');
+    
+    if (incomingAudio) {
+        incomingAudio.pause();
+        incomingAudio.currentTime = 0;
+    }
+    
+    if (outgoingAudio) {
+        outgoingAudio.pause();
+        outgoingAudio.currentTime = 0;
+    }
+    
+    // Stop Web Audio fallback
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+    if (oscillator) {
+        try {
+            oscillator.stop();
+            oscillator.disconnect();
+        } catch (e) {}
+        oscillator = null;
+    }
+    if (audioContext) {
+        try {
+            audioContext.close();
+        } catch (e) {}
+        audioContext = null;
+    }
+}
+
+// Web Audio fallback ringtone
+function playWebAudioRingtone() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        oscillator = audioContext.createOscillator();
+        gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 440;
+        gainNode.gain.value = 0.5;
+        oscillator.start();
+        
+        let isOn = true;
+        ringtoneInterval = setInterval(() => {
+            if (!audioContext) return;
+            gainNode.gain.value = isOn ? 0.5 : 0;
+            isOn = !isOn;
+        }, 500);
+        
+    } catch (e) {
+        console.log('Ringtone not supported:', e);
+    }
+}
+
+// Accept call - FIXED URL
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
@@ -366,7 +453,7 @@ window.acceptCall = function() {
             });
     }
 
-    // CORRECT URL
+    // CORRECT URL - Changed from /pages/home/friends/call/ to /pages/call-app/call/
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
     
@@ -406,54 +493,6 @@ window.rejectCall = async function(callId) {
     incomingCallData = null;
     showToast('info', 'Call rejected');
 };
-
-// Play ringtone
-function playRingtone() {
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        oscillator = audioContext.createOscillator();
-        gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 440;
-        gainNode.gain.value = 0.5;
-        oscillator.start();
-        
-        let isOn = true;
-        ringtoneInterval = setInterval(() => {
-            if (!audioContext) return;
-            gainNode.gain.value = isOn ? 0.5 : 0;
-            isOn = !isOn;
-        }, 500);
-        
-    } catch (e) {
-        console.log('Ringtone not supported:', e);
-    }
-}
-
-// Stop ringtone
-function stopRingtone() {
-    if (ringtoneInterval) {
-        clearInterval(ringtoneInterval);
-        ringtoneInterval = null;
-    }
-    if (oscillator) {
-        try {
-            oscillator.stop();
-            oscillator.disconnect();
-        } catch (e) {}
-        oscillator = null;
-    }
-    if (audioContext) {
-        try {
-            audioContext.close();
-        } catch (e) {}
-        audioContext = null;
-    }
-}
 
 // Format last seen
 function formatLastSeen(timestamp) {
