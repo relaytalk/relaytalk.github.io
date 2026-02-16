@@ -1,0 +1,207 @@
+/* pages/home/friends/history/history.css - Friends Theme (Blue) */
+
+.history-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-bottom: 80px;
+}
+
+.history-date {
+    font-weight: 600;
+    margin: 20px 0 10px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.history-item:hover {
+    border-color: #007acc;
+}
+
+.history-avatar {
+    width: 48px;
+    height: 48px;
+    background: #007acc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 20px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.history-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.history-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
+    flex-wrap: wrap;
+}
+
+.history-status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-active {
+    background: #e8f5e9;
+    color: #22c55e;
+}
+
+.status-missed {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.status-rejected {
+    background: #fff7ed;
+    color: #f97316;
+}
+
+.status-outgoing {
+    background: #e0f2fe;
+    color: #007acc;
+}
+
+.filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 8px;
+    background: white;
+    border-radius: 30px;
+    border: 1px solid #e2e8f0;
+}
+
+.filter-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: #007acc;
+    color: white;
+}
+
+.filter-btn:hover:not(.active) {
+    background: #f1f5f9;
+}
+
+.empty-history {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-history i {
+    font-size: 48px;
+    color: #007acc;
+    margin-bottom: 16px;
+}
+
+.empty-history h3 {
+    margin-bottom: 8px;
+    color: #1e293b;
+    font-size: 20px;
+}
+
+.empty-history p {
+    color: #64748b;
+}
+
+/* Badge for missed calls */
+.badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 1px solid white;
+}
+
+.nav-item {
+    position: relative;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .history-container {
+        padding: 15px;
+    }
+    
+    .history-item {
+        padding: 12px;
+    }
+    
+    .history-avatar {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+    
+    .history-meta {
+        font-size: 12px;
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+}
