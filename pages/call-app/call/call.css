@@ -1,4 +1,4 @@
-/* pages/call-app/pages/call/call.css - Updated with Friends Theme (Blue) */
+/* pages/call-app/pages/call/call.css - Blue Theme */
 
 * {
     margin: 0;
@@ -221,7 +221,7 @@ body {
     transform: scale(1.05);
 }
 
-/* Hang Button - Custom End Call Button */
+/* Hang Button */
 .hang-btn {
     background: #ef4444;
     border: none;
