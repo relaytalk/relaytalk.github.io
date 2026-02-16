@@ -1,482 +1,465 @@
-// call.js - COMPLETE WITH JAAS (Jitsi as a Service)
+// /pages/call-app/call/call.js - COMPLETE FIXED WITH TAB MANAGEMENT
 
-import { initializeSupabase } from '../utils/supabase.js';
-import { getRelayTalkUser } from '../utils/userSync.js';
+import { initializeSupabase } from '../utils/supabase.js'
+import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
 
-// JaaS configuration from your old files
-const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'; // Your JaaS app ID
-const JAAS_API_KEY = 'your-api-key-here'; // You'll need to add your API key
-
-// Load Jitsi API with JaaS
-const loadJitsiScript = () => {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = `https://${JAAS_APP_ID}.jaas.jitsi.net/external_api.js`;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-};
-
-let supabase = null;
-let currentUser = null;
-let jitsiApi = null;
-let callId = null;
-let callStatus = 'pending';
-let heartbeatInterval = null;
+let supabase
+let currentUser
+let currentCall
+let jitsiIframe
+let callRoom
+let isVideoOn = false
+let heartbeatInterval = null
 
 // Tab Management
-const TAB_ID = Math.random().toString(36).substring(7);
-const CALL_TABS_KEY = 'call_app_active_tabs';
+const TAB_ID = Math.random().toString(36).substring(7)
+const CALL_TABS_KEY = 'call_app_active_tabs'
 
-// Get URL parameters
-const urlParams = new URLSearchParams(window.location.search);
-const isIncoming = urlParams.get('incoming') === 'true';
-const roomName = urlParams.get('room');
-const friendId = urlParams.get('friendId');
-const friendName = urlParams.get('friendName');
-const callerId = urlParams.get('callerId');
-const callIdParam = urlParams.get('callId');
-
-// Create UI elements
-function createUI() {
-    if (!document.getElementById('callContainer')) {
-        const container = document.createElement('div');
-        container.id = 'callContainer';
-        container.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #1a1a1a;
-            z-index: 1000;
-        `;
-        document.body.appendChild(container);
-    }
-
-    if (!document.getElementById('callStatus')) {
-        const statusEl = document.createElement('div');
-        statusEl.id = 'callStatus';
-        statusEl.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 18px;
-            text-align: center;
-            z-index: 1001;
-            background: rgba(0,0,0,0.7);
-            padding: 20px 40px;
-            border-radius: 12px;
-        `;
-        statusEl.innerHTML = `
-            <div class="spinner" style="
-                width: 40px;
-                height: 40px;
-                border: 3px solid #f3f3f3;
-                border-top: 3px solid #007acc;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 16px;
-            "></div>
-            <div>Initializing call...</div>
-        `;
-        document.body.appendChild(statusEl);
-    }
-
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// Update status display
-function updateStatusDisplay(message, details) {
-    const statusEl = document.getElementById('callStatus');
-    if (statusEl) {
-        statusEl.innerHTML = `
-            <div class="spinner" style="
-                width: 40px;
-                height: 40px;
-                border: 3px solid #f3f3f3;
-                border-top: 3px solid #007acc;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 16px;
-            "></div>
-            <div>${details || message}</div>
-        `;
-    }
-}
-
-// Hide status display
-function hideStatusDisplay() {
-    const statusEl = document.getElementById('callStatus');
-    if (statusEl) {
-        statusEl.style.display = 'none';
-    }
-}
-
-// Generate a room name for JaaS
-function getOrCreateRoomName() {
-    if (roomName) {
-        // Room name already includes the JaaS prefix
-        return roomName;
-    }
-    
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    return `${JAAS_APP_ID}/CallApp-${timestamp}-${random}`;
-}
+const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'
+const JAAS_DOMAIN = '8x8.vc'
 
 // Register this tab
 function registerTab() {
     try {
-        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}');
-        const currentCallId = callIdParam || 'new-call';
+        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}')
+        const params = new URLSearchParams(window.location.search)
+        const callId = params.get('callId') || 'new-call'
         
-        if (activeTabs[currentCallId] && activeTabs[currentCallId] !== TAB_ID) {
-            console.log('⚠️ Another tab already active for this call, closing...');
-            alert('Call is already open in another tab. This tab will close.');
-            window.close();
-            return false;
+        if (activeTabs[callId] && activeTabs[callId] !== TAB_ID) {
+            console.log('⚠️ Another tab already active for this call, closing...')
+            alert('Call is already open in another tab. This tab will close.')
+            window.close()
+            return false
         }
         
-        activeTabs[currentCallId] = TAB_ID;
-        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs));
-        return true;
+        activeTabs[callId] = TAB_ID
+        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs))
+        return true
     } catch (e) {
-        console.log('Tab registration error:', e);
-        return true;
+        console.log('Tab registration error:', e)
+        return true
     }
 }
 
 // Remove tab registration
 function unregisterTab() {
     try {
-        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}');
-        const currentCallId = callId || callIdParam || 'new-call';
-        delete activeTabs[currentCallId];
-        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs));
+        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}')
+        const params = new URLSearchParams(window.location.search)
+        const callId = params.get('callId') || 'new-call'
+        delete activeTabs[callId]
+        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs))
     } catch (e) {
-        console.log('Tab unregistration error:', e);
+        console.log('Tab unregistration error:', e)
     }
 }
 
 async function initCall() {
-    console.log('📞 Initializing call with JaaS...');
-
+    console.log('📞 Initializing call...')
+    
+    // Register tab first
+    if (!registerTab()) return
+    
     try {
-        createUI();
-        updateStatusDisplay('initializing', 'Initializing call...');
-
-        if (!registerTab()) return;
-
-        const user = getRelayTalkUser();
-        if (!user) {
-            showError('Please login first');
-            return;
+        const relayUser = getRelayTalkUser()
+        if (!relayUser) {
+            showError('Please login to RelayTalk first')
+            return
         }
-        console.log('✅ Got user:', user.email);
-        currentUser = user;
-
-        supabase = await initializeSupabase();
-        console.log('✅ Supabase connected');
-
-        const finalRoomName = getOrCreateRoomName();
-        console.log('🎯 Using JaaS room:', finalRoomName);
-
-        callId = callIdParam;
         
-        if (!callId && !isIncoming) {
-            await createOutgoingCall(user, finalRoomName);
+        console.log('✅ Got user:', relayUser.email)
+        
+        supabase = await initializeSupabase()
+        currentUser = await syncUserToDatabase(supabase, relayUser)
+        
+        const params = new URLSearchParams(window.location.search)
+        const friendId = params.get('friendId')
+        const friendName = params.get('friendName')
+        const incoming = params.get('incoming')
+        const roomName = params.get('room')
+        const callerId = params.get('callerId')
+        const callId = params.get('callId')
+        
+        console.log('📞 Call params:', { friendId, friendName, incoming, roomName, callerId, callId })
+        
+        // Listen for storage events (when another tab is opened)
+        window.addEventListener('storage', handleStorageEvent)
+        
+        // Set up beforeunload handler
+        window.addEventListener('beforeunload', handleBeforeUnload)
+        
+        if (incoming === 'true' && roomName && callerId && callId) {
+            await handleIncomingCall(roomName, callerId, callId)
+        } else if (friendId) {
+            await startOutgoingCall(friendId, friendName)
+        } else {
+            showError('No call information provided')
         }
-
-        // Load Jitsi script with JaaS
-        await loadJitsiScript();
-        await joinJaaSRoom(finalRoomName);
-
-        startHeartbeat();
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        window.addEventListener('storage', handleStorageEvent);
-
+        
     } catch (error) {
-        console.error('❌ Call init error:', error);
-        showError('Failed to initialize call: ' + error.message);
+        console.error('❌ Init error:', error)
+        showError('Failed to initialize call')
     }
 }
 
 function handleStorageEvent(e) {
     if (e.key === CALL_TABS_KEY) {
-        const tabs = JSON.parse(e.newValue || '{}');
-        const currentCallId = callId || callIdParam || 'new-call';
+        const tabs = JSON.parse(e.newValue || '{}')
+        const params = new URLSearchParams(window.location.search)
+        const callId = params.get('callId') || 'new-call'
         
-        if (tabs[currentCallId] && tabs[currentCallId] !== TAB_ID) {
-            console.log('⚠️ Another tab opened this call, closing...');
-            alert('Call was opened in another tab. This tab will close.');
-            endCall(true);
+        if (tabs[callId] && tabs[callId] !== TAB_ID) {
+            console.log('⚠️ Another tab opened this call, closing...')
+            alert('Call was opened in another tab. This tab will close.')
+            endCall(true)
         }
     }
 }
 
-async function createOutgoingCall(user, room) {
+function handleBeforeUnload(event) {
+    unregisterTab()
+}
+
+async function createCallRoom() {
     try {
-        console.log('🎯 Creating call record with room:', room);
-        updateStatusDisplay('calling', `Calling ${friendName}...`);
+        const uniqueRoomName = `CallApp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+        const fullRoomName = `${JAAS_APP_ID}/${uniqueRoomName}`
         
-        if (!room) throw new Error('Room name is required');
-        if (!friendId) throw new Error('Friend ID is required');
-
-        // Check if there's an existing pending call
-        const { data: existingCalls } = await supabase
-            .from('calls')
-            .select('id, status, created_at')
-            .eq('caller_id', user.id)
-            .eq('callee_id', friendId)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        const callData = {
-            room_name: room,
-            room_url: `https://${JAAS_APP_ID}.jaas.jitsi.net/${room}`,
-            caller_id: user.id,
-            callee_id: friendId,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-
-        // If there's an existing call, update it
-        if (existingCalls && existingCalls.length > 0) {
-            const existingCall = existingCalls[0];
-            console.log('📞 Found existing pending call:', existingCall);
-            
-            const { error: updateError } = await supabase
-                .from('calls')
-                .update(callData)
-                .eq('id', existingCall.id);
-
-            if (updateError) throw updateError;
-            
-            callId = existingCall.id;
-            return;
+        console.log('🎯 Creating room:', fullRoomName)
+        
+        return {
+            name: fullRoomName,
+            url: `https://${JAAS_DOMAIN}/${fullRoomName}`,
+            id: uniqueRoomName
         }
+        
+    } catch (error) {
+        console.error('❌ Error creating room:', error)
+        throw error
+    }
+}
 
-        // Create new call
-        console.log('📝 Inserting new call');
+async function startOutgoingCall(friendId, friendName) {
+    try {
+        document.getElementById('loadingText').textContent = `Calling ${friendName}...`
+        console.log('1️⃣ Starting outgoing call to:', friendId, friendName)
+        
+        callRoom = await createCallRoom()
+        console.log('2️⃣ Room created:', callRoom)
+        
+        const callData = {
+            caller_id: currentUser.id,
+            receiver_id: friendId,
+            room_name: callRoom.name,
+            room_url: callRoom.url,
+            status: 'ringing',
+            created_at: new Date().toISOString()
+        }
+        
+        console.log('3️⃣ Call data:', callData)
+        
         const { data: call, error } = await supabase
             .from('calls')
             .insert([callData])
             .select()
-            .single();
-
-        if (error) throw error;
-
-        callId = call.id;
-        console.log('✅ Call created with ID:', callId);
-
+            .single()
+        
+        if (error) {
+            console.error('❌ Supabase error:', error)
+            throw new Error('Database error: ' + error.message)
+        }
+        
+        console.log('4️⃣ ✅ Call inserted:', call)
+        
+        currentCall = call
+        document.getElementById('loadingText').textContent = `Waiting for ${friendName} to answer...`
+        setupCallListener(call.id)
+        
     } catch (error) {
-        console.error('❌ Failed to create call:', error);
-        throw error;
+        console.error('❌ Call error:', error)
+        showError('Failed to start call: ' + error.message)
     }
 }
 
-async function joinJaaSRoom(room) {
+async function handleIncomingCall(roomName, callerId, callId) {
     try {
-        if (!room) throw new Error('Room name is required');
+        console.log('📞 Handling incoming call:', { roomName, callerId, callId })
+        document.getElementById('loadingText').textContent = 'Connecting...'
+        
+        currentCall = { id: callId, room_name: roomName }
+        
+        await supabase
+            .from('calls')
+            .update({ status: 'active', answered_at: new Date().toISOString() })
+            .eq('id', callId)
+        
+        await joinCall(roomName)
+        
+    } catch (error) {
+        console.error('❌ Incoming call error:', error)
+        showError('Failed to accept call')
+    }
+}
 
-        updateStatusDisplay('joining', 'Joining call...');
+function setupCallListener(callId) {
+    console.log('5️⃣ Setting up call listener for ID:', callId)
+    
+    supabase
+        .channel(`call-${callId}`)
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calls',
+            filter: `id=eq.${callId}`
+        }, (payload) => {
+            console.log('📞 Call update received:', payload.new.status)
+            
+            if (payload.new.status === 'active') {
+                const loadingText = document.getElementById('loadingText')
+                if (loadingText) {
+                    loadingText.textContent = 'Connecting...'
+                }
+                joinCall(payload.new.room_name)
+            } else if (payload.new.status === 'rejected') {
+                showCallEnded('Call was rejected')
+            } else if (payload.new.status === 'cancelled') {
+                showCallEnded('Call was cancelled')
+            }
+        })
+        .subscribe((status) => {
+            console.log('Call listener subscription status:', status)
+        })
+}
 
-        const domain = `${JAAS_APP_ID}.jaas.jitsi.net`;
-        const options = {
-            roomName: room,
-            width: '100%',
-            height: '100%',
-            parentNode: document.getElementById('callContainer'),
-            jwt: JAAS_API_KEY, // Add your JWT/token here
+async function joinCall(roomName) {
+    try {
+        console.log('6️⃣ Joining Jitsi call room:', roomName)
+        
+        document.getElementById('loadingScreen').style.display = 'flex'
+        document.getElementById('loadingText').textContent = 'Connecting...'
+        
+        const container = document.getElementById('dailyContainer')
+        container.innerHTML = ''
+        
+        const wrapper = document.createElement('div')
+        wrapper.style.width = '100%'
+        wrapper.style.height = '100%'
+        wrapper.style.position = 'relative'
+        wrapper.style.overflow = 'hidden'
+        wrapper.style.background = '#000'
+        
+        const iframe = document.createElement('iframe')
+        iframe.allow = 'microphone; camera; autoplay; display-capture'
+        iframe.style.width = '100%'
+        iframe.style.height = '100%'
+        iframe.style.border = 'none'
+        iframe.style.background = '#000'
+        
+        // Build URL correctly with all config
+        const baseUrl = `https://${JAAS_DOMAIN}/${roomName}`
+        const config = {
             configOverwrite: {
-                startWithAudioMuted: false,
-                startWithVideoMuted: false,
+                prejoinPageEnabled: false,
                 enableWelcomePage: false,
-                disableDeepLinking: true,
-                enableClosePage: false,
-                prejoinPageEnabled: false
+                startWithAudioMuted: false,
+                startWithVideoMuted: true,
+                disableChat: true,
+                disableInviteFunctions: true,
+                toolbarButtons: [],
+                hideConferenceTimer: true,
+                hideParticipantsStats: true,
+                hideLogo: true,
+                hideWatermark: true
             },
             interfaceConfigOverwrite: {
-                TOOLBAR_BUTTONS: [
-                    'microphone', 'camera', 'closedcaptions', 'desktop',
-                    'fullscreen', 'fodeviceselection', 'hangup',
-                    'profile', 'chat', 'recording',
-                    'livestreaming', 'etherpad', 'sharedvideo',
-                    'settings', 'raisehand', 'videoquality',
-                    'filmstrip', 'invite', 'feedback', 'stats',
-                    'shortcuts', 'tileview', 'videobackgroundblur',
-                    'download', 'help', 'mute-everyone', 'security'
-                ],
+                TOOLBAR_BUTTONS: [],
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
-                DEFAULT_BACKGROUND: '#1a1a1a',
-                MOBILE_APP_PROMO: false,
-                DEFAULT_REMOTE_DISPLAY_NAME: 'Caller'
+                VIDEO_LAYOUT_FIT: 'cover'
             },
             userInfo: {
-                displayName: currentUser?.username || 'User',
-                email: currentUser?.email
+                displayName: currentUser.username
             }
-        };
-
-        jitsiApi = new JitsiMeetExternalAPI(domain, options);
-
-        // Event handlers
-        jitsiApi.addEventListener('videoConferenceJoined', () => {
-            console.log('🎥 Conference joined');
-            hideStatusDisplay();
+        }
+        
+        const configParam = encodeURIComponent(JSON.stringify(config))
+        const url = `${baseUrl}#config=${configParam}`
+        iframe.src = url
+        console.log('8️⃣ Iframe URL:', url)
+        
+        wrapper.appendChild(iframe)
+        container.appendChild(wrapper)
+        jitsiIframe = iframe
+        
+        // Add CSS to hide any remaining Jitsi UI
+        const style = document.createElement('style')
+        style.textContent = `
+            .prejoin-screen, .welcome-page, .join-dialog,
+            [class*="toolbar"], [class*="Toolbar"],
+            [class*="watermark"], [class*="Watermark"] {
+                display: none !important;
+            }
+            video {
+                object-fit: cover !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+        `
+        wrapper.appendChild(style)
+        
+        // AUTO-JOIN: Click join button repeatedly
+        iframe.onload = function() {
+            console.log('Iframe loaded, auto-joining...')
             
-            if (!isIncoming && callStatus === 'pending') {
-                updateCallStatusInDB('active');
-            }
-        });
-
-        jitsiApi.addEventListener('participantJoined', (event) => {
-            console.log('👤 Participant joined:', event);
-        });
-
-        jitsiApi.addEventListener('participantLeft', (event) => {
-            console.log('👤 Participant left:', event);
-        });
-
-        jitsiApi.addEventListener('readyToClose', () => {
-            console.log('🔴 Ready to close');
-            endCall(false);
-        });
-
-        console.log('✅ Joined JaaS room');
-
+            const joinInterval = setInterval(() => {
+                try {
+                    const iframeDoc = iframe.contentWindow.document
+                    
+                    // Try different join button selectors
+                    const joinSelectors = [
+                        '[data-testid="prejoin.joinButton"]',
+                        '.prejoin-input-area button',
+                        '.join-button',
+                        'button:contains("Join")'
+                    ]
+                    
+                    for (const selector of joinSelectors) {
+                        const btn = iframeDoc.querySelector(selector)
+                        if (btn) {
+                            console.log('Clicking join button')
+                            btn.click()
+                            clearInterval(joinInterval)
+                            break
+                        }
+                    }
+                    
+                } catch(e) {}
+            }, 1000)
+            
+            setTimeout(() => clearInterval(joinInterval), 10000)
+        }
+        
+        // Hide loading after delay
+        setTimeout(() => {
+            document.getElementById('loadingScreen').style.display = 'none'
+            document.getElementById('activeCallScreen').style.display = 'block'
+        }, 3000)
+        
+        console.log('✅ Jitsi call connected!')
+        
     } catch (error) {
-        console.error('❌ Failed to join JaaS room:', error);
-        throw error;
+        console.error('❌ Join error:', error)
+        showError('Failed to join call: ' + error.message)
     }
 }
 
-async function endCall(silent = false) {
-    console.log('🔴 Ending call...');
-
-    if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
+// Video toggle
+window.toggleVideo = function() {
+    const btn = document.getElementById('videoBtn')
+    isVideoOn = !isVideoOn
+    
+    if (isVideoOn) {
+        btn.innerHTML = '<i class="fas fa-video"></i>'
+        btn.style.background = '#f5b342'
+    } else {
+        btn.innerHTML = '<i class="fas fa-video-slash"></i>'
+        btn.style.background = '#333'
     }
-
-    if (!silent && callId && supabase) {
-        await updateCallStatusInDB('completed');
-    }
-
-    if (jitsiApi) {
+    
+    if (jitsiIframe) {
         try {
-            jitsiApi.dispose();
-        } catch (e) {
-            console.log('Error disposing Jitsi:', e);
-        }
+            jitsiIframe.contentWindow.postMessage({
+                type: 'setVideoMuted',
+                muted: !isVideoOn
+            }, '*')
+        } catch(e) {}
     }
+}
 
-    unregisterTab();
-    window.close();
+// Mute toggle
+window.toggleMute = function() {
+    const btn = document.getElementById('muteBtn')
+    btn.classList.toggle('muted')
+    btn.innerHTML = btn.classList.contains('muted') 
+        ? '<i class="fas fa-microphone-slash"></i>' 
+        : '<i class="fas fa-microphone"></i>'
+    
+    if (jitsiIframe) {
+        try {
+            jitsiIframe.contentWindow.postMessage({
+                type: 'muteAudio',
+                muted: btn.classList.contains('muted')
+            }, '*')
+        } catch(e) {}
+    }
+}
+
+// Speaker toggle
+window.toggleSpeaker = function() {
+    const btn = document.getElementById('speakerBtn')
+    btn.classList.toggle('speaker-off')
+    btn.innerHTML = btn.classList.contains('speaker-off')
+        ? '<i class="fas fa-volume-mute"></i>'
+        : '<i class="fas fa-volume-up"></i>'
+}
+
+// End call
+window.endCall = async function(silent = false) {
+    console.log('Ending call...')
+    
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval)
+        heartbeatInterval = null
+    }
+    
+    if (currentCall && supabase && !silent) {
+        await supabase
+            .from('calls')
+            .update({ status: 'ended', ended_at: new Date().toISOString() })
+            .eq('id', currentCall.id)
+    }
+    
+    unregisterTab()
+    window.close()
     
     setTimeout(() => {
-        window.location.href = '../friends/index.html';
-    }, 500);
+        window.location.href = '../index.html'
+    }, 500)
 }
 
-function handleBeforeUnload(event) {
-    unregisterTab();
-    
-    if (callId && supabase && callStatus !== 'completed') {
-        const status = callStatus === 'active' ? 'completed' : 'missed';
-        updateCallStatusInDB(status);
-    }
-}
-
-async function updateCallStatusInDB(status) {
-    try {
-        if (!callId || !supabase) return;
-
-        const updateData = { 
-            status,
-            updated_at: new Date().toISOString()
-        };
-        
-        if (status === 'active') {
-            updateData.started_at = new Date().toISOString();
-        } else if (['completed', 'missed', 'rejected'].includes(status)) {
-            updateData.ended_at = new Date().toISOString();
-        }
-
-        const { error } = await supabase
+window.cancelCall = async function() {
+    if (currentCall) {
+        await supabase
             .from('calls')
-            .update(updateData)
-            .eq('id', callId);
-
-        if (error) throw error;
-
-        callStatus = status;
-        console.log(`✅ Call status updated to: ${status}`);
-
-    } catch (error) {
-        console.error('❌ Failed to update call status:', error);
+            .update({ status: 'cancelled', ended_at: new Date().toISOString() })
+            .eq('id', currentCall.id)
     }
+    
+    unregisterTab()
+    window.location.href = '../index.html'
 }
 
-function startHeartbeat() {
-    heartbeatInterval = setInterval(async () => {
-        if (callId && supabase && callStatus === 'active') {
-            await supabase
-                .from('calls')
-                .update({ updated_at: new Date().toISOString() })
-                .eq('id', callId);
-        }
-    }, 10000);
+window.acceptCall = function() {}
+window.declineCall = function() {}
+
+function showCallEnded(message) {
+    document.getElementById('loadingScreen').style.display = 'flex'
+    document.getElementById('loadingText').textContent = message
+    
+    setTimeout(() => {
+        window.location.href = '../index.html'
+    }, 2000)
 }
 
 function showError(message) {
-    const existingError = document.getElementById('callError');
-    if (existingError) existingError.remove();
-
-    const errorEl = document.createElement('div');
-    errorEl.id = 'callError';
-    errorEl.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 24px;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        text-align: center;
-        z-index: 2000;
-        max-width: 90%;
-        width: 400px;
-    `;
-    errorEl.innerHTML = `
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 16px;">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#dc2626"/>
-        </svg>
-        <h3 style="margin-bottom: 8px; color: #1e293b;">Call Failed</h3>
-        <p style="color: #64748b; margin-bottom: 20px; word-break: break-word;">${message}</p>
-        <button onclick="window.location.href='../friends/index.html'" style="background: #007acc; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%;">
-            Return to Friends
-        </button>
-    `;
-    document.body.appendChild(errorEl);
+    document.getElementById('loadingScreen').style.display = 'none'
+    document.getElementById('errorScreen').style.display = 'flex'
+    document.getElementById('errorMessage').textContent = message
+    
+    setTimeout(() => {
+        unregisterTab()
+    }, 1000)
 }
 
 // Initialize call
-initCall();
+initCall()
