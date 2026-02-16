@@ -401,3 +401,48 @@ export async function checkFriendship(supabase, userId1, userId2) {
         return false
     }
 }
+
+// Get pending friend requests count
+export async function getPendingRequestsCount(supabase, userId) {
+    try {
+        const { count, error } = await supabase
+            .from('friend_requests')
+            .select('*', { count: 'exact', head: true })
+            .eq('receiver_id', userId)
+            .eq('status', 'pending')
+
+        if (error) throw error
+        return count || 0
+
+    } catch (error) {
+        console.error('Error getting pending requests count:', error)
+        return 0
+    }
+}
+
+// Accept friend request
+export async function acceptFriendRequest(supabase, requestId) {
+    return respondToFriendRequest(supabase, requestId, 'accepted')
+}
+
+// Reject friend request
+export async function rejectFriendRequest(supabase, requestId) {
+    return respondToFriendRequest(supabase, requestId, 'rejected')
+}
+
+// Remove friend
+export async function removeFriend(supabase, userId, friendId) {
+    try {
+        // Remove bidirectional friendship
+        await supabase
+            .from('friends')
+            .delete()
+            .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`)
+
+        return true
+
+    } catch (error) {
+        console.error('Error removing friend:', error)
+        throw error
+    }
+}
