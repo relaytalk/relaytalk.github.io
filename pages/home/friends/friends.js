@@ -1,4 +1,4 @@
-// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND HISTORY NAVIGATION
+// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND MISSED CALL BADGE
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -100,6 +100,9 @@ async function initFriendsPage() {
                         
                         incomingCallData = callData;
                         showIncomingCallNotification(callData);
+                        
+                        // Check missed calls again after incoming call
+                        setTimeout(() => checkMissedCalls(), 2000);
                     }
                 }
             });
@@ -114,7 +117,7 @@ async function initFriendsPage() {
             }
         }, 30000);
 
-        // Update missed calls badge periodically
+        // Check missed calls periodically
         setInterval(() => {
             checkMissedCalls();
         }, 10000);
@@ -136,12 +139,15 @@ async function checkMissedCalls() {
 
         const { data: calls, error } = await callAppSupabase
             .from('calls')
-            .select('id, status, seen')
+            .select('id')
             .eq('receiver_id', currentUser.id)
             .in('status', ['missed', 'ringing'])
             .eq('seen', false);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error checking missed calls:', error);
+            return;
+        }
 
         missedCallCount = calls?.length || 0;
         updateMissedCallBadge();
@@ -153,37 +159,14 @@ async function checkMissedCalls() {
 
 // Update missed call badge on history icon
 function updateMissedCallBadge() {
-    // Find history nav item
-    const historyNav = document.querySelector('a[href="history/index.html"]');
-    if (!historyNav) return;
-
-    // Remove existing badge
-    const existingBadge = historyNav.querySelector('.missed-badge');
-    if (existingBadge) existingBadge.remove();
+    const badge = document.getElementById('missedCallBadge');
+    if (!badge) return;
 
     if (missedCallCount > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'missed-badge';
-        badge.style.cssText = `
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: #ef4444;
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-            min-width: 16px;
-            height: 16px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            border: 1px solid white;
-        `;
         badge.textContent = missedCallCount > 9 ? '9+' : missedCallCount;
-        historyNav.style.position = 'relative';
-        historyNav.appendChild(badge);
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
     }
 }
 
@@ -318,22 +301,9 @@ function showIncomingCallNotification(callData) {
     
     const notification = document.createElement('div');
     notification.id = 'incomingCallNotification';
+    notification.className = 'incoming-call-notification';
     notification.setAttribute('data-caller-id', callData.callerId);
     notification.setAttribute('data-call-id', callData.callId);
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,122,204,0.15);
-        width: 320px;
-        padding: 16px;
-        border-left: 4px solid #007acc;
-        z-index: 9999;
-        animation: slideIn 0.3s ease;
-    `;
-
     notification.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
             <div style="width: 48px; height: 48px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
@@ -383,13 +353,17 @@ window.acceptCall = function() {
             .from('calls')
             .update({ 
                 status: 'missed',
-                ended_at: new Date().toISOString()
+                ended_at: new Date().toISOString(),
+                seen: true
             })
             .eq('caller_id', incomingCallData.callerId)
             .eq('callee_id', currentUser.id)
             .eq('status', 'pending')
             .neq('id', incomingCallData.callId)
-            .then(() => console.log('Cleaned up duplicate calls'));
+            .then(() => {
+                console.log('Cleaned up duplicate calls');
+                checkMissedCalls();
+            });
     }
 
     // CORRECT URL
@@ -415,10 +389,15 @@ window.rejectCall = async function(callId) {
                 .from('calls')
                 .update({ 
                     status: 'rejected',
-                    ended_at: new Date().toISOString()
+                    ended_at: new Date().toISOString(),
+                    seen: true
                 })
                 .eq('id', callToReject);
             console.log('Call rejected');
+            
+            // Check missed calls again
+            await checkMissedCalls();
+            
         } catch (error) {
             console.error('Error rejecting call:', error);
         }
@@ -495,7 +474,8 @@ window.searchFriends = function() {
     if (!input) return;
 
     const term = input.value.toLowerCase().trim();
-    document.getElementById('clearSearch').style.display = term ? 'flex' : 'none';
+    const clearBtn = document.getElementById('clearSearch');
+    if (clearBtn) clearBtn.style.display = term ? 'flex' : 'none';
 
     filteredFriends = term 
         ? allFriends.filter(f => f.username?.toLowerCase().includes(term))
@@ -507,7 +487,9 @@ window.searchFriends = function() {
 // Clear search
 window.clearSearch = function() {
     document.getElementById('searchInput').value = '';
-    window.searchFriends();
+    document.getElementById('clearSearch').style.display = 'none';
+    filteredFriends = [...allFriends];
+    renderFriendsList();
 };
 
 // Show empty state
@@ -667,7 +649,7 @@ function showToast(type, message) {
     if (!container) return;
 
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `toast ${type}`;
     toast.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
         <span>${message}</span>
