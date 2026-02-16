@@ -1,4 +1,4 @@
-// friends.js - COMPLETE WITH CALL FUNCTIONALITY (FIXED ACCEPT URL)
+// friends.js - COMPLETE WITH CALL FUNCTIONALITY AND HISTORY NAVIGATION
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -23,6 +23,7 @@ let audioContext = null;
 let oscillator = null;
 let gainNode = null;
 let ringtoneInterval = null;
+let missedCallCount = 0;
 
 // Initialize
 async function initFriendsPage() {
@@ -67,6 +68,9 @@ async function initFriendsPage() {
         // Load friends
         await loadFriends();
 
+        // Check for missed calls
+        await checkMissedCalls();
+
         // Initialize call listener
         if (!callListenerInitialized && currentUser && currentUser.id) {
             console.log('📞 Initializing call listener...');
@@ -110,6 +114,11 @@ async function initFriendsPage() {
             }
         }, 30000);
 
+        // Update missed calls badge periodically
+        setInterval(() => {
+            checkMissedCalls();
+        }, 10000);
+
         // Hide loading
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
@@ -117,6 +126,64 @@ async function initFriendsPage() {
     } catch (error) {
         console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
+    }
+}
+
+// Check for missed calls
+async function checkMissedCalls() {
+    try {
+        if (!callAppSupabase || !currentUser) return;
+
+        const { data: calls, error } = await callAppSupabase
+            .from('calls')
+            .select('id, status, seen')
+            .eq('receiver_id', currentUser.id)
+            .in('status', ['missed', 'ringing'])
+            .eq('seen', false);
+
+        if (error) throw error;
+
+        missedCallCount = calls?.length || 0;
+        updateMissedCallBadge();
+
+    } catch (error) {
+        console.error('Error checking missed calls:', error);
+    }
+}
+
+// Update missed call badge on history icon
+function updateMissedCallBadge() {
+    // Find history nav item
+    const historyNav = document.querySelector('a[href="history/index.html"]');
+    if (!historyNav) return;
+
+    // Remove existing badge
+    const existingBadge = historyNav.querySelector('.missed-badge');
+    if (existingBadge) existingBadge.remove();
+
+    if (missedCallCount > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'missed-badge';
+        badge.style.cssText = `
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid white;
+        `;
+        badge.textContent = missedCallCount > 9 ? '9+' : missedCallCount;
+        historyNav.style.position = 'relative';
+        historyNav.appendChild(badge);
     }
 }
 
@@ -300,7 +367,7 @@ function showIncomingCallNotification(callData) {
     }, 30000);
 }
 
-// Accept call - FIXED URL (matches caller's path)
+// Accept call
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
@@ -325,7 +392,7 @@ window.acceptCall = function() {
             .then(() => console.log('Cleaned up duplicate calls'));
     }
 
-    // CORRECT URL - Same as caller's outgoing call path
+    // CORRECT URL
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
     
