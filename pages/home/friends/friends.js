@@ -1,6 +1,7 @@
-// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED listener)
+// friends.js - USING BOTH SUPABASE INSTANCES (Main for auth/friends, Call-app for calls)
 
-import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
+import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
+import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
 import { 
     syncUserToDatabase, 
     getUserFriends,
@@ -8,9 +9,10 @@ import {
 } from '../../call-app/utils/userSync.js';
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
-let supabase = null;
-let currentUser = null;
-let authUser = null;
+let mainSupabase = null;      // For auth and friends (your main app)
+let callAppSupabase = null;   // For calls (the special Daily.co Supabase)
+let currentUser = null;       // Call-app user (from call-app DB)
+let authUser = null;          // Main app user (from auth)
 let allFriends = [];
 let filteredFriends = [];
 let callListenerInitialized = false;
@@ -20,115 +22,198 @@ let oscillator = null;
 let gainNode = null;
 let ringtoneInterval = null;
 
-// Initialize with Supabase wait
+// Initialize with both Supabase instances
 async function initFriendsPage() {
-    console.log('Loading friends with call features...');
+    console.log('🚀 Loading friends with call features (dual Supabase mode)...');
 
     try {
-        supabase = await initializeSupabase();
+        // Initialize MAIN Supabase (for auth and friends)
+        console.log('📡 Initializing MAIN Supabase...');
+        mainSupabase = await initMainSupabase();
+        
+        // Initialize CALL-APP Supabase (for calls)
+        console.log('📞 Initializing CALL-APP Supabase...');
+        callAppSupabase = await initCallAppSupabase();
 
-        if (!supabase || !supabase.auth) {
-            throw new Error('Supabase not initialized');
+        if (!mainSupabase || !mainSupabase.auth) {
+            throw new Error('Main Supabase not initialized');
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!callAppSupabase) {
+            throw new Error('Call-app Supabase not initialized');
+        }
+
+        // Get session from MAIN Supabase
+        const { data: { session }, error } = await mainSupabase.auth.getSession();
 
         if (error) throw error;
 
         if (!session) {
+            console.log('🚫 No session, redirecting to login...');
             window.location.href = '../../../pages/login/index.html';
             return;
         }
 
         authUser = session.user;
-        console.log('✅ Auth user:', authUser.email);
+        console.log('✅ MAIN Auth user:', authUser.email);
+        console.log('✅ MAIN User ID:', authUser.id);
 
-        // STEP 1: Sync user to call-app database
-        console.log('🔄 Syncing user to call-app database...');
-        currentUser = await syncUserToDatabase(supabase, authUser);
-        console.log('✅ Call-app user synced:', currentUser);
+        // Sync user to CALL-APP database (this creates user in call-app DB with same ID)
+        console.log('🔄 Syncing user to CALL-APP database...');
+        currentUser = await syncUserToDatabase(callAppSupabase, {
+            id: authUser.id,
+            email: authUser.email,
+            username: authUser.user_metadata?.username || authUser.email.split('@')[0],
+            avatar_url: authUser.user_metadata?.avatar_url || null
+        });
+        console.log('✅ CALL-APP user synced:', currentUser);
 
         if (!currentUser || !currentUser.id) {
             throw new Error('Failed to sync user to call-app database');
         }
 
-        // STEP 2: Load friends
+        console.log('✅ CALL-APP User ID:', currentUser.id);
+
+        // Load friends from MAIN Supabase
         await loadFriends();
 
-        // STEP 3: Initialize call listener with the CORRECT user
+        // Initialize call listener with CALL-APP Supabase
         if (!callListenerInitialized && currentUser && currentUser.id) {
-            console.log('📞 Initializing call listener for user:', currentUser.id);
+            console.log('📞 Initializing call listener with CALL-APP Supabase for user:', currentUser.id);
             
-            // Create user object for call listener
+            // Make sure we pass the correct user object
             const callListenerUser = {
                 id: currentUser.id,
                 username: currentUser.username || authUser.email.split('@')[0]
             };
             
             // Initialize listener with callback
-            initCallListener(supabase, callListenerUser, {
+            initCallListener(callAppSupabase, callListenerUser, {
                 onIncomingCall: (callData) => {
                     console.log('📞🔥 INCOMING CALL RECEIVED:', callData);
                     
                     if (!callData || !callData.callerId) {
-                        console.error('Invalid call data:', callData);
+                        console.error('❌ Invalid call data:', callData);
                         return;
                     }
                     
                     // Check if this call is for the current user
                     if (callData.calleeId === currentUser.id) {
-                        console.log('✅ This call is for me!');
+                        console.log('✅ This call is for me! Showing modal...');
                         incomingCallData = callData;
                         showIncomingCallModal(callData);
                     } else {
-                        console.log('⏭️ Call not for me, ignoring');
+                        console.log('⏭️ Call not for me (me:', currentUser.id, 'callee:', callData.calleeId, ')');
                     }
                 }
             });
             
             callListenerInitialized = true;
-            console.log('✅ Call listener initialized successfully');
+            console.log('✅ Call listener initialized successfully with CALL-APP Supabase');
+        } else {
+            console.log('⚠️ Call listener NOT initialized - missing user or already initialized');
         }
 
-        // STEP 4: Update status periodically
+        // Update status periodically in CALL-APP database
         setInterval(() => {
-            if (currentUser && currentUser.id) {
-                updateUserStatus(supabase, currentUser.id, 'online');
+            if (currentUser && currentUser.id && callAppSupabase) {
+                updateUserStatus(callAppSupabase, currentUser.id, 'online');
+                console.log('🟢 Updated online status in CALL-APP DB');
             }
         }, 30000);
 
+        // Hide loading indicator
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
 
+        console.log('✅ Friends page ready with call features!');
+
     } catch (error) {
-        console.error('Init error:', error);
+        console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
     }
 }
 
-// Load friends
+// Load friends from MAIN Supabase
 async function loadFriends() {
     try {
-        if (!currentUser || !currentUser.id || !supabase) {
-            console.log('Waiting for user...');
+        if (!authUser || !mainSupabase) {
+            console.log('⏳ Waiting for auth user or main Supabase...');
             return;
         }
 
-        console.log('Loading friends for user:', currentUser.id);
-        const friends = await getUserFriends(supabase, currentUser.id);
+        console.log('🔍 Loading friends for user:', authUser.id);
         
-        allFriends = friends || [];
+        // Get friend IDs from MAIN Supabase
+        const { data: friendsData, error: friendsError } = await mainSupabase
+            .from('friends')
+            .select('friend_id')
+            .eq('user_id', authUser.id);
+
+        if (friendsError) throw friendsError;
+
+        if (!friendsData || friendsData.length === 0) {
+            console.log('📭 No friends found in MAIN DB');
+            allFriends = [];
+            filteredFriends = [];
+            renderFriendsList();
+            return;
+        }
+
+        const friendIds = friendsData.map(f => f.friend_id);
+        console.log('👥 Friend IDs:', friendIds);
+        
+        // Get friend profiles from MAIN Supabase
+        const { data: profiles, error: profilesError } = await mainSupabase
+            .from('profiles')
+            .select('id, username, avatar_url, status, last_seen')
+            .in('id', friendIds)
+            .order('username');
+
+        if (profilesError) throw profilesError;
+
+        // For online status, we need to check CALL-APP DB
+        // But for now, we'll use MAIN DB status
+        allFriends = profiles || [];
+        
+        // Try to get real-time status from CALL-APP DB
+        if (callAppSupabase && friendIds.length > 0) {
+            try {
+                const { data: callAppProfiles } = await callAppSupabase
+                    .from('profiles')
+                    .select('id, status, last_seen')
+                    .in('id', friendIds);
+                
+                if (callAppProfiles) {
+                    // Merge CALL-APP status into MAIN profiles
+                    allFriends = allFriends.map(friend => {
+                        const callAppFriend = callAppProfiles.find(cf => cf.id === friend.id);
+                        if (callAppFriend) {
+                            return {
+                                ...friend,
+                                status: callAppFriend.status,
+                                last_seen: callAppFriend.last_seen
+                            };
+                        }
+                        return friend;
+                    });
+                }
+            } catch (e) {
+                console.log('Could not fetch CALL-APP status:', e);
+            }
+        }
+        
         filteredFriends = [...allFriends];
         console.log(`✅ Loaded ${allFriends.length} friends`);
         renderFriendsList();
 
     } catch (error) {
-        console.error('Load error:', error);
+        console.error('❌ Load error:', error);
         showEmptyState();
     }
 }
 
-// Render friends list
+// Render friends list WITH CALL BUTTONS
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -158,11 +243,11 @@ function renderFriendsList() {
                     <div class="friend-name-status">
                         <div class="friend-name-clean">${friend.username || 'User'}</div>
                         <div class="friend-status-clean">
-                            ${online ? 'Online' : `Last seen ${lastSeen}`}
+                            ${online ? '🟢 Online' : `⚪ Last seen ${lastSeen}`}
                         </div>
                     </div>
                 </div>
-                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')">
+                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
                     <i class="fas fa-phone"></i>
                 </button>
             </div>
@@ -172,8 +257,9 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL
+// START CALL - with correct URL
 window.startCall = function(friendId, friendName) {
+    // Check if friend is online
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
         showToast('error', `${friendName} is offline`);
@@ -181,6 +267,7 @@ window.startCall = function(friendId, friendName) {
     }
     
     console.log(`📞 Starting call to ${friendName} (${friendId})`);
+    // CORRECT URL: /pages/call-app/call/index.html
     window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
 };
 
@@ -192,6 +279,7 @@ function showIncomingCallModal(callData) {
     const callerNameEl = document.getElementById('callerName');
     const callerInitialEl = document.getElementById('callerInitial');
     
+    // Find caller in friends list
     const caller = allFriends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' };
     
     callerNameEl.textContent = caller.username;
@@ -210,6 +298,7 @@ window.acceptCall = function() {
     stopRingtone();
     document.getElementById('incomingCallModal').style.display = 'none';
     
+    // CORRECT URL for incoming call
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
     window.location.href = url;
@@ -220,8 +309,18 @@ window.rejectCall = function() {
     stopRingtone();
     document.getElementById('incomingCallModal').style.display = 'none';
     
-    // TODO: Add API call to reject call
+    // TODO: Add API call to reject call in call-app DB
     console.log('❌ Call rejected:', incomingCallData?.callId);
+    
+    // You could call an API to update call status
+    if (incomingCallData?.callId && callAppSupabase) {
+        callAppSupabase
+            .from('calls')
+            .update({ status: 'rejected' })
+            .eq('id', incomingCallData.callId)
+            .then(() => console.log('Call marked as rejected'));
+    }
+    
     incomingCallData = null;
     showToast('info', 'Call rejected');
 };
@@ -359,9 +458,9 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
-// Search users
+// Search users to add as friends (using MAIN Supabase)
 window.searchUsers = async function() {
-    if (!supabase || !authUser) return;
+    if (!mainSupabase || !authUser) return;
 
     const input = document.getElementById('userSearchInput');
     const container = document.getElementById('searchResults');
@@ -369,20 +468,22 @@ window.searchUsers = async function() {
 
     const term = input.value.toLowerCase().trim();
 
-    if (!term) {
-        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Search for friends to add</p></div>`;
+    if (!term || term.length < 2) {
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Type at least 2 characters to search</p></div>`;
         return;
     }
 
     try {
-        const { data: friends } = await supabase
+        // Get existing friends
+        const { data: friends } = await mainSupabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', authUser.id);
 
         const friendIds = friends?.map(f => f.friend_id) || [];
 
-        const { data: pending } = await supabase
+        // Get pending requests
+        const { data: pending } = await mainSupabase
             .from('friend_requests')
             .select('receiver_id')
             .eq('sender_id', authUser.id)
@@ -390,7 +491,8 @@ window.searchUsers = async function() {
 
         const pendingIds = pending?.map(r => r.receiver_id) || [];
 
-        const { data: users, error } = await supabase
+        // Search users
+        const { data: users, error } = await mainSupabase
             .from('profiles')
             .select('id, username, avatar_url')
             .neq('id', authUser.id)
@@ -412,10 +514,10 @@ window.searchUsers = async function() {
 
             html += `
                 <div class="search-result-item">
-                    <div class="search-result-avatar">
+                    <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
                         ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
-                            : `<span>${initial}</span>`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
                         }
                     </div>
                     <div class="search-result-info">
@@ -440,13 +542,13 @@ window.searchUsers = async function() {
     }
 };
 
-// Send friend request
+// Send friend request (in MAIN Supabase)
 window.sendFriendRequest = async function(userId, username, btn) {
     try {
         btn.disabled = true;
         btn.textContent = 'Sending...';
 
-        const { error } = await supabase
+        const { error } = await mainSupabase
             .from('friend_requests')
             .insert({
                 sender_id: authUser.id,
@@ -469,35 +571,57 @@ window.sendFriendRequest = async function(userId, username, btn) {
     }
 };
 
-// Toast
+// Toast notification
 function showToast(type, message) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    
     toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <i class="fas fa-${icon}"></i>
         <span>${message}</span>
     `;
 
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // Navigation
 window.goToHome = () => window.location.href = '../../home/index.html';
+
 window.openSearch = () => {
-    document.getElementById('searchModal').style.display = 'flex';
-    setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
+    const modal = document.getElementById('searchModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
+    }
 };
+
 window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
+    document.getElementById('userSearchInput').value = '';
+    document.getElementById('searchResults').innerHTML = '';
 };
+
 window.logout = async () => {
-    if (supabase) await supabase.auth.signOut();
+    if (mainSupabase) await mainSupabase.auth.signOut();
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
     window.location.href = '../../../pages/login/index.html';
 };
 
-// Start
+// Start the app
 document.addEventListener('DOMContentLoaded', initFriendsPage);
