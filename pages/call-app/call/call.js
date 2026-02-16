@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - COMPLETE FINAL VERSION WITH HANG BUTTON
+// /pages/call-app/call/call.js - COMPLETE FINAL VERSION WITH HANG BUTTON & FIXED REDIRECT
 
 import { initializeSupabase } from '/pages/call-app/utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '/pages/call-app/utils/userSync.js'
@@ -374,12 +374,12 @@ window.toggleVideo = function() {
     
     if (isVideoOn) {
         btn.innerHTML = '<i class="fas fa-video"></i>'
-        btn.style.background = '#f5b342'
-        btn.style.color = '#333'
+        btn.style.background = '#007acc'
+        btn.style.color = 'white'
     } else {
         btn.innerHTML = '<i class="fas fa-video-slash"></i>'
-        btn.style.background = '#333'
-        btn.style.color = '#f5b342'
+        btn.style.background = '#f1f5f9'
+        btn.style.color = '#007acc'
     }
     
     if (jitsiIframe) {
