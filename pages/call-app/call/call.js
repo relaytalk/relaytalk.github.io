@@ -1,4 +1,4 @@
-// call.js - COMPLETE WITH TAB MANAGEMENT (FIXED duplicate function)
+// call.js - COMPLETE WITH TAB MANAGEMENT (FIXED room name issue)
 
 import { initializeSupabase } from '../utils/supabase.js';
 import { getRelayTalkUser } from '../utils/userSync.js';
@@ -23,6 +23,23 @@ const friendId = urlParams.get('friendId');
 const friendName = urlParams.get('friendName');
 const callerId = urlParams.get('callerId');
 const callIdParam = urlParams.get('callId');
+
+// Validate required parameters
+if (!isIncoming && (!friendId || !friendName)) {
+    console.error('❌ Missing required parameters for outgoing call');
+    showError('Invalid call: Missing friend information');
+}
+
+// Generate a room name if not provided (for outgoing calls)
+function getOrCreateRoomName() {
+    if (roomName) return roomName;
+    
+    // Create a unique room name for Daily.co
+    // Format: vpaas-magic-cookie-unique-id/CallApp-timestamp-random
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    return `vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4/CallApp-${timestamp}-${random}`;
+}
 
 // Register this tab
 function registerTab() {
@@ -82,16 +99,20 @@ async function initCall() {
         supabase = await initializeSupabase();
         console.log('✅ Supabase connected');
 
+        // Get or create room name
+        const finalRoomName = getOrCreateRoomName();
+        console.log('🎯 Using room:', finalRoomName);
+
         // Get call ID from URL or create new
         callId = callIdParam;
         
         if (!callId && !isIncoming) {
             // Outgoing call - create call record
-            await createOutgoingCall(user, roomName);
+            await createOutgoingCall(user, finalRoomName);
         }
 
         // Join the Daily room
-        await joinDailyRoom();
+        await joinDailyRoom(finalRoomName);
 
         // Set up call status heartbeat
         startHeartbeat();
@@ -121,8 +142,13 @@ async function initCall() {
 
 async function createOutgoingCall(user, room) {
     try {
-        console.log('🎯 Creating call record...');
+        console.log('🎯 Creating call record with room:', room);
         
+        // Validate room name
+        if (!room) {
+            throw new Error('Room name is required');
+        }
+
         // Check if there's already a pending call from this user to this friend
         const { data: existingCalls, error: checkError } = await supabase
             .from('calls')
@@ -141,13 +167,15 @@ async function createOutgoingCall(user, room) {
             console.log('📞 Found existing pending call:', existingCall);
             
             // Update the room name
-            await supabase
+            const { error: updateError } = await supabase
                 .from('calls')
                 .update({ 
                     room_name: room,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', existingCall.id);
+
+            if (updateError) throw updateError;
             
             callId = existingCall.id;
             
@@ -157,20 +185,27 @@ async function createOutgoingCall(user, room) {
         }
 
         // No existing pending call, create new one
+        const callData = {
+            room_name: room,
+            caller_id: user.id,
+            callee_id: friendId,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        console.log('📝 Inserting new call:', callData);
+
         const { data: call, error } = await supabase
             .from('calls')
-            .insert([{
-                room_name: room,
-                caller_id: user.id,
-                callee_id: friendId,
-                status: 'pending',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
+            .insert([callData])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Insert error:', error);
+            throw error;
+        }
 
         callId = call.id;
         console.log('✅ New call created:', call);
@@ -184,8 +219,12 @@ async function createOutgoingCall(user, room) {
     }
 }
 
-async function joinDailyRoom() {
+async function joinDailyRoom(room) {
     try {
+        if (!room) {
+            throw new Error('Room name is required to join');
+        }
+
         // Create Daily iframe
         callFrame = DailyIframe.createFrame({
             showLeaveButton: false,
@@ -205,8 +244,11 @@ async function joinDailyRoom() {
         addCustomHangupButton();
 
         // Join the room
+        const roomUrl = `https://${room}`;
+        console.log('🔗 Joining room:', roomUrl);
+
         await callFrame.join({
-            url: `https://${roomName}`,
+            url: roomUrl,
             showLeaveButton: false,
             userName: currentUser?.username || 'User'
         });
@@ -322,7 +364,6 @@ function handleBeforeUnload(event) {
     }
 }
 
-// Renamed from updateCallStatus to avoid duplicate
 async function updateCallStatusInDB(status) {
     try {
         if (!callId || !supabase) return;
@@ -355,7 +396,6 @@ async function updateCallStatusInDB(status) {
 }
 
 function startHeartbeat() {
-    // Update status every 10 seconds to keep call active
     heartbeatInterval = setInterval(async () => {
         if (callId && supabase && callStatus === 'active') {
             await supabase
@@ -369,7 +409,6 @@ function startHeartbeat() {
 function handleParticipantJoined(event) {
     console.log('👤 Participant joined:', event);
     
-    // Update call status to active if it's the callee joining
     if (!isIncoming && callStatus === 'pending') {
         updateCallStatusInDB('active');
     }
@@ -380,7 +419,6 @@ function handleParticipantJoined(event) {
 function handleParticipantLeft(event) {
     console.log('👤 Participant left:', event);
     
-    // If less than 2 participants, end call after delay
     if (callFrame && callFrame.participantCount() < 2) {
         setTimeout(() => {
             endCall(false);
@@ -394,7 +432,6 @@ function handleCallError(error) {
     endCall(false);
 }
 
-// Renamed from updateCallStatus to avoid duplicate
 function updateStatusDisplay(message, details) {
     const statusEl = document.getElementById('callStatus');
     if (statusEl) {
@@ -416,14 +453,16 @@ function showError(message) {
         box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         text-align: center;
         z-index: 2000;
+        max-width: 90%;
+        width: 400px;
     `;
     errorEl.innerHTML = `
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 16px;">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#dc2626"/>
         </svg>
         <h3 style="margin-bottom: 8px; color: #1e293b;">Call Failed</h3>
-        <p style="color: #64748b; margin-bottom: 20px;">${message}</p>
-        <button onclick="window.location.href='../friends/index.html'" style="background: #007acc; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+        <p style="color: #64748b; margin-bottom: 20px; word-break: break-word;">${message}</p>
+        <button onclick="window.location.href='../friends/index.html'" style="background: #007acc; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%;">
             Return to Friends
         </button>
     `;
