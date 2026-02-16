@@ -1,4 +1,4 @@
-// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED paths)
+// friends.js - WITH FULL CALL FUNCTIONALITY (FIXED listener)
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 import { 
@@ -9,8 +9,8 @@ import {
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
 let supabase = null;
-let currentUser = null; // This will be the call-app user (with ID from call-app DB)
-let authUser = null;    // This is the auth user
+let currentUser = null;
+let authUser = null;
 let allFriends = [];
 let filteredFriends = [];
 let callListenerInitialized = false;
@@ -43,7 +43,7 @@ async function initFriendsPage() {
         authUser = session.user;
         console.log('✅ Auth user:', authUser.email);
 
-        // STEP 1: Sync user to call-app database FIRST (this gives us the correct user ID)
+        // STEP 1: Sync user to call-app database
         console.log('🔄 Syncing user to call-app database...');
         currentUser = await syncUserToDatabase(supabase, authUser);
         console.log('✅ Call-app user synced:', currentUser);
@@ -55,31 +55,39 @@ async function initFriendsPage() {
         // STEP 2: Load friends
         await loadFriends();
 
-        // STEP 3: Initialize call listener with the CORRECT user from call-app DB
+        // STEP 3: Initialize call listener with the CORRECT user
         if (!callListenerInitialized && currentUser && currentUser.id) {
             console.log('📞 Initializing call listener for user:', currentUser.id);
             
-            // Make sure we have a valid user object
+            // Create user object for call listener
             const callListenerUser = {
                 id: currentUser.id,
                 username: currentUser.username || authUser.email.split('@')[0]
             };
             
+            // Initialize listener with callback
             initCallListener(supabase, callListenerUser, {
                 onIncomingCall: (callData) => {
-                    console.log('📞 Incoming call received:', callData);
+                    console.log('📞🔥 INCOMING CALL RECEIVED:', callData);
                     
-                    // Validate call data
                     if (!callData || !callData.callerId) {
                         console.error('Invalid call data:', callData);
                         return;
                     }
                     
-                    incomingCallData = callData;
-                    showIncomingCallModal(callData);
+                    // Check if this call is for the current user
+                    if (callData.calleeId === currentUser.id) {
+                        console.log('✅ This call is for me!');
+                        incomingCallData = callData;
+                        showIncomingCallModal(callData);
+                    } else {
+                        console.log('⏭️ Call not for me, ignoring');
+                    }
                 }
             });
+            
             callListenerInitialized = true;
+            console.log('✅ Call listener initialized successfully');
         }
 
         // STEP 4: Update status periodically
@@ -98,7 +106,7 @@ async function initFriendsPage() {
     }
 }
 
-// Load friends WITH AVATAR
+// Load friends
 async function loadFriends() {
     try {
         if (!currentUser || !currentUser.id || !supabase) {
@@ -120,7 +128,7 @@ async function loadFriends() {
     }
 }
 
-// Render friends list WITH CALL BUTTONS
+// Render friends list
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -144,7 +152,7 @@ function renderFriendsList() {
                         ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
                         : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
                     }
-                    <span class="status-indicator-clean ${online ? 'online' : 'offline'}" style="position: absolute; bottom: 5px; right: 5px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; ${online ? 'background: #28a745;' : 'background: #888888;'}"></span>
+                    <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
                 </div>
                 <div class="friend-info-clean" style="flex: 1; cursor: pointer;" onclick="openChat('${friend.id}', '${friend.username}')">
                     <div class="friend-name-status">
@@ -154,7 +162,7 @@ function renderFriendsList() {
                         </div>
                     </div>
                 </div>
-                <button class="call-btn" style="background: #007acc; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 8px;" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')">
+                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')">
                     <i class="fas fa-phone"></i>
                 </button>
             </div>
@@ -164,16 +172,15 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL - with correct URL
+// START CALL
 window.startCall = function(friendId, friendName) {
-    // Check if friend is online
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
         showToast('error', `${friendName} is offline`);
         return;
     }
     
-    // CORRECT URL: /pages/call-app/call/index.html
+    console.log(`📞 Starting call to ${friendName} (${friendId})`);
     window.location.href = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
 };
 
@@ -185,16 +192,15 @@ function showIncomingCallModal(callData) {
     const callerNameEl = document.getElementById('callerName');
     const callerInitialEl = document.getElementById('callerInitial');
     
-    // Find caller in friends list
     const caller = allFriends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' };
     
     callerNameEl.textContent = caller.username;
     callerInitialEl.textContent = caller.username.charAt(0).toUpperCase();
     
     modal.style.display = 'flex';
-    
-    // Play ringtone
     playRingtone();
+    
+    console.log('📲 Showing incoming call modal for:', caller.username);
 }
 
 // Accept call
@@ -204,8 +210,8 @@ window.acceptCall = function() {
     stopRingtone();
     document.getElementById('incomingCallModal').style.display = 'none';
     
-    // CORRECT URL for incoming call
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
+    console.log('✅ Accepting call, redirecting to:', url);
     window.location.href = url;
 };
 
@@ -213,6 +219,9 @@ window.acceptCall = function() {
 window.rejectCall = function() {
     stopRingtone();
     document.getElementById('incomingCallModal').style.display = 'none';
+    
+    // TODO: Add API call to reject call
+    console.log('❌ Call rejected:', incomingCallData?.callId);
     incomingCallData = null;
     showToast('info', 'Call rejected');
 };
@@ -361,7 +370,7 @@ window.searchUsers = async function() {
     const term = input.value.toLowerCase().trim();
 
     if (!term) {
-        container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-search" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>Search for friends to add</p></div>`;
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Search for friends to add</p></div>`;
         return;
     }
 
@@ -391,7 +400,7 @@ window.searchUsers = async function() {
         if (error) throw error;
 
         if (!users || users.length === 0) {
-            container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-user-slash" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>No users found</p></div>`;
+            container.innerHTML = `<div class="empty-search"><i class="fas fa-user-slash"></i><p>No users found</p></div>`;
             return;
         }
 
@@ -403,10 +412,10 @@ window.searchUsers = async function() {
 
             html += `
                 <div class="search-result-item">
-                    <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
+                    <div class="search-result-avatar">
                         ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
+                            : `<span>${initial}</span>`
                         }
                     </div>
                     <div class="search-result-info">
@@ -427,7 +436,7 @@ window.searchUsers = async function() {
 
     } catch (error) {
         console.error('Search error:', error);
-        container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i><p>Error searching users</p></div>`;
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-exclamation-triangle"></i><p>Error searching users</p></div>`;
     }
 };
 
@@ -467,44 +476,26 @@ function showToast(type, message) {
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-
-    let icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-    let color = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#007acc';
-
     toast.innerHTML = `
-        <i class="fas fa-${icon}" style="color:${color};"></i>
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
         <span>${message}</span>
     `;
 
     container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // Navigation
 window.goToHome = () => window.location.href = '../../home/index.html';
 window.openSearch = () => {
-    const modal = document.getElementById('searchModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
-    }
+    document.getElementById('searchModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
 };
 window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
 };
 window.logout = async () => {
     if (supabase) await supabase.auth.signOut();
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    document.cookie.split(";").forEach(function(c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-    
     window.location.href = '../../../pages/login/index.html';
 };
 
