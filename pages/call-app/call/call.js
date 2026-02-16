@@ -339,6 +339,7 @@ async function joinCall(roomName) {
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none'
             document.getElementById('activeCallScreen').style.display = 'block'
+            addHangButton() // Add the hang button when call is active
         }, 3000)
         
         console.log('✅ Jitsi call connected!')
@@ -349,6 +350,23 @@ async function joinCall(roomName) {
     }
 }
 
+// Add Hang Button to UI
+function addHangButton() {
+    // Remove any existing hang button
+    const existingBtn = document.getElementById('hangUpBtn')
+    if (existingBtn) existingBtn.remove()
+    
+    const hangBtn = document.createElement('button')
+    hangBtn.id = 'hangUpBtn'
+    hangBtn.className = 'hang-btn'
+    hangBtn.innerHTML = `
+        <i class="fas fa-phone-slash"></i>
+        <span>Hang Up</span>
+    `
+    hangBtn.onclick = hangUp
+    document.body.appendChild(hangBtn)
+}
+
 // Video toggle
 window.toggleVideo = function() {
     const btn = document.getElementById('videoBtn')
@@ -357,9 +375,11 @@ window.toggleVideo = function() {
     if (isVideoOn) {
         btn.innerHTML = '<i class="fas fa-video"></i>'
         btn.style.background = '#f5b342'
+        btn.style.color = '#333'
     } else {
         btn.innerHTML = '<i class="fas fa-video-slash"></i>'
         btn.style.background = '#333'
+        btn.style.color = '#f5b342'
     }
     
     if (jitsiIframe) {
