@@ -1,4 +1,4 @@
-/* pages/call-app/pages/call/call.css - Updated with Friends Theme */
+/* pages/call-app/pages/call/call.css - Updated with Friends Theme (Blue) */
 
 * {
     margin: 0;
@@ -8,8 +8,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #faf8f5;
-    color: #333;
+    background: #f8fafc;
+    color: #1e293b;
     height: 100vh;
     overflow: hidden;
     position: fixed;
@@ -23,7 +23,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #faf8f5;
+    background: #f8fafc;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -34,15 +34,15 @@ body {
 .call-loading .loading-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #fff0cc;
-    border-top: 3px solid #f5b342;
+    border: 3px solid #e2e8f0;
+    border-top: 3px solid #007acc;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 15px;
 }
 
 .call-loading p {
-    color: #666;
+    color: #64748b;
     font-size: 16px;
 }
 
@@ -53,7 +53,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #faf8f5;
+    background: #f8fafc;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -70,13 +70,13 @@ body {
 .caller-avatar {
     width: 100px;
     height: 100px;
-    background: #f5b342;
+    background: linear-gradient(135deg, #007acc, #00b4d8);
     border-radius: 50%;
     margin: 0 auto 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: white;
     font-size: 40px;
     font-weight: 600;
 }
@@ -86,17 +86,17 @@ body {
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #f5b342;
+    border: 3px solid #007acc;
 }
 
 .caller-info h2 {
     font-size: 28px;
     margin-bottom: 10px;
-    color: #333;
+    color: #1e293b;
 }
 
 .caller-info p {
-    color: #666;
+    color: #64748b;
     font-size: 16px;
     margin-bottom: 40px;
 }
@@ -122,20 +122,20 @@ body {
 }
 
 .accept-btn {
-    background: #28a745;
+    background: #22c55e;
 }
 
 .accept-btn:active {
-    background: #218838;
+    background: #16a34a;
     transform: scale(0.95);
 }
 
 .decline-btn {
-    background: #dc3545;
+    background: #ef4444;
 }
 
 .decline-btn:active {
-    background: #c82333;
+    background: #dc2626;
     transform: scale(0.95);
 }
 
@@ -177,16 +177,16 @@ body {
     align-items: center;
     justify-content: center;
     gap: 30px;
-    border-top: 2px solid #f5b342;
+    border-top: 1px solid #e2e8f0;
 }
 
 .control-btn {
     width: 55px;
     height: 55px;
-    border: 2px solid #f5b342;
+    border: none;
     border-radius: 50%;
-    background: white;
-    color: #f5b342;
+    background: #f1f5f9;
+    color: #007acc;
     font-size: 22px;
     cursor: pointer;
     display: flex;
@@ -196,42 +196,34 @@ body {
 }
 
 .control-btn:hover {
-    background: #f5b342;
-    color: #333;
+    background: #e2e8f0;
 }
 
 .control-btn.muted {
-    background: #dc3545;
-    border-color: #dc3545;
+    background: #ef4444;
     color: white;
 }
 
-.control-btn.muted:hover {
-    background: #c82333;
-}
-
 .control-btn.speaker-off {
-    background: #666;
-    border-color: #666;
+    background: #64748b;
     color: white;
 }
 
 .end-call-btn {
-    background: #dc3545;
-    border-color: #dc3545;
+    background: #ef4444;
     color: white;
     width: 65px;
     height: 65px;
 }
 
 .end-call-btn:hover {
-    background: #c82333;
+    background: #dc2626;
     transform: scale(1.05);
 }
 
 /* Hang Button - Custom End Call Button */
 .hang-btn {
-    background: #dc3545;
+    background: #ef4444;
     border: none;
     border-radius: 50px;
     color: white;
@@ -247,12 +239,12 @@ body {
     left: 50%;
     transform: translateX(-50%);
     z-index: 1001;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
     transition: all 0.2s;
 }
 
 .hang-btn:hover {
-    background: #c82333;
+    background: #dc2626;
     transform: translateX(-50%) scale(1.05);
 }
 
@@ -267,7 +259,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #faf8f5;
+    background: #f8fafc;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -279,24 +271,24 @@ body {
 
 .error-screen i {
     font-size: 60px;
-    color: #f5b342;
+    color: #007acc;
     margin-bottom: 20px;
 }
 
 .error-screen h3 {
     font-size: 24px;
     margin-bottom: 10px;
-    color: #333;
+    color: #1e293b;
 }
 
 .error-screen p {
-    color: #666;
+    color: #64748b;
     margin-bottom: 30px;
 }
 
 .back-home-btn {
-    background: #f5b342;
-    color: #333;
+    background: #007acc;
+    color: white;
     border: none;
     padding: 15px 30px;
     border-radius: 25px;
@@ -310,7 +302,7 @@ body {
 }
 
 .back-home-btn:hover {
-    background: #e69a00;
+    background: #005a9e;
 }
 
 .back-home-btn:active {
