@@ -1,4 +1,4 @@
-// friends.js - UPDATED with new tab and correct URLs
+// friends.js - COMPLETE WITH CALL HANDLING
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
@@ -76,8 +76,24 @@ async function initFriendsPage() {
                     if (!callData || !callData.callerId) return;
                     
                     if (callData.calleeId === currentUser.id) {
+                        // Check if we're already showing a notification for this caller
+                        const existingNotification = document.getElementById('incomingCallNotification');
+                        const existingCallerId = existingNotification?.getAttribute('data-caller-id');
+                        
+                        // If it's the same caller, don't show duplicate
+                        if (existingNotification && existingCallerId === callData.callerId) {
+                            console.log('⏭️ Already showing notification for this caller');
+                            return;
+                        }
+                        
+                        // If it's a different caller, remove old notification
+                        if (existingNotification) {
+                            existingNotification.remove();
+                            stopRingtone();
+                        }
+                        
                         incomingCallData = callData;
-                        showIncomingCallNotification(callData); // Using new SVG notification
+                        showIncomingCallNotification(callData);
                     }
                 }
             });
@@ -185,8 +201,8 @@ function renderFriendsList() {
             <div class="friend-item" data-friend-id="${friend.id}">
                 <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative;">
                     ${friend.avatar_url 
-                        ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
-                        : `<span>${initial}</span>`
+                        ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                        : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
                 </div>
@@ -198,7 +214,7 @@ function renderFriendsList() {
                         </div>
                     </div>
                 </div>
-                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled' : ''}>
+                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="white"/>
                     </svg>
@@ -225,7 +241,7 @@ window.startCall = function(friendId, friendName) {
     window.open(callUrl, '_blank');
 };
 
-// Show incoming call notification with SVG
+// Show incoming call notification
 function showIncomingCallNotification(callData) {
     // Remove any existing notification
     const existing = document.getElementById('incomingCallNotification');
@@ -235,6 +251,8 @@ function showIncomingCallNotification(callData) {
     
     const notification = document.createElement('div');
     notification.id = 'incomingCallNotification';
+    notification.setAttribute('data-caller-id', callData.callerId);
+    notification.setAttribute('data-call-id', callData.callId);
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -265,7 +283,7 @@ function showIncomingCallNotification(callData) {
             </div>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button onclick="rejectCall()" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <button onclick="rejectCall('${callData.callId}')" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc2626"/>
                 </svg>
@@ -288,12 +306,12 @@ function showIncomingCallNotification(callData) {
     // Auto-hide after 30 seconds
     setTimeout(() => {
         if (document.getElementById('incomingCallNotification')) {
-            rejectCall();
+            rejectCall(callData.callId);
         }
     }, 30000);
 }
 
-// Accept call - FIXED URL
+// Accept call
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
@@ -302,6 +320,21 @@ window.acceptCall = function() {
     // Remove notification
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
+
+    // Mark any other pending calls from this caller as missed
+    if (callAppSupabase && incomingCallData.callerId) {
+        callAppSupabase
+            .from('calls')
+            .update({ 
+                status: 'missed',
+                ended_at: new Date().toISOString()
+            })
+            .eq('caller_id', incomingCallData.callerId)
+            .eq('callee_id', currentUser.id)
+            .eq('status', 'pending')
+            .neq('id', incomingCallData.callId)
+            .then(() => console.log('Cleaned up duplicate calls'));
+    }
 
     // CORRECT URL
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
@@ -312,13 +345,15 @@ window.acceptCall = function() {
 };
 
 // Reject call
-window.rejectCall = async function() {
+window.rejectCall = async function(callId) {
     stopRingtone();
     
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
 
-    if (incomingCallData?.callId && callAppSupabase) {
+    const callToReject = callId || incomingCallData?.callId;
+    
+    if (callToReject && callAppSupabase) {
         try {
             await callAppSupabase
                 .from('calls')
@@ -326,7 +361,7 @@ window.rejectCall = async function() {
                     status: 'rejected',
                     ended_at: new Date().toISOString()
                 })
-                .eq('id', incomingCallData.callId);
+                .eq('id', callToReject);
             console.log('Call rejected');
         } catch (error) {
             console.error('Error rejecting call:', error);
@@ -515,8 +550,8 @@ window.searchUsers = async function() {
                 <div class="search-result-item">
                     <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
                         ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
-                            : `<span>${initial}</span>`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
                         }
                     </div>
                     <div class="search-result-info">
