@@ -3,25 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Friends · RelayTalk</title>
-    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
-    <!-- Styles - EXACTLY LIKE CALLAPP, PATHS CHANGED -->
-    <link rel="stylesheet" href="../../../call-app/styles/main.css">
+    <title>CallApp · Voice Calls</title>
+    <link rel="stylesheet" href="../../call-app/styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <!-- Loading Screen -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
-        <div id="loadingText">Accessing Friends...</div>
+        <div id="loadingText">Accessing CallApp...</div>
     </div>
 
-    <!-- Header - EXACTLY LIKE CALLAPP -->
+    <!-- Header -->
     <header class="app-header">
         <div class="header-content">
-            <h1 class="header-title">👥 Friends</h1>
+            <h1 class="header-title">📞 CallApp</h1>
             <div class="header-actions">
-                <button class="header-btn" onclick="window.location.href='../../../home/index.html'">
+                <button class="header-btn" onclick="window.location.href='../../home/index.html'">
                     <i class="fas fa-arrow-left"></i>
                 </button>
             </div>
@@ -31,7 +29,7 @@
     <!-- Main Content -->
     <main id="mainContent"></main>
 
-    <!-- Bottom Navigation - EXACTLY LIKE CALLAPP, PATHS CHANGED -->
+    <!-- Bottom Navigation -->
     <nav class="bottom-nav" id="bottomNav" style="display: none;">
         <a href="#" class="nav-item active" onclick="loadDashboard()">
             <i class="fas fa-home"></i>
@@ -41,65 +39,21 @@
             <i class="fas fa-users"></i>
             <span>Friends</span>
         </a>
-        <a href="../../../call-app/pages/history/index.html" class="nav-item">
+        <a href="../../call-app/pages/history/index.html" class="nav-item">
             <i class="fas fa-history"></i>
             <span>History</span>
         </a>
-        <a href="../../../call-app/profile.html" class="nav-item">
+        <a href="../../call-app/profile.html" class="nav-item">
             <i class="fas fa-user"></i>
             <span>Profile</span>
         </a>
     </nav>
 
-    <!-- Toast Container - EXACTLY LIKE CALLAPP -->
+    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Incoming Call Notification - EXACTLY LIKE CALLAPP -->
-    <div id="incomingCallNotification" style="display: none; position: fixed; top: 0; left: 0; right: 0; background: #007acc; color: white; padding: 16px 20px; z-index: 10000; align-items: center; justify-content: space-between; animation: slideDown 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"></div>
-
-    <!-- Animation Styles - EXACTLY LIKE CALLAPP -->
-    <style>
-        @keyframes slideDown {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        #incomingCallNotification button {
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        #incomingCallNotification button:active {
-            transform: scale(0.95);
-        }
-        #incomingCallNotification img {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-        }
-        .caller-avatar-placeholder {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: white;
-            color: #007acc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-        }
-    </style>
-
-    <!-- Scripts - EXACTLY LIKE CALLAPP, ONLY PATHS CHANGED -->
     <script type="module">
-        import { initializeSupabase } from '../../../utils/supabase.js'
+        import { initializeSupabase } from '../../call-app/utils/supabase.js'
         import { 
             getRelayTalkUser, 
             syncUserToDatabase, 
@@ -107,15 +61,15 @@
             saveFriendsToCallApp,
             getUserFriends,
             updateUserStatus 
-        } from '../../../pages/call-app/utils/userSync.js'
-        import { initCallListener } from '../../../pages/call-app/utils/callListener.js'
+        } from '../../call-app/utils/userSync.js'
+        import { initCallListener } from '../../call-app/utils/callListener.js'
         
         let supabase
         let currentUser
         let friends = []
         
         async function init() {
-            showLoading(true, 'Accessing Friends...')
+            showLoading(true, 'Accessing CallApp...')
             
             try {
                 // 1. Get user from RelayTalk
@@ -128,12 +82,12 @@
                 console.log('✅ Got user from RelayTalk:', user.email)
                 console.log('✅ User ID:', user.id)
                 
-                // 2. Initialize Supabase
+                // 2. Initialize CallApp Supabase
                 supabase = await initializeSupabase()
                 
-                // 3. Sync user to DB
+                // 3. Sync user to CallApp DB
                 currentUser = await syncUserToDatabase(supabase, user)
-                console.log('✅ User synced to DB')
+                console.log('✅ User synced to CallApp DB')
                 
                 // 4. Try to get friends from old database
                 showLoading(true, 'Syncing friends...')
@@ -148,9 +102,9 @@
                     console.log('ℹ️ No friends found in old database')
                 }
                 
-                // 5. Load friends list from DB
+                // 5. Load friends list from CallApp DB
                 friends = await getUserFriends(supabase, currentUser.id)
-                console.log(`✅ Loaded ${friends.length} friends from DB:`, friends)
+                console.log(`✅ Loaded ${friends.length} friends from CallApp DB:`, friends)
                 
                 // 6. Initialize call listener
                 initCallListener(supabase, currentUser)
@@ -178,8 +132,8 @@
             
             document.getElementById('mainContent').innerHTML = `
                 <div class="dashboard-container">
-                    <div class="welcome-card" style="background: #f0f7ff; border-color: #007acc;">
-                        <div class="welcome-avatar" style="background: #007acc;">
+                    <div class="welcome-card" style="background: #fff9e6; border-color: #f5b342;">
+                        <div class="welcome-avatar" style="background: #f5b342;">
                             ${currentUser.avatar_url 
                                 ? `<img src="${currentUser.avatar_url}" alt="${currentUser.username}">`
                                 : `<span>${currentUser.username.charAt(0).toUpperCase()}</span>`
@@ -192,8 +146,8 @@
                     </div>
                     
                     <div class="quick-actions">
-                        <div class="action-card" onclick="loadFriends()" style="border-color: #007acc;">
-                            <div class="action-icon" style="background: #007acc;">
+                        <div class="action-card" onclick="loadFriends()" style="border-color: #f5b342;">
+                            <div class="action-icon" style="background: #f5b342;">
                                 <i class="fas fa-users"></i>
                             </div>
                             <div class="action-info">
@@ -202,8 +156,8 @@
                             </div>
                         </div>
                         
-                        <div class="action-card" onclick="window.location.href='../../../call-app/pages/history/index.html'" style="border-color: #007acc;">
-                            <div class="action-icon" style="background: #007acc;">
+                        <div class="action-card" onclick="window.location.href='../../call-app/pages/history/index.html'" style="border-color: #f5b342;">
+                            <div class="action-icon" style="background: #f5b342;">
                                 <i class="fas fa-history"></i>
                             </div>
                             <div class="action-info">
@@ -213,7 +167,7 @@
                         </div>
                     </div>
                     
-                    <div class="recent-section" style="border-color: #007acc;">
+                    <div class="recent-section" style="border-color: #f5b342;">
                         <h3>Quick Call</h3>
                         <div class="recent-list" id="quickCallList">
                             ${renderQuickCallList()}
@@ -228,7 +182,7 @@
                 return `
                     <div class="empty-small" style="text-align: center; padding: 20px;">
                         <p style="color: #666;">No friends yet</p>
-                        <button onclick="loadFriends()" class="link-btn" style="color: #007acc; margin-top: 8px;">View friends</button>
+                        <button onclick="loadFriends()" class="link-btn" style="color: #f5b342; margin-top: 8px;">View friends</button>
                     </div>
                 `
             }
@@ -247,7 +201,7 @@
             onlineFriends.forEach(friend => {
                 html += `
                     <div class="recent-friend-item">
-                        <div class="friend-avatar small" style="background: #007acc;">
+                        <div class="friend-avatar small" style="background: #f5b342;">
                             ${friend.avatar_url 
                                 ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
                                 : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
@@ -258,7 +212,7 @@
                             <div class="friend-name">${friend.username}</div>
                             <div class="friend-status">Online</div>
                         </div>
-                        <button class="call-btn small" style="background: #007acc;" onclick="startCall('${friend.id}', '${friend.username}')">
+                        <button class="call-btn small" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
                             <i class="fas fa-phone"></i>
                         </button>
                     </div>
@@ -271,11 +225,12 @@
         window.loadFriends = async function() {
             updateActiveNav('friends')
             
+            // Show loading in friends list
             document.getElementById('mainContent').innerHTML = `
                 <div class="friends-container">
                     <div class="search-box">
-                        <i class="fas fa-search" style="color: #007acc;"></i>
-                        <input type="text" id="friendSearch" placeholder="Search friends..." oninput="searchFriends()" style="border-color: #007acc;">
+                        <i class="fas fa-search" style="color: #f5b342;"></i>
+                        <input type="text" id="friendSearch" placeholder="Search friends..." oninput="searchFriends()" style="border-color: #f5b342;">
                     </div>
                     <div id="friendsList" class="friends-list">
                         <div style="text-align: center; padding: 40px;">
@@ -286,9 +241,11 @@
                 </div>
             `
             
+            // Refresh friends list from database
             friends = await getUserFriends(supabase, currentUser.id)
             console.log('📋 Refreshed friends list:', friends)
             
+            // Render friends
             document.getElementById('friendsList').innerHTML = renderFriendsList(friends)
         }
         
@@ -296,16 +253,16 @@
             if (!friendsToRender || friendsToRender.length === 0) {
                 return `
                     <div class="empty-state">
-                        <i class="fas fa-users" style="color: #007acc; font-size: 48px;"></i>
+                        <i class="fas fa-users" style="color: #f5b342; font-size: 48px;"></i>
                         <h3 style="margin: 16px 0 8px;">No friends yet</h3>
                         <p style="color: #666; margin-bottom: 20px;">Add friends in RelayTalk and they'll appear here automatically</p>
-                        <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                        <div style="background: #fff9e6; padding: 16px; border-radius: 8px; margin-top: 20px;">
                             <p style="color: #666; font-size: 14px;">
-                                <i class="fas fa-sync" style="color: #007acc;"></i> 
+                                <i class="fas fa-sync" style="color: #f5b342;"></i> 
                                 Friends sync automatically from RelayTalk
                             </p>
                         </div>
-                        <button onclick="window.location.href='../../../home/index.html'" class="primary-btn" style="background: #007acc; color: white; margin-top: 20px;">
+                        <button onclick="window.location.href='../../home/index.html'" class="primary-btn" style="background: #f5b342; color: #333; margin-top: 20px;">
                             Go to RelayTalk
                         </button>
                     </div>
@@ -318,8 +275,8 @@
                 const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Offline'
                 
                 html += `
-                    <div class="friend-item" style="border-color: #007acc;">
-                        <div class="friend-avatar" style="background: #007acc;">
+                    <div class="friend-item" style="border-color: #f5b342;">
+                        <div class="friend-avatar" style="background: #f5b342;">
                             ${friend.avatar_url 
                                 ? `<img src="${friend.avatar_url}" alt="${friend.username}">`
                                 : `<span>${friend.username.charAt(0).toUpperCase()}</span>`
@@ -330,7 +287,7 @@
                             <div class="friend-name">${friend.username}</div>
                             <div class="friend-status-text">${online ? 'Online' : lastSeen}</div>
                         </div>
-                        <button class="call-btn" style="background: #007acc;" onclick="startCall('${friend.id}', '${friend.username}')">
+                        <button class="call-btn" style="background: #f5b342;" onclick="startCall('${friend.id}', '${friend.username}')">
                             <i class="fas fa-phone"></i>
                         </button>
                     </div>
@@ -356,7 +313,7 @@
         }
         
         window.startCall = function(friendId, friendName) {
-            window.location.href = `../../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`
+            window.location.href = `../../call-app/pages/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`
         }
         
         function formatLastSeen(timestamp) {
@@ -390,11 +347,11 @@
             showLoading(false)
             document.getElementById('mainContent').innerHTML = `
                 <div class="error-container" style="max-width: 400px; margin: 50px auto; text-align: center; padding: 20px;">
-                    <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #007acc; margin-bottom: 16px;"></i>
+                    <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #f5b342; margin-bottom: 16px;"></i>
                     <h3 style="margin-bottom: 8px;">Access Denied</h3>
                     <p style="color: #666; margin: 16px 0;">${message}</p>
-                    <a href="../../../home/index.html" class="primary-btn" style="background: #007acc; color: white; padding: 12px 24px; border-radius: 25px; text-decoration: none; display: inline-block;">
-                        Go to Home
+                    <a href="../../home/index.html" class="primary-btn" style="background: #f5b342; color: #333; padding: 12px 24px; border-radius: 25px; text-decoration: none; display: inline-block;">
+                        Go to RelayTalk
                     </a>
                 </div>
             `
