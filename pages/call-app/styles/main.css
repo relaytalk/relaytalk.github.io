@@ -1,4 +1,4 @@
-/* pages/call-app/styles/main.css - Yellow/White Theme */
+/* pages/call-app/styles/main.css - Friends Theme (Blue) */
 
 * {
     margin: 0;
@@ -8,8 +8,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #faf8f5;
-    color: #333;
+    background: #f8fafc;
+    color: #1e293b;
     min-height: 100vh;
     padding-bottom: 70px;
 }
@@ -18,7 +18,7 @@ body {
 .app-header {
     background: white;
     padding: 16px 20px;
-    border-bottom: 2px solid #f5b342;
+    border-bottom: 1px solid #e2e8f0;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -35,7 +35,7 @@ body {
 .header-title {
     font-size: 22px;
     font-weight: 600;
-    color: #333;
+    color: #1e293b;
 }
 
 .header-actions {
@@ -47,13 +47,14 @@ body {
     background: none;
     border: none;
     font-size: 20px;
-    color: #666;
+    color: #64748b;
     cursor: pointer;
     padding: 8px;
+    transition: color 0.2s;
 }
 
 .header-btn:hover {
-    color: #f5b342;
+    color: #007acc;
 }
 
 /* Bottom Navigation */
@@ -63,7 +64,7 @@ body {
     left: 0;
     right: 0;
     background: white;
-    border-top: 2px solid #f5b342;
+    border-top: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-around;
     padding: 12px 0;
@@ -77,12 +78,13 @@ body {
     flex-direction: column;
     align-items: center;
     text-decoration: none;
-    color: #999;
+    color: #94a3b8;
     font-size: 12px;
     gap: 4px;
     background: none;
     border: none;
     cursor: pointer;
+    transition: color 0.2s;
 }
 
 .nav-item i {
@@ -90,7 +92,11 @@ body {
 }
 
 .nav-item.active {
-    color: #f5b342;
+    color: #007acc;
+}
+
+.nav-item:hover {
+    color: #007acc;
 }
 
 /* Loading */
@@ -111,8 +117,8 @@ body {
 .loading-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #fff0cc;
-    border-top: 3px solid #f5b342;
+    border: 3px solid #e2e8f0;
+    border-top: 3px solid #007acc;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 15px;
@@ -130,9 +136,9 @@ body {
 }
 
 .welcome-card {
-    background: #fff9e6;
-    border: 2px solid #f5b342;
-    border-radius: 16px;
+    background: #f0f9ff;
+    border: 1px solid #007acc;
+    border-radius: 12px;
     padding: 20px;
     display: flex;
     align-items: center;
@@ -143,12 +149,12 @@ body {
 .welcome-avatar {
     width: 60px;
     height: 60px;
-    background: #f5b342;
+    background: #007acc;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: white;
     font-size: 24px;
     font-weight: 600;
 }
@@ -163,11 +169,11 @@ body {
 .welcome-info h2 {
     font-size: 18px;
     margin-bottom: 4px;
-    color: #333;
+    color: #1e293b;
 }
 
 .welcome-info p {
-    color: #666;
+    color: #64748b;
     font-size: 14px;
 }
 
@@ -180,7 +186,7 @@ body {
 
 .action-card {
     background: white;
-    border: 2px solid #f5b342;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
     display: flex;
@@ -190,38 +196,42 @@ body {
     transition: all 0.2s;
 }
 
+.action-card:hover {
+    border-color: #007acc;
+    background: #f8fafc;
+}
+
 .action-card:active {
-    background: #fff9e6;
     transform: scale(0.98);
 }
 
 .action-icon {
     width: 48px;
     height: 48px;
-    background: #f5b342;
+    background: #007acc;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: white;
     font-size: 20px;
 }
 
 .action-info h3 {
     font-size: 16px;
     margin-bottom: 4px;
-    color: #333;
+    color: #1e293b;
 }
 
 .action-info p {
-    color: #666;
+    color: #64748b;
     font-size: 13px;
 }
 
 /* Recent Section */
 .recent-section {
     background: white;
-    border: 2px solid #f5b342;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
 }
@@ -229,7 +239,13 @@ body {
 .recent-section h3 {
     font-size: 16px;
     margin-bottom: 16px;
-    color: #333;
+    color: #1e293b;
+}
+
+.recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .recent-friend-item {
@@ -237,7 +253,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 10px 0;
-    border-bottom: 1px solid #fff0cc;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .recent-friend-item:last-child {
@@ -248,13 +264,28 @@ body {
     width: 40px;
     height: 40px;
     font-size: 16px;
-    background: #f5b342;
+    position: relative;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #22c55e;
+    border: 2px solid white;
+}
+
+.friend-status {
+    font-size: 12px;
+    color: #22c55e;
 }
 
 .call-btn.small {
     width: 36px;
     height: 36px;
-    background: #f5b342;
     font-size: 14px;
 }
 
@@ -275,21 +306,41 @@ body {
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: #f5b342;
+    color: #007acc;
+    font-size: 16px;
 }
 
 .search-box input {
     width: 100%;
     padding: 12px 16px 12px 40px;
-    border: 2px solid #f5b342;
+    border: 1px solid #e2e8f0;
     border-radius: 25px;
     font-size: 15px;
     background: white;
+    outline: none;
 }
 
 .search-box input:focus {
-    outline: none;
-    border-color: #e69a00;
+    border-color: #007acc;
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+}
+
+.clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.friends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .friend-item {
@@ -298,25 +349,28 @@ body {
     gap: 15px;
     padding: 12px;
     background: white;
-    border: 2px solid #f5b342;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    margin-bottom: 10px;
     transition: all 0.2s;
 }
 
+.friend-item:hover {
+    border-color: #007acc;
+}
+
 .friend-item:active {
-    background: #fff9e6;
+    transform: scale(0.98);
 }
 
 .friend-avatar {
     width: 52px;
     height: 52px;
-    background: #f5b342;
+    background: #007acc;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: white;
     font-weight: 600;
     font-size: 20px;
     position: relative;
@@ -341,21 +395,11 @@ body {
 }
 
 .status-indicator.online {
-    background: #28a745;
+    background: #22c55e;
 }
 
 .status-indicator.offline {
-    background: #ccc;
-}
-
-.status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    background: #28a745;
+    background: #94a3b8;
 }
 
 .friend-info {
@@ -367,21 +411,21 @@ body {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 4px;
-    color: #333;
+    color: #1e293b;
 }
 
 .friend-status-text {
     font-size: 13px;
-    color: #666;
+    color: #64748b;
 }
 
 .call-btn {
     width: 44px;
     height: 44px;
-    background: #f5b342;
+    background: #007acc;
     border: none;
     border-radius: 50%;
-    color: #333;
+    color: white;
     font-size: 18px;
     cursor: pointer;
     display: flex;
@@ -391,15 +435,52 @@ body {
     transition: all 0.2s;
 }
 
+.call-btn:hover {
+    background: #005a9e;
+}
+
 .call-btn:active {
-    background: #e69a00;
     transform: scale(0.95);
+}
+
+.call-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state i {
+    font-size: 48px;
+    color: #007acc;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    margin-bottom: 8px;
+    color: #1e293b;
+    font-size: 20px;
+}
+
+.empty-state p {
+    color: #64748b;
+    margin-bottom: 20px;
+}
+
+.empty-small {
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
 }
 
 /* Buttons */
 .primary-btn {
-    background: #f5b342;
-    color: #333;
+    background: #007acc;
+    color: white;
     border: none;
     padding: 12px 24px;
     border-radius: 25px;
@@ -411,42 +492,28 @@ body {
     transition: all 0.2s;
 }
 
+.primary-btn:hover {
+    background: #005a9e;
+}
+
 .primary-btn:active {
-    background: #e69a00;
     transform: scale(0.98);
 }
 
 .link-btn {
     background: none;
     border: none;
-    color: #f5b342;
+    color: #007acc;
     font-size: 14px;
     cursor: pointer;
     text-decoration: underline;
 }
 
-/* Empty States */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
+.link-btn:hover {
+    color: #005a9e;
 }
 
-.empty-state i {
-    font-size: 48px;
-    color: #f5b342;
-    margin-bottom: 16px;
-}
-
-.empty-state h3 {
-    margin-bottom: 8px;
-    color: #333;
-}
-
-.empty-state p {
-    color: #666;
-    margin-bottom: 20px;
-}
-
+/* Error Container */
 .error-container {
     max-width: 400px;
     margin: 50px auto;
@@ -456,16 +523,17 @@ body {
 
 .error-container i {
     font-size: 48px;
-    color: #f5b342;
+    color: #007acc;
     margin-bottom: 16px;
 }
 
 .error-container h3 {
     margin-bottom: 8px;
+    color: #1e293b;
 }
 
 .error-container p {
-    color: #666;
+    color: #64748b;
     margin: 16px 0;
 }
 
@@ -478,24 +546,42 @@ body {
     z-index: 9999;
     width: 90%;
     max-width: 400px;
+    pointer-events: none;
 }
 
 .toast {
-    background: #333;
-    color: white;
+    background: white;
+    color: #1e293b;
     padding: 12px 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     margin-bottom: 10px;
-    border-left: 4px solid #f5b342;
+    border-left: 4px solid #007acc;
     display: flex;
     align-items: center;
     gap: 10px;
     animation: slideIn 0.3s ease;
+    pointer-events: auto;
 }
 
 .toast i {
-    color: #f5b342;
+    color: #007acc;
+}
+
+.toast.success {
+    border-left-color: #22c55e;
+}
+
+.toast.success i {
+    color: #22c55e;
+}
+
+.toast.error {
+    border-left-color: #ef4444;
+}
+
+.toast.error i {
+    color: #ef4444;
 }
 
 @keyframes slideIn {
@@ -519,8 +605,8 @@ body {
 
 .profile-header {
     background: white;
-    border: 2px solid #f5b342;
-    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     padding: 24px;
     text-align: center;
     margin-bottom: 20px;
@@ -529,13 +615,13 @@ body {
 .profile-avatar {
     width: 100px;
     height: 100px;
-    background: #f5b342;
+    background: #007acc;
     border-radius: 50%;
     margin: 0 auto 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: white;
     font-size: 40px;
     font-weight: 600;
 }
@@ -551,11 +637,11 @@ body {
     font-size: 24px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #333;
+    color: #1e293b;
 }
 
 .profile-email {
-    color: #666;
+    color: #64748b;
     margin-bottom: 16px;
 }
 
@@ -573,17 +659,17 @@ body {
 .stat-value {
     font-size: 24px;
     font-weight: 600;
-    color: #f5b342;
+    color: #007acc;
 }
 
 .stat-label {
     font-size: 13px;
-    color: #666;
+    color: #64748b;
 }
 
 .profile-menu {
     background: white;
-    border: 2px solid #f5b342;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     overflow: hidden;
 }
@@ -592,41 +678,275 @@ body {
     display: flex;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid #fff0cc;
-    color: #333;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
     text-decoration: none;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
 .menu-item:last-child {
     border-bottom: none;
 }
 
+.menu-item:hover {
+    background: #f8fafc;
+}
+
 .menu-item i {
     width: 24px;
-    color: #f5b342;
+    color: #007acc;
     margin-right: 16px;
+    font-size: 18px;
 }
 
 .menu-item span {
     flex: 1;
+    font-size: 16px;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+    font-size: 1.2rem;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-header h2 i {
+    color: #007acc;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background: #f1f5f9;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* Search Results */
+.search-input-container {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.search-input-container i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #007acc;
+}
+
+.search-input-container input {
+    width: 100%;
+    padding: 12px 16px 12px 40px;
+    border: 1px solid #e2e8f0;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.search-input-container input:focus {
+    border-color: #007acc;
+}
+
+.search-results {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.search-result-avatar {
+    width: 45px;
+    height: 45px;
+    background: #007acc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.search-result-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.search-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-result-name {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.search-result-username {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.add-friend-btn {
+    background: #007acc;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.add-friend-btn:hover {
+    background: #005a9e;
+}
+
+.add-friend-btn.added {
+    background: #e2e8f0;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.empty-search {
+    text-align: center;
+    padding: 30px;
+    color: #94a3b8;
+}
+
+.empty-search i {
+    font-size: 2rem;
+    color: #007acc;
+    margin-bottom: 10px;
+}
+
+/* Incoming Call Notification */
+.incoming-call-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.15);
+    width: 320px;
+    padding: 16px;
+    border-left: 4px solid #007acc;
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 /* Responsive */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+    .dashboard-container,
+    .friends-container,
+    .profile-container {
+        padding: 15px;
+    }
+    
     .friend-avatar {
         width: 48px;
         height: 48px;
+        font-size: 18px;
     }
     
     .call-btn {
         width: 40px;
         height: 40px;
+        font-size: 16px;
     }
     
     .profile-avatar {
         width: 80px;
         height: 80px;
         font-size: 32px;
+    }
+    
+    .modal-content {
+        width: 95%;
+    }
+    
+    .incoming-call-notification {
+        width: 90%;
+        left: 5%;
+        right: 5%;
+    }
+}
+
+/* Print styles */
+@media print {
+    .bottom-nav,
+    .header-actions,
+    .call-btn,
+    .modal-overlay,
+    .incoming-call-notification {
+        display: none !important;
     }
 }
