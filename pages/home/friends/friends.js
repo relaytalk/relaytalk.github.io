@@ -1,11 +1,13 @@
-// friends.js - COMPLETE WITH CALL HANDLING
+// friends.js - COMPLETE WITH CALL FUNCTIONALITY (FIXED ACCEPT URL)
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
 import { 
     syncUserToDatabase, 
     getUserFriends,
-    updateUserStatus 
+    updateUserStatus,
+    searchAllUsers,
+    sendFriendRequest
 } from '../../call-app/utils/userSync.js';
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
@@ -215,9 +217,7 @@ function renderFriendsList() {
                     </div>
                 </div>
                 <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="white"/>
-                    </svg>
+                    <i class="fas fa-phone"></i>
                 </button>
             </div>
         `;
@@ -258,41 +258,30 @@ function showIncomingCallNotification(callData) {
         top: 20px;
         right: 20px;
         background: white;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0,122,204,0.2);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,122,204,0.15);
         width: 320px;
-        padding: 20px;
+        padding: 16px;
         border-left: 4px solid #007acc;
         z-index: 9999;
-        animation: slideInRight 0.3s ease;
+        animation: slideIn 0.3s ease;
     `;
 
     notification.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-            <div style="width: 50px; height: 50px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
                 ${caller.username.charAt(0).toUpperCase()}
             </div>
             <div style="flex: 1;">
-                <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${caller.username}</div>
-                <div style="color: #007acc; font-size: 14px; display: flex; align-items: center; gap: 4px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="#007acc"/>
-                    </svg>
-                    Incoming call...
-                </div>
+                <div style="font-weight: 600; color: #1e293b;">${caller.username}</div>
+                <div style="color: #007acc; font-size: 14px;">Incoming call...</div>
             </div>
         </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="rejectCall('${callData.callId}')" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc2626"/>
-                </svg>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="rejectCall('${callData.callId}')" style="flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer;">
                 Decline
             </button>
-            <button onclick="acceptCall()" style="flex: 1; background: #007acc; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.5-6.5l2.2-2.2c.2-.2.3-.6.2-1-.4-1.1-.6-2.3-.6-3.6 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" fill="white"/>
-                </svg>
+            <button onclick="acceptCall()" style="flex: 1; background: #007acc; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer;">
                 Accept
             </button>
         </div>
@@ -311,7 +300,7 @@ function showIncomingCallNotification(callData) {
     }, 30000);
 }
 
-// Accept call
+// Accept call - FIXED URL (matches caller's path)
 window.acceptCall = function() {
     if (!incomingCallData) return;
     
@@ -336,7 +325,7 @@ window.acceptCall = function() {
             .then(() => console.log('Cleaned up duplicate calls'));
     }
 
-    // CORRECT URL
+    // CORRECT URL - Same as caller's outgoing call path
     const url = `../../call-app/call/index.html?incoming=true&room=${incomingCallData.room}&callerId=${incomingCallData.callerId}&callId=${incomingCallData.callId}`;
     console.log('✅ Accepting call, redirecting to:', url);
     
@@ -613,14 +602,7 @@ function showToast(type, message) {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            ${type === 'success' 
-                ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#22c55e"/>'
-                : type === 'error'
-                ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#ef4444"/>'
-                : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#007acc"/>'
-            }
-        </svg>
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
         <span>${message}</span>
     `;
     container.appendChild(toast);
@@ -637,6 +619,10 @@ window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
     document.getElementById('userSearchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
+};
+window.logout = async () => {
+    if (mainSupabase) await mainSupabase.auth.signOut();
+    window.location.href = '../../../pages/login/index.html';
 };
 
 // Start
