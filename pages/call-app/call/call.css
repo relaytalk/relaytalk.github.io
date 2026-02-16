@@ -1,4 +1,4 @@
-/* pages/call-app/pages/call/call.css */
+/* pages/call-app/pages/call/call.css - Updated with Friends Theme */
 
 * {
     margin: 0;
@@ -8,8 +8,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #000;
-    color: white;
+    background: #faf8f5;
+    color: #333;
     height: 100vh;
     overflow: hidden;
     position: fixed;
@@ -23,12 +23,27 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #000;
+    background: #faf8f5;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 1000;
+}
+
+.call-loading .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #fff0cc;
+    border-top: 3px solid #f5b342;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+.call-loading p {
+    color: #666;
+    font-size: 16px;
 }
 
 /* Incoming Call Screen */
@@ -38,7 +53,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #000;
+    background: #faf8f5;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -53,26 +68,35 @@ body {
 }
 
 .caller-avatar {
-    font-size: 100px;
-    color: #0066cc;
-    margin-bottom: 20px;
+    width: 100px;
+    height: 100px;
+    background: #f5b342;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    font-size: 40px;
+    font-weight: 600;
 }
 
 .caller-avatar img {
-    width: 100px;
-    height: 100px;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #0066cc;
+    border: 3px solid #f5b342;
 }
 
 .caller-info h2 {
     font-size: 28px;
     margin-bottom: 10px;
+    color: #333;
 }
 
 .caller-info p {
-    color: #999;
+    color: #666;
     font-size: 16px;
     margin-bottom: 40px;
 }
@@ -94,14 +118,25 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
 }
 
 .accept-btn {
     background: #28a745;
 }
 
+.accept-btn:active {
+    background: #218838;
+    transform: scale(0.95);
+}
+
 .decline-btn {
     background: #dc3545;
+}
+
+.decline-btn:active {
+    background: #c82333;
+    transform: scale(0.95);
 }
 
 /* Active Call Screen */
@@ -137,40 +172,92 @@ body {
     left: 0;
     right: 0;
     height: 80px;
-    background: #111;
+    background: white;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 30px;
-    border-top: 1px solid #333;
+    border-top: 2px solid #f5b342;
 }
 
 .control-btn {
     width: 55px;
     height: 55px;
-    border: none;
+    border: 2px solid #f5b342;
     border-radius: 50%;
-    background: #333;
-    color: white;
+    background: white;
+    color: #f5b342;
     font-size: 22px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background: #f5b342;
+    color: #333;
 }
 
 .control-btn.muted {
     background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.control-btn.muted:hover {
+    background: #c82333;
 }
 
 .control-btn.speaker-off {
     background: #666;
+    border-color: #666;
+    color: white;
 }
 
 .end-call-btn {
     background: #dc3545;
+    border-color: #dc3545;
+    color: white;
     width: 65px;
     height: 65px;
+}
+
+.end-call-btn:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+/* Hang Button - Custom End Call Button */
+.hang-btn {
+    background: #dc3545;
+    border: none;
+    border-radius: 50px;
+    color: white;
+    padding: 12px 30px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    transition: all 0.2s;
+}
+
+.hang-btn:hover {
+    background: #c82333;
+    transform: translateX(-50%) scale(1.05);
+}
+
+.hang-btn:active {
+    transform: translateX(-50%) scale(0.95);
 }
 
 /* Error Screen */
@@ -180,7 +267,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #000;
+    background: #faf8f5;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -192,33 +279,50 @@ body {
 
 .error-screen i {
     font-size: 60px;
-    color: #dc3545;
+    color: #f5b342;
     margin-bottom: 20px;
 }
 
 .error-screen h3 {
     font-size: 24px;
     margin-bottom: 10px;
+    color: #333;
 }
 
 .error-screen p {
-    color: #999;
+    color: #666;
     margin-bottom: 30px;
 }
 
 .back-home-btn {
-    background: #0066cc;
-    color: white;
+    background: #f5b342;
+    color: #333;
     border: none;
     padding: 15px 30px;
-    border-radius: 8px;
+    border-radius: 25px;
     font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 10px;
+    transition: all 0.2s;
 }
 
+.back-home-btn:hover {
+    background: #e69a00;
+}
+
+.back-home-btn:active {
+    transform: scale(0.98);
+}
+
+/* Animation */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
 @media (max-width: 480px) {
     .call-btn {
         width: 60px;
@@ -235,5 +339,21 @@ body {
     .end-call-btn {
         width: 60px;
         height: 60px;
+    }
+    
+    .hang-btn {
+        padding: 10px 25px;
+        font-size: 16px;
+        bottom: 90px;
+    }
+    
+    .caller-avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+    }
+    
+    .caller-info h2 {
+        font-size: 24px;
     }
 }
