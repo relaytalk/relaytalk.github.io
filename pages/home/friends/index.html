@@ -6,12 +6,14 @@
     <title>Friends · RelayTalk</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
     
-    <!-- Styles - Using call-app styles for consistency -->
+    <!-- Styles - Both local and call-app -->
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="friends.css">
     <link rel="stylesheet" href="../../call-app/styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Additional styles to maintain friends page look */
+        /* Override any conflicting styles */
         .friends-header {
             background: white;
             padding: 16px;
@@ -24,6 +26,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         .header-left {
             display: flex;
@@ -37,6 +41,38 @@
             color: #333;
             cursor: pointer;
             padding: 8px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .back-btn:hover {
+            background: #f5f5f5;
+        }
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        .header-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #f5b342;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .header-btn:hover {
+            background: #fff9e6;
         }
         .search-container {
             padding: 12px 16px;
@@ -46,6 +82,8 @@
         .search-box {
             position: relative;
             width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
         }
         .search-icon {
             position: absolute;
@@ -62,6 +100,7 @@
             font-size: 14px;
             outline: none;
             transition: border-color 0.2s;
+            box-sizing: border-box;
         }
         .search-input:focus {
             border-color: #f5b342;
@@ -77,13 +116,20 @@
             cursor: pointer;
             padding: 4px;
         }
+        .friends-list {
+            min-height: calc(100vh - 180px);
+            background: #f8f9fa;
+            padding-bottom: 80px;
+        }
         .friend-item {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
+            padding: 16px;
             background: white;
             border-bottom: 1px solid #f0f0f0;
             transition: background 0.2s;
+            max-width: 600px;
+            margin: 0 auto;
         }
         .friend-item:active {
             background: #f5f5f5;
@@ -101,6 +147,7 @@
             font-size: 20px;
             position: relative;
             margin-right: 12px;
+            flex-shrink: 0;
         }
         .friend-avatar img {
             width: 100%;
@@ -125,12 +172,16 @@
         }
         .friend-info {
             flex: 1;
+            min-width: 0;
         }
         .friend-name {
             font-weight: 600;
             font-size: 16px;
             color: #333;
             margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .friend-status-text {
             font-size: 13px;
@@ -148,20 +199,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s, background 0.2s;
+            flex-shrink: 0;
+        }
+        .call-btn:hover {
+            background: #e6a832;
         }
         .call-btn:active {
             transform: scale(0.95);
-        }
-        .call-btn.small {
-            width: 36px;
-            height: 36px;
-            font-size: 14px;
         }
         .empty-state {
             text-align: center;
             padding: 60px 20px;
             color: #666;
+            max-width: 400px;
+            margin: 0 auto;
         }
         .bottom-nav {
             position: fixed;
@@ -183,18 +235,251 @@
             text-decoration: none;
             color: #999;
             font-size: 12px;
-            padding: 4px;
+            padding: 8px 4px;
+            transition: color 0.2s;
         }
         .nav-item i {
             font-size: 20px;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
         .nav-item.active {
             color: #f5b342;
         }
+        .nav-item:hover {
+            color: #f5b342;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        .modal-header h2 i {
+            margin-right: 8px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .modal-close:hover {
+            background: #f5f5f5;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .search-input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .search-input-container i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+        #userSearchInput {
+            width: 100%;
+            padding: 12px 12px 12px 36px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        #userSearchInput:focus {
+            border-color: #f5b342;
+        }
+        .search-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .result-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #f5b342;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .result-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .result-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .result-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        .result-email {
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .add-friend-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f5b342;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .add-friend-btn:hover {
+            background: #e6a832;
+        }
+        .friend-badge {
+            padding: 4px 8px;
+            background: #e8f5e9;
+            color: #4caf50;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .empty-search {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        .incoming-call {
+            text-align: center;
+            padding: 24px;
+        }
+        .incoming-call-header {
+            margin-bottom: 24px;
+        }
+        .incoming-call-header h2 {
+            margin: 12px 0 0;
+            color: #333;
+        }
+        .caller-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .caller-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #f5b342;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .caller-details {
+            flex: 1;
+            text-align: left;
+        }
+        .caller-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .call-status {
+            color: #f5b342;
+            font-size: 14px;
+        }
+        .call-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .call-action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .call-action-btn.accept {
+            background: #4caf50;
+            color: white;
+        }
+        .call-action-btn.accept:hover {
+            background: #43a047;
+        }
+        .call-action-btn.decline {
+            background: #f44336;
+            color: white;
+        }
+        .call-action-btn.decline:hover {
+            background: #e53935;
+        }
         .toast-container {
             position: fixed;
-            bottom: 80px;
+            bottom: 100px;
             left: 16px;
             right: 16px;
             z-index: 1000;
@@ -209,10 +494,57 @@
             font-size: 14px;
             animation: slideUp 0.3s ease;
             pointer-events: auto;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .toast.success {
+            background: #4caf50;
+        }
+        .toast.error {
+            background: #f44336;
         }
         @keyframes slideUp {
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes ring {
+            0% { transform: rotate(0); }
+            10% { transform: rotate(15deg); }
+            20% { transform: rotate(-15deg); }
+            30% { transform: rotate(15deg); }
+            40% { transform: rotate(-15deg); }
+            50% { transform: rotate(0); }
+            100% { transform: rotate(0); }
+        }
+        .fa-phone-ring {
+            animation: ring 1s infinite;
+        }
+        .loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f5b342;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -227,7 +559,7 @@
     <div class="modal-overlay" id="incomingCallModal" style="display: none;">
         <div class="modal-content incoming-call">
             <div class="incoming-call-header">
-                <i class="fas fa-phone-ring" style="font-size: 48px; color: #f5b342; animation: ring 1s infinite;"></i>
+                <i class="fas fa-phone-alt" style="font-size: 48px; color: #f5b342; animation: ring 1s infinite;"></i>
                 <h2>Incoming Call</h2>
             </div>
             <div class="caller-info" id="callerInfo">
@@ -286,7 +618,7 @@
     </div>
 
     <!-- Friends List -->
-    <main class="friends-list" id="friendsList" style="padding-bottom: 80px;"></main>
+    <main class="friends-list" id="friendsList"></main>
 
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
@@ -336,16 +668,14 @@
             getUserFriends,
             updateUserStatus,
             searchAllUsers,
-            sendFriendRequest,
-            getFriendRequests,
-            respondToFriendRequest
+            sendFriendRequest
         } from '../../call-app/utils/userSync.js'
-        import { initCallListener, showIncomingCall } from '../../call-app/utils/callListener.js'
+        import { initCallListener } from '../../call-app/utils/callListener.js'
         
         let supabase
         let currentUser
         let friends = []
-        let allFriends = [] // For search filtering
+        let allFriends = []
         let incomingCallData = null
         
         async function init() {
@@ -387,9 +717,6 @@
                 setInterval(() => {
                     updateUserStatus(supabase, currentUser.id, 'online')
                 }, 30000)
-                
-                // 8. Check for pending friend requests
-                checkFriendRequests()
                 
             } catch (error) {
                 console.error('❌ Init error:', error)
@@ -552,18 +879,6 @@
             }
         }
         
-        async function checkFriendRequests() {
-            try {
-                const requests = await getFriendRequests(supabase, currentUser.id)
-                if (requests.length > 0) {
-                    // You can implement a notification badge here
-                    console.log('📨 Pending friend requests:', requests.length)
-                }
-            } catch (error) {
-                console.error('Error checking friend requests:', error)
-            }
-        }
-        
         window.startCall = function(friendId, friendName) {
             // Check if friend is online
             const friend = friends.find(f => f.id === friendId)
@@ -621,6 +936,7 @@
         let audioContext = null
         let oscillator = null
         let gainNode = null
+        let ringtoneInterval = null
         
         function playRingtone() {
             try {
@@ -640,17 +956,14 @@
                 
                 // Create ring pattern
                 let isOn = true
-                const interval = setInterval(() => {
+                ringtoneInterval = setInterval(() => {
                     if (!audioContext) {
-                        clearInterval(interval)
+                        clearInterval(ringtoneInterval)
                         return
                     }
                     gainNode.gain.value = isOn ? 0.5 : 0
                     isOn = !isOn
                 }, 500)
-                
-                // Store interval for cleanup
-                window.ringtoneInterval = interval
                 
             } catch (e) {
                 console.log('Ringtone not supported:', e)
@@ -658,18 +971,22 @@
         }
         
         function stopRingtone() {
+            if (ringtoneInterval) {
+                clearInterval(ringtoneInterval)
+                ringtoneInterval = null
+            }
             if (oscillator) {
-                oscillator.stop()
-                oscillator.disconnect()
+                try {
+                    oscillator.stop()
+                    oscillator.disconnect()
+                } catch (e) {}
                 oscillator = null
             }
             if (audioContext) {
-                audioContext.close()
+                try {
+                    audioContext.close()
+                } catch (e) {}
                 audioContext = null
-            }
-            if (window.ringtoneInterval) {
-                clearInterval(window.ringtoneInterval)
-                window.ringtoneInterval = null
             }
         }
         
