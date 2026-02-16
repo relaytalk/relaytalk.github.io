@@ -1,4 +1,4 @@
-// call.js - COMPLETE UPDATED FILE
+// call.js - COMPLETE WITH TAB MANAGEMENT
 
 import { initializeSupabase } from '../utils/supabase.js';
 import { getRelayTalkUser } from '../utils/userSync.js';
@@ -11,6 +11,10 @@ let callId = null;
 let callStatus = 'pending';
 let heartbeatInterval = null;
 
+// Tab Management
+const TAB_ID = Math.random().toString(36).substring(7); // Unique ID for this tab
+const CALL_TABS_KEY = 'call_app_active_tabs';
+
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
 const isIncoming = urlParams.get('incoming') === 'true';
@@ -20,10 +24,52 @@ const friendName = urlParams.get('friendName');
 const callerId = urlParams.get('callerId');
 const callIdParam = urlParams.get('callId');
 
+// Register this tab
+function registerTab() {
+    try {
+        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}');
+        const currentCallId = callIdParam || 'new-call';
+        
+        // If there's already an active tab for this call, close this one
+        if (activeTabs[currentCallId] && activeTabs[currentCallId] !== TAB_ID) {
+            console.log('⚠️ Another tab already active for this call, closing...');
+            alert('Call is already open in another tab. This tab will close.');
+            window.close();
+            return false;
+        }
+        
+        // Register this tab
+        activeTabs[currentCallId] = TAB_ID;
+        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs));
+        
+        return true;
+    } catch (e) {
+        console.log('Tab registration error:', e);
+        return true; // Continue even if registration fails
+    }
+}
+
+// Remove tab registration
+function unregisterTab() {
+    try {
+        const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}');
+        const currentCallId = callId || callIdParam || 'new-call';
+        delete activeTabs[currentCallId];
+        sessionStorage.setItem(CALL_TABS_KEY, JSON.stringify(activeTabs));
+    } catch (e) {
+        console.log('Tab unregistration error:', e);
+    }
+}
+
 async function initCall() {
     console.log('📞 Initializing call...');
 
     try {
+        // Register this tab first
+        if (!registerTab()) {
+            return; // Stop initialization if another tab is active
+        }
+
         // Get user from RelayTalk
         const user = getRelayTalkUser();
         if (!user) {
@@ -53,6 +99,20 @@ async function initCall() {
         // Set up beforeunload handler
         window.addEventListener('beforeunload', handleBeforeUnload);
 
+        // Listen for storage events (when another tab is opened)
+        window.addEventListener('storage', (e) => {
+            if (e.key === CALL_TABS_KEY) {
+                const tabs = JSON.parse(e.newValue || '{}');
+                const currentCallId = callId || callIdParam || 'new-call';
+                
+                if (tabs[currentCallId] && tabs[currentCallId] !== TAB_ID) {
+                    console.log('⚠️ Another tab opened this call, closing...');
+                    alert('Call was opened in another tab. This tab will close.');
+                    endCall(true); // true = don't update status (other tab will handle it)
+                }
+            }
+        });
+
     } catch (error) {
         console.error('❌ Call init error:', error);
         showError('Failed to initialize call: ' + error.message);
@@ -63,6 +123,40 @@ async function createOutgoingCall(user, room) {
     try {
         console.log('🎯 Creating call record...');
         
+        // Check if there's already a pending call from this user to this friend
+        const { data: existingCalls, error: checkError } = await supabase
+            .from('calls')
+            .select('id, status, created_at')
+            .eq('caller_id', user.id)
+            .eq('callee_id', friendId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (checkError) throw checkError;
+
+        // If there's an existing pending call, use that instead
+        if (existingCalls && existingCalls.length > 0) {
+            const existingCall = existingCalls[0];
+            console.log('📞 Found existing pending call:', existingCall);
+            
+            // Update the room name
+            await supabase
+                .from('calls')
+                .update({ 
+                    room_name: room,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingCall.id);
+            
+            callId = existingCall.id;
+            
+            // Update call status
+            updateCallStatus('calling', `Calling ${friendName}...`);
+            return;
+        }
+
+        // No existing pending call, create new one
         const { data: call, error } = await supabase
             .from('calls')
             .insert([{
@@ -70,7 +164,8 @@ async function createOutgoingCall(user, room) {
                 caller_id: user.id,
                 callee_id: friendId,
                 status: 'pending',
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             }])
             .select()
             .single();
@@ -78,7 +173,7 @@ async function createOutgoingCall(user, room) {
         if (error) throw error;
 
         callId = call.id;
-        console.log('✅ Call created:', call);
+        console.log('✅ New call created:', call);
 
         // Show calling status
         updateCallStatus('calling', `Calling ${friendName}...`);
@@ -93,7 +188,7 @@ async function joinDailyRoom() {
     try {
         // Create Daily iframe
         callFrame = DailyIframe.createFrame({
-            showLeaveButton: false, // Hide default leave button (we'll use custom)
+            showLeaveButton: false,
             showFullscreenButton: true,
             showParticipantsBar: true,
             iframeStyle: {
@@ -135,7 +230,6 @@ async function joinDailyRoom() {
 }
 
 function addCustomHangupButton() {
-    // Create custom hangup button
     const hangupBtn = document.createElement('button');
     hangupBtn.id = 'custom-hangup-btn';
     hangupBtn.innerHTML = `
@@ -176,12 +270,12 @@ function addCustomHangupButton() {
         hangupBtn.style.transform = 'translateX(-50%) scale(1)';
     });
 
-    hangupBtn.addEventListener('click', endCall);
+    hangupBtn.addEventListener('click', () => endCall(false));
 
     document.body.appendChild(hangupBtn);
 }
 
-async function endCall() {
+async function endCall(silent = false) {
     console.log('🔴 Ending call...');
 
     // Stop heartbeat
@@ -190,8 +284,8 @@ async function endCall() {
         heartbeatInterval = null;
     }
 
-    // Update call status in database
-    if (callId && supabase) {
+    // Update call status in database only if not silent
+    if (!silent && callId && supabase) {
         await updateCallStatus('completed');
     }
 
@@ -205,6 +299,9 @@ async function endCall() {
         }
     }
 
+    // Remove tab registration
+    unregisterTab();
+
     // Close this tab/window
     window.close();
     
@@ -215,9 +312,13 @@ async function endCall() {
 }
 
 function handleBeforeUnload(event) {
+    // Remove tab registration
+    unregisterTab();
+    
     // Update call status when user closes tab/window
     if (callId && supabase && callStatus !== 'completed') {
-        updateCallStatus('missed');
+        const status = callStatus === 'active' ? 'completed' : 'missed';
+        updateCallStatus(status);
     }
 }
 
@@ -225,7 +326,10 @@ async function updateCallStatus(status) {
     try {
         if (!callId || !supabase) return;
 
-        const updateData = { status };
+        const updateData = { 
+            status,
+            updated_at: new Date().toISOString()
+        };
         
         // Add timestamps based on status
         if (status === 'active') {
@@ -276,9 +380,9 @@ function handleParticipantLeft(event) {
     console.log('👤 Participant left:', event);
     
     // If less than 2 participants, end call after delay
-    if (callFrame.participantCount() < 2) {
+    if (callFrame && callFrame.participantCount() < 2) {
         setTimeout(() => {
-            endCall();
+            endCall(false);
         }, 3000);
     }
 }
@@ -286,7 +390,7 @@ function handleParticipantLeft(event) {
 function handleCallError(error) {
     console.error('❌ Call error:', error);
     showError('Call failed: ' + error.message);
-    endCall();
+    endCall(false);
 }
 
 function updateCallStatus(message, details) {
