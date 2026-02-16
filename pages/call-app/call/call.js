@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - FIXED column name
+// /pages/call-app/call/call.js - COMPLETE FIXED VERSION
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
@@ -9,7 +9,6 @@ let currentCall
 let jitsiIframe
 let callRoom
 let isVideoOn = false
-let heartbeatInterval = null
 
 // Tab Management
 const TAB_ID = Math.random().toString(36).substring(7)
@@ -82,10 +81,8 @@ async function initCall() {
         
         console.log('📞 Call params:', { friendId, friendName, incoming, roomName, callerId, callId })
         
-        // Listen for storage events (when another tab is opened)
+        // Listen for storage events
         window.addEventListener('storage', handleStorageEvent)
-        
-        // Set up beforeunload handler
         window.addEventListener('beforeunload', handleBeforeUnload)
         
         if (incoming === 'true' && roomName && callerId && callId) {
@@ -147,10 +144,10 @@ async function startOutgoingCall(friendId, friendName) {
         callRoom = await createCallRoom()
         console.log('2️⃣ Room created:', callRoom)
         
-        // FIXED: Changed receiver_id to callee_id to match database schema
+        // FIXED: Using receiver_id (not callee_id) to match your database schema
         const callData = {
             caller_id: currentUser.id,
-            callee_id: friendId,                    // ← FIXED: was receiver_id
+            receiver_id: friendId,
             room_name: callRoom.name,
             room_url: callRoom.url,
             status: 'ringing',
@@ -408,11 +405,6 @@ window.toggleSpeaker = function() {
 window.endCall = async function(silent = false) {
     console.log('Ending call...')
     
-    if (heartbeatInterval) {
-        clearInterval(heartbeatInterval)
-        heartbeatInterval = null
-    }
-    
     if (currentCall && supabase && !silent) {
         await supabase
             .from('calls')
@@ -456,11 +448,6 @@ function showError(message) {
     document.getElementById('loadingScreen').style.display = 'none'
     document.getElementById('errorScreen').style.display = 'flex'
     document.getElementById('errorMessage').textContent = message
-    
-    setTimeout(() => {
-        unregisterTab()
-    }, 1000)
 }
 
-// Initialize call
 initCall()
