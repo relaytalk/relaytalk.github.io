@@ -1,7 +1,7 @@
-// /pages/call-app/call/call.js - COMPLETE FIXED VERSION
+// /pages/call-app/call/call.js - COMPLETE FIXED VERSION WITH TAB MANAGEMENT
 
-import { initializeSupabase } from '../utils/supabase.js'
-import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
+import { initializeSupabase } from '/pages/call-app/utils/supabase.js'
+import { getRelayTalkUser, syncUserToDatabase } from '/pages/call-app/utils/userSync.js'
 
 let supabase
 let currentUser
@@ -144,7 +144,6 @@ async function startOutgoingCall(friendId, friendName) {
         callRoom = await createCallRoom()
         console.log('2️⃣ Room created:', callRoom)
         
-        // FIXED: Using receiver_id (not callee_id) to match your database schema
         const callData = {
             caller_id: currentUser.id,
             receiver_id: friendId,
@@ -253,7 +252,6 @@ async function joinCall(roomName) {
         iframe.style.border = 'none'
         iframe.style.background = '#000'
         
-        // Build URL correctly with all config
         const baseUrl = `https://${JAAS_DOMAIN}/${roomName}`
         const config = {
             configOverwrite: {
@@ -289,7 +287,6 @@ async function joinCall(roomName) {
         container.appendChild(wrapper)
         jitsiIframe = iframe
         
-        // Add CSS to hide any remaining Jitsi UI
         const style = document.createElement('style')
         style.textContent = `
             .prejoin-screen, .welcome-page, .join-dialog,
@@ -305,7 +302,6 @@ async function joinCall(roomName) {
         `
         wrapper.appendChild(style)
         
-        // AUTO-JOIN: Click join button repeatedly
         iframe.onload = function() {
             console.log('Iframe loaded, auto-joining...')
             
@@ -313,7 +309,6 @@ async function joinCall(roomName) {
                 try {
                     const iframeDoc = iframe.contentWindow.document
                     
-                    // Try different join button selectors
                     const joinSelectors = [
                         '[data-testid="prejoin.joinButton"]',
                         '.prejoin-input-area button',
@@ -337,7 +332,6 @@ async function joinCall(roomName) {
             setTimeout(() => clearInterval(joinInterval), 10000)
         }
         
-        // Hide loading after delay
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none'
             document.getElementById('activeCallScreen').style.display = 'block'
@@ -351,7 +345,6 @@ async function joinCall(roomName) {
     }
 }
 
-// Video toggle
 window.toggleVideo = function() {
     const btn = document.getElementById('videoBtn')
     isVideoOn = !isVideoOn
@@ -374,7 +367,6 @@ window.toggleVideo = function() {
     }
 }
 
-// Mute toggle
 window.toggleMute = function() {
     const btn = document.getElementById('muteBtn')
     btn.classList.toggle('muted')
@@ -392,7 +384,6 @@ window.toggleMute = function() {
     }
 }
 
-// Speaker toggle
 window.toggleSpeaker = function() {
     const btn = document.getElementById('speakerBtn')
     btn.classList.toggle('speaker-off')
@@ -401,10 +392,8 @@ window.toggleSpeaker = function() {
         : '<i class="fas fa-volume-up"></i>'
 }
 
-// End call
 window.endCall = async function(silent = false) {
     console.log('Ending call...')
-    
     if (currentCall && supabase && !silent) {
         await supabase
             .from('calls')
@@ -416,7 +405,7 @@ window.endCall = async function(silent = false) {
     window.close()
     
     setTimeout(() => {
-        window.location.href = '../index.html'
+        window.location.href = '/pages/call-app/index.html'
     }, 500)
 }
 
@@ -429,7 +418,7 @@ window.cancelCall = async function() {
     }
     
     unregisterTab()
-    window.location.href = '../index.html'
+    window.location.href = '/pages/call-app/index.html'
 }
 
 window.acceptCall = function() {}
@@ -440,7 +429,7 @@ function showCallEnded(message) {
     document.getElementById('loadingText').textContent = message
     
     setTimeout(() => {
-        window.location.href = '../index.html'
+        window.location.href = '/pages/call-app/index.html'
     }, 2000)
 }
 
