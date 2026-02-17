@@ -152,21 +152,25 @@
         })();
     </script>
 
-    <!-- OneSignal Direct - FIXED API USAGE -->
+    <!-- OneSignal Direct - AUTO PROMPT CONFIGURATION -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
     <script>
-        window.OneSignal = window.OneSignal || [];
-        OneSignal.push(function() {
-            OneSignal.init({
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
                 appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
                 safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
-                notifyButton: {
-                    enable: true,
-                },
                 autoRegister: true,
-                autoPrompt: true
+                autoPrompt: true,
+                promptOptions: {
+                    autoPrompt: true,
+                    clickToAllow: true,
+                    actionMessage: "Please enable notifications to get instant messages from your friends",
+                    acceptButtonText: "Allow",
+                    cancelButtonText: "Maybe Later"
+                }
             });
-            console.log('✅ OneSignal direct init');
+            console.log('✅ OneSignal initialized with auto-prompt');
         });
     </script>
 </head>
@@ -180,7 +184,7 @@
         <div class="loading-text">✨ Loading Relay...</div>
     </div>
 
-    <!-- Top Header -->
+    <!-- Top Header - ORIGINAL UNCHANGED -->
     <header class="top-header">
         <button class="search-btn" onclick="openSearch()">
             <i class="fas fa-search"></i> Search Friends
@@ -282,58 +286,100 @@
         </div>
     </div>
 
-    <!-- Enable Notifications Button - FIXED API USAGE -->
-    <button id="enableNotificationsBtn" style="position: fixed; bottom: 80px; right: 20px; background: #667eea; color: white; border: none; border-radius: 50px; padding: 12px 24px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 9999; display: none;">
-        <i class="fas fa-bell"></i> Enable Notifications
-    </button>
-
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 
-    <!-- FIXED OneSignal permission check -->
+    <!-- Auto Permission Logic - Shows prompt unless already decided -->
     <script>
-        // Show notification button if permission not granted - CORRECT API
-        setTimeout(() => {
-            if (window.OneSignal) {
-                // CORRECT: Use OneSignal.Notifications.getPermission()
-                window.OneSignal.Notifications.getPermission().then(permission => {
-                    console.log('🔔 Notification permission:', permission);
-                    if (permission === 'default') {
-                        document.getElementById('enableNotificationsBtn').style.display = 'block';
+        (function() {
+            console.log('🔔 Setting up auto-notification prompt...');
+            
+            // Check if user has already made a decision
+            const notificationDecision = localStorage.getItem('notificationDecision');
+            
+            // Only show if not decided yet
+            if (!notificationDecision) {
+                console.log('🔔 No previous decision found, will show prompt');
+                
+                // Wait for OneSignal to be ready
+                let attempts = 0;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    
+                    if (window.OneSignal) {
+                        clearInterval(checkInterval);
+                        
+                        // Check current permission
+                        window.OneSignal.Notifications.getPermission().then(permission => {
+                            console.log('🔔 Current permission:', permission);
+                            
+                            // If not decided yet (default state)
+                            if (permission === 'default') {
+                                console.log('🔔 Showing notification prompt...');
+                                
+                                // Slight delay for better UX
+                                setTimeout(() => {
+                                    window.OneSignal.Notifications.requestPermission().then(result => {
+                                        console.log('🔔 Permission result:', result);
+                                        
+                                        // Save decision
+                                        localStorage.setItem('notificationDecision', result || 'denied');
+                                    });
+                                }, 3000);
+                            } else {
+                                // Already decided, save it
+                                localStorage.setItem('notificationDecision', permission);
+                                console.log('🔔 Already decided:', permission);
+                            }
+                        }).catch(err => {
+                            console.log('🔔 Error checking permission:', err);
+                        });
+                    } else if (attempts > 20) {
+                        clearInterval(checkInterval);
+                        console.log('🔔 OneSignal not loaded, will retry later');
+                        
+                        // Try again after page fully loads
+                        window.addEventListener('load', function() {
+                            if (window.OneSignal) {
+                                window.OneSignal.Notifications.getPermission().then(permission => {
+                                    if (permission === 'default' && !localStorage.getItem('notificationDecision')) {
+                                        setTimeout(() => {
+                                            window.OneSignal.Notifications.requestPermission();
+                                            localStorage.setItem('notificationDecision', 'requested');
+                                        }, 5000);
+                                    }
+                                });
+                            }
+                        });
                     }
-                }).catch(err => {
-                    console.log('Permission check error:', err);
+                }, 500);
+            } else {
+                console.log('🔔 User already decided:', notificationDecision);
+            }
+            
+            // Also check on auth state change (user login)
+            if (window.supabase?.auth) {
+                window.supabase.auth.onAuthStateChange((event) => {
+                    if (event === 'SIGNED_IN') {
+                        console.log('🔔 User signed in, checking notification permission...');
+                        
+                        // Check if we should show prompt
+                        if (!localStorage.getItem('notificationDecision') && window.OneSignal) {
+                            setTimeout(() => {
+                                window.OneSignal.Notifications.getPermission().then(permission => {
+                                    if (permission === 'default') {
+                                        window.OneSignal.Notifications.requestPermission().then(result => {
+                                            localStorage.setItem('notificationDecision', result || 'denied');
+                                        });
+                                    }
+                                });
+                            }, 2000);
+                        }
+                    }
                 });
             }
-        }, 4000);
-
-        // Handle button click - CORRECT API
-        document.getElementById('enableNotificationsBtn').addEventListener('click', async () => {
-            if (window.OneSignal) {
-                try {
-                    // CORRECT: Use OneSignal.Notifications.requestPermission()
-                    await window.OneSignal.Notifications.requestPermission();
-                    document.getElementById('enableNotificationsBtn').style.display = 'none';
-                } catch (err) {
-                    console.log('Permission request error:', err);
-                }
-            }
-        });
-
-        // Also try to auto-prompt after login
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                if (window.OneSignal) {
-                    window.OneSignal.Notifications.getPermission().then(permission => {
-                        if (permission === 'default') {
-                            // Don't auto-prompt immediately, let user click button
-                            console.log('🔔 Notifications available - click button to enable');
-                        }
-                    });
-                }
-            }, 5000);
-        });
+        })();
     </script>
 </body>
 </html>
