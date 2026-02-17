@@ -6,7 +6,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-<meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
+    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
+    
     <!-- TITLE - PRIORITIZE THIS PAGE -->
     <title>RelayTalk - Home</title>
     <meta name="title" content="RelayTalk - Dashboard | Connect with Friends">
@@ -45,6 +46,64 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self' 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://*.supabase.in 
+        https://api.imgbb.com 
+        https://*.ibb.co 
+        https://i.ibb.co 
+        https://*.github.io 
+        https://github.com
+        https://fonts.googleapis.com
+        https://cdn.onesignal.com
+        https://onesignal.com
+        https://*.onesignal.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://cdn.jsdelivr.net
+        https://fonts.googleapis.com
+        https://i.ibb.co
+        https://ibb.co
+        https://cdn.onesignal.com
+        https://onesignal.com
+        https://*.onesignal.com;
+        style-src 'self' 'unsafe-inline' 
+        https://fonts.googleapis.com 
+        https://cdn.jsdelivr.net
+        https://fonts.gstatic.com
+        https://cdn.onesignal.com;
+        img-src 'self' data: blob: 
+        https://*.ibb.co 
+        https://i.ibb.co 
+        https://*.imgbb.com 
+        https:;
+        font-src 'self' data: 
+        https://fonts.gstatic.com 
+        https://cdn.jsdelivr.net
+        https://cdn.onesignal.com;
+        connect-src 'self' 
+        wss://*.supabase.co 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://api.imgbb.com 
+        https://*.github.io
+        https://i.ibb.co
+        https://ibb.co
+        https://onesignal.com
+        https://*.onesignal.com;
+        media-src 'self' 
+        https://i.ibb.co
+        https://*.ibb.co;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-src 'none';
+    ">
+
     <!-- ✅ CRITICAL FIX: ONLY redirect if NOT logged in - SINGLE CHECK, NO FALLBACK -->
     <script>
         (function() {
@@ -80,17 +139,24 @@
             }
         })();
     </script>
-    <!-- OneSignal Direct -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
-<script>
-    window.OneSignal = window.OneSignal || [];
-    OneSignal.push(function() {
-        OneSignal.init({
-            appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
+
+    <!-- OneSignal Direct - Complete Setup -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
+    <script>
+        window.OneSignal = window.OneSignal || [];
+        OneSignal.push(function() {
+            OneSignal.init({
+                appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
+                safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
+                notifyButton: {
+                    enable: true,
+                },
+                autoRegister: true,
+                autoPrompt: true
+            });
+            console.log('✅ OneSignal direct init');
         });
-        console.log('✅ OneSignal direct init');
-    });
-</script>
+    </script>
 </head>
 <body>
     <!-- Toast Container -->
@@ -204,11 +270,34 @@
         </div>
     </div>
 
+    <!-- Enable Notifications Button -->
+    <button id="enableNotificationsBtn" style="position: fixed; bottom: 80px; right: 20px; background: #667eea; color: white; border: none; border-radius: 50px; padding: 12px 24px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 9999; display: none;">
+        <i class="fas fa-bell"></i> Enable Notifications
+    </button>
+
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 
-    <!-- ✅ REMOVED: The fallback auth check that was causing the redirect loop -->
-    <!-- The inline script above handles auth redirect. script.js handles page functionality -->
+    <script>
+        // Show notification button if permission not granted
+        setTimeout(() => {
+            if (window.OneSignal) {
+                window.OneSignal.getPermission().then(permission => {
+                    if (permission === 'default') {
+                        document.getElementById('enableNotificationsBtn').style.display = 'block';
+                    }
+                });
+            }
+        }, 4000);
+
+        // Handle button click
+        document.getElementById('enableNotificationsBtn').addEventListener('click', async () => {
+            if (window.OneSignal) {
+                await window.OneSignal.showNativePrompt();
+                document.getElementById('enableNotificationsBtn').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
