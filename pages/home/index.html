@@ -80,6 +80,17 @@
             }
         })();
     </script>
+    <!-- OneSignal Direct -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
+<script>
+    window.OneSignal = window.OneSignal || [];
+    OneSignal.push(function() {
+        OneSignal.init({
+            appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
+        });
+        console.log('✅ OneSignal direct init');
+    });
+</script>
 </head>
 <body>
     <!-- Toast Container -->
