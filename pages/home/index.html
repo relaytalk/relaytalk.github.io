@@ -152,25 +152,31 @@
         })();
     </script>
 
-    <!-- OneSignal Direct - AUTO PROMPT CONFIGURATION -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
+    <!-- OneSignal SDK - FIXED INITIALIZATION (NO BUTTON) -->
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
     <script>
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        OneSignalDeferred.push(async function(OneSignal) {
-            await OneSignal.init({
+        window.OneSignal = window.OneSignal || [];
+        window.OneSignal.push(function() {
+            window.OneSignal.init({
                 appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
                 safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
                 autoRegister: true,
-                autoPrompt: true,
-                promptOptions: {
-                    autoPrompt: true,
-                    clickToAllow: true,
-                    actionMessage: "Please enable notifications to get instant messages from your friends",
-                    acceptButtonText: "Allow",
-                    cancelButtonText: "Maybe Later"
+                notifyButton: {
+                    enable: false  // Disabled on home page
                 }
             });
-            console.log('✅ OneSignal initialized with auto-prompt');
+            
+            // Force check initialization
+            setTimeout(function() {
+                if (!window.OneSignal.initialized) {
+                    console.log('⚠️ Home: OneSignal not initialized, trying again...');
+                    window.OneSignal.init({
+                        appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
+                    });
+                } else {
+                    console.log('✅ Home: OneSignal fully initialized');
+                }
+            }, 2000);
         });
     </script>
 </head>
@@ -184,7 +190,7 @@
         <div class="loading-text">✨ Loading Relay...</div>
     </div>
 
-    <!-- Top Header - ORIGINAL UNCHANGED -->
+    <!-- Top Header - ORIGINAL UNCHANGED (NO NOTIFICATION BUTTON) -->
     <header class="top-header">
         <button class="search-btn" onclick="openSearch()">
             <i class="fas fa-search"></i> Search Friends
@@ -290,19 +296,16 @@
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 
-    <!-- Auto Permission Logic - Shows prompt unless already decided -->
+    <!-- Auto Permission Logic (No Button) -->
     <script>
         (function() {
             console.log('🔔 Setting up auto-notification prompt...');
             
-            // Check if user has already made a decision
             const notificationDecision = localStorage.getItem('notificationDecision');
             
-            // Only show if not decided yet
             if (!notificationDecision) {
                 console.log('🔔 No previous decision found, will show prompt');
                 
-                // Wait for OneSignal to be ready
                 let attempts = 0;
                 const checkInterval = setInterval(() => {
                     attempts++;
@@ -310,75 +313,46 @@
                     if (window.OneSignal) {
                         clearInterval(checkInterval);
                         
-                        // Check current permission
-                        window.OneSignal.Notifications.getPermission().then(permission => {
-                            console.log('🔔 Current permission:', permission);
-                            
-                            // If not decided yet (default state)
-                            if (permission === 'default') {
-                                console.log('🔔 Showing notification prompt...');
+                        window.OneSignal.push(function() {
+                            window.OneSignal.getPermission(function(permission) {
+                                console.log('🔔 Current permission:', permission);
                                 
-                                // Slight delay for better UX
-                                setTimeout(() => {
-                                    window.OneSignal.Notifications.requestPermission().then(result => {
-                                        console.log('🔔 Permission result:', result);
-                                        
-                                        // Save decision
-                                        localStorage.setItem('notificationDecision', result || 'denied');
-                                    });
-                                }, 3000);
-                            } else {
-                                // Already decided, save it
-                                localStorage.setItem('notificationDecision', permission);
-                                console.log('🔔 Already decided:', permission);
-                            }
-                        }).catch(err => {
-                            console.log('🔔 Error checking permission:', err);
+                                if (permission === 0) { // 0 = default
+                                    console.log('🔔 Showing notification prompt...');
+                                    setTimeout(() => {
+                                        window.OneSignal.showNativePrompt();
+                                        localStorage.setItem('notificationDecision', 'requested');
+                                    }, 3000);
+                                } else {
+                                    localStorage.setItem('notificationDecision', permission === 1 ? 'granted' : 'denied');
+                                }
+                            });
                         });
                     } else if (attempts > 20) {
                         clearInterval(checkInterval);
-                        console.log('🔔 OneSignal not loaded, will retry later');
-                        
-                        // Try again after page fully loads
-                        window.addEventListener('load', function() {
-                            if (window.OneSignal) {
-                                window.OneSignal.Notifications.getPermission().then(permission => {
-                                    if (permission === 'default' && !localStorage.getItem('notificationDecision')) {
-                                        setTimeout(() => {
-                                            window.OneSignal.Notifications.requestPermission();
-                                            localStorage.setItem('notificationDecision', 'requested');
-                                        }, 5000);
-                                    }
-                                });
-                            }
-                        });
                     }
                 }, 500);
-            } else {
-                console.log('🔔 User already decided:', notificationDecision);
             }
+        })();
+    </script>
+
+    <!-- Force OneSignal Initialization Check -->
+    <script>
+        (function() {
+            console.log('🔍 Checking OneSignal initialization on home...');
             
-            // Also check on auth state change (user login)
-            if (window.supabase?.auth) {
-                window.supabase.auth.onAuthStateChange((event) => {
-                    if (event === 'SIGNED_IN') {
-                        console.log('🔔 User signed in, checking notification permission...');
-                        
-                        // Check if we should show prompt
-                        if (!localStorage.getItem('notificationDecision') && window.OneSignal) {
-                            setTimeout(() => {
-                                window.OneSignal.Notifications.getPermission().then(permission => {
-                                    if (permission === 'default') {
-                                        window.OneSignal.Notifications.requestPermission().then(result => {
-                                            localStorage.setItem('notificationDecision', result || 'denied');
-                                        });
-                                    }
-                                });
-                            }, 2000);
-                        }
-                    }
-                });
-            }
+            let checks = 0;
+            const initCheck = setInterval(() => {
+                checks++;
+                
+                if (window.OneSignal && window.OneSignal.initialized) {
+                    console.log('✅ Home: OneSignal is fully initialized!');
+                    clearInterval(initCheck);
+                } else if (checks > 10) {
+                    console.log('⚠️ Home: OneSignal still not initialized');
+                    clearInterval(initCheck);
+                }
+            }, 1000);
         })();
     </script>
 </body>
