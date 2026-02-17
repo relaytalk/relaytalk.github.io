@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// ONESIGNAL PUSH NOTIFICATION INTEGRATION
+// ONESIGNAL PUSH NOTIFICATION INTEGRATION - FIXED API
 // ============================================
 
 // OneSignal Configuration
@@ -223,7 +223,7 @@ function initOneSignal() {
     });
 }
 
-// Register push token with Supabase
+// FIXED: Register push token with Supabase - Compatible with older OneSignal SDK
 async function registerPushToken() {
     try {
         console.log('📱 Attempting to register push token...');
@@ -250,17 +250,32 @@ async function registerPushToken() {
             return false;
         }
 
-        // Get OneSignal player ID
-        let playerId;
+        // FIXED: Get OneSignal player ID using older SDK method
+        let playerId = null;
+        
         try {
-            playerId = await window.OneSignal.User.PushSubscription.getId();
+            // Method 1: getUserId() - works with older SDK
+            if (typeof window.OneSignal.getUserId === 'function') {
+                playerId = await window.OneSignal.getUserId();
+            }
+            // Method 2: Check internal property
+            else if (window.OneSignal.__subscriptionId) {
+                playerId = window.OneSignal.__subscriptionId;
+            }
+            // Method 3: Try to get from localStorage
+            else {
+                const savedId = localStorage.getItem('onesignal.user_id');
+                if (savedId) {
+                    playerId = savedId;
+                }
+            }
         } catch (e) {
-            console.log('⏳ Getting OneSignal ID...');
-            return false;
+            console.log('⏳ Error getting OneSignal ID:', e);
         }
         
         if (!playerId) {
-            console.log('⏳ No OneSignal ID yet');
+            console.log('⏳ No OneSignal ID yet, will retry...');
+            setTimeout(registerPushToken, 3000);
             return false;
         }
 
@@ -292,14 +307,25 @@ async function registerPushToken() {
         const result = await response.json();
         
         if (response.ok) {
-            console.log('✅ Push token registered!');
+            console.log('✅ Push token registered successfully!');
             
-            // Request notification permission
-            const permission = await window.OneSignal.Notifications.getPermission();
+            // FIXED: Check permission with older SDK
+            let permission = 'default';
+            if (window.OneSignal && typeof window.OneSignal.getPermission === 'function') {
+                permission = await window.OneSignal.getPermission();
+            } else if (window.OneSignal && window.OneSignal.notifyButton) {
+                // Assume permission granted if button exists
+                permission = 'granted';
+            }
+            
             if (permission === 'default') {
                 console.log('🔔 Requesting permission...');
-                await window.OneSignal.Notifications.requestPermission();
-                showNotification('Notifications enabled!', 'success');
+                if (typeof window.OneSignal.showNativePrompt === 'function') {
+                    window.OneSignal.showNativePrompt();
+                } else if (typeof window.OneSignal.registerForPushNotifications === 'function') {
+                    window.OneSignal.registerForPushNotifications();
+                }
+                showNotification('Please allow notifications!', 'info');
             }
             
             return true;
