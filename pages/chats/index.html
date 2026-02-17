@@ -105,11 +105,12 @@
     <link rel="dns-prefetch" href="https://ibb.co">
     <link rel="preload" as="image" href="https://i.ibb.co/placeholder/relaytalk-og.png">
 
-    <!-- PRELOAD ONESIGNAL -->
+    <!-- PRELOAD ONESIGNAL - CRITICAL FIX -->
     <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
     <link rel="preconnect" href="https://onesignal.com" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.onesignal.com">
     <link rel="dns-prefetch" href="https://onesignal.com">
+    <link rel="preload" href="https://cdn.onesignal.com/sdks/OneSignalSDK.js" as="script">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -138,33 +139,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- OneSignal SDK - FIXED INITIALIZATION -->
+    <!-- OneSignal SDK - Load with high priority -->
     <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
-    <script>
-        window.OneSignal = window.OneSignal || [];
-        window.OneSignal.push(function() {
-            window.OneSignal.init({
-                appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
-                safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
-                autoRegister: true,
-                notifyButton: {
-                    enable: true
-                }
-            });
-            
-            // Force check initialization
-            setTimeout(function() {
-                if (!window.OneSignal.initialized) {
-                    console.log('⚠️ OneSignal not initialized, trying again...');
-                    window.OneSignal.init({
-                        appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
-                    });
-                } else {
-                    console.log('✅ OneSignal fully initialized');
-                }
-            }, 2000);
-        });
-    </script>
 
     <!-- Notification Button Styles - Matching App Theme -->
     <style>
@@ -461,7 +437,7 @@
     </div>
 
     <!-- Custom Alert Modal -->
-     <div class="modal-overlay" id="customAlert" style="display: none;">
+    <div class="modal-overlay" id="customAlert" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title" id="alertTitle">Alert</h3>
@@ -571,11 +547,46 @@
         window.isMobileChrome = isMobileChrome;
     </script>
 
-    <!-- Notification Button Logic for Older OneSignal API -->
+    <!-- CRITICAL FIX: Wait for OneSignal to load before using it -->
     <script>
-        // Notification button functionality for older OneSignal API - FIXED VERSION
-        (function() {
-            console.log('🔔 Initializing notification button...');
+        // Wait for OneSignal to be ready
+        function waitForOneSignal(callback, maxAttempts = 30) {
+            if (window.OneSignal) {
+                console.log('✅ OneSignal already loaded');
+                callback();
+                return;
+            }
+            
+            console.log('⏳ Waiting for OneSignal to load...');
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (window.OneSignal) {
+                    clearInterval(interval);
+                    console.log(`✅ OneSignal loaded after ${attempts} attempts`);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    console.log('❌ OneSignal failed to load after', maxAttempts, 'attempts');
+                }
+            }, 200);
+        }
+
+        // Initialize OneSignal when ready
+        waitForOneSignal(() => {
+            window.OneSignal.push(function() {
+                window.OneSignal.init({
+                    appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
+                    safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f"
+                });
+                console.log('✅ OneSignal initialized successfully');
+            });
+        });
+
+        // Now initialize your button logic after OneSignal is ready
+        waitForOneSignal(() => {
+            // Your existing notification button code here
+            console.log('🔔 Setting up notification button...');
             
             const notificationBtn = document.getElementById('notificationToggleBtn');
             const notificationBadgeSmall = document.getElementById('notificationBadgeSmall');
@@ -587,172 +598,109 @@
                 if (notificationBtn) {
                     notificationBtn.style.display = 'flex';
                 }
-            }, 3000);
+            }, 2000);
 
-            // FIXED: Helper to get OneSignal permission using older API
-            function getOneSignalPermission(callback) {
-                if (!window.OneSignal) {
-                    console.log('⏳ OneSignal not ready');
-                    callback('default');
-                    return;
+            // Helper to get permission using Notification API (works without OneSignal methods)
+            function getPermissionStatus() {
+                if (window.Notification && Notification.permission) {
+                    return Notification.permission; // 'granted', 'denied', or 'default'
                 }
-                
-                // Use the push method to ensure SDK is ready
-                window.OneSignal.push(function() {
-                    // Check if getPermission method exists
-                    if (typeof window.OneSignal.getPermission === 'function') {
-                        window.OneSignal.getPermission(function(permission) {
-                            console.log('🔔 Permission from getPermission:', permission);
-                            // permission: 1 = granted, 0 = default, 2 = denied (in older SDK)
-                            if (permission === 1) callback('granted');
-                            else if (permission === 2) callback('denied');
-                            else callback('default');
-                        });
-                    } 
-                    // Fallback: try to get from notificationPermission
-                    else if (window.Notification) {
-                        console.log('🔔 Using Notification.permission fallback');
-                        if (Notification.permission === 'granted') callback('granted');
-                        else if (Notification.permission === 'denied') callback('denied');
-                        else callback('default');
-                    }
-                    else {
-                        callback('default');
-                    }
-                });
+                return 'default';
             }
 
-            // FIXED: Request permission using older API
-            function requestOneSignalPermission(callback) {
-                if (!window.OneSignal) {
-                    callback(false);
-                    return;
-                }
-                
-                window.OneSignal.push(function() {
-                    // Try different methods for older SDK
-                    if (typeof window.OneSignal.showNativePrompt === 'function') {
-                        console.log('🔔 Using showNativePrompt');
-                        window.OneSignal.showNativePrompt(function() {
-                            // After prompt, check permission
-                            setTimeout(() => {
-                                getOneSignalPermission(callback);
-                            }, 1000);
-                        });
-                    } 
-                    else if (typeof window.OneSignal.registerForPushNotifications === 'function') {
-                        console.log('🔔 Using registerForPushNotifications');
-                        window.OneSignal.registerForPushNotifications();
-                        setTimeout(() => {
-                            getOneSignalPermission(callback);
-                        }, 2000);
-                    }
-                    else if (window.Notification && Notification.requestPermission) {
-                        console.log('🔔 Using Notification.requestPermission fallback');
-                        Notification.requestPermission().then(function(permission) {
-                            callback(permission === 'granted' ? 'granted' : 'denied');
-                        });
-                    }
-                    else {
-                        console.log('⚠️ No permission request method found');
-                        callback('default');
-                    }
-                });
-            }
-
-            // Update button appearance based on permission
+            // Update button appearance
             function updateNotificationButton() {
                 if (!notificationBtn) return;
                 
-                if (!window.OneSignal) {
-                    setTimeout(updateNotificationButton, 1000);
+                const permission = getPermissionStatus();
+                console.log('🔔 Permission status:', permission);
+                
+                notificationBtn.classList.remove('has-permission', 'denied');
+                
+                if (permission === 'granted') {
+                    notificationBtn.classList.add('has-permission');
+                    notificationBtn.innerHTML = '<i class="fas fa-bell"></i><i class="fas fa-check" style="position: absolute; bottom: 0; right: 0; font-size: 0.7rem; color: white; background: #28a745; border-radius: 50%; padding: 2px;"></i>';
+                    tooltipMessage.textContent = 'Notifications enabled ✓';
+                    if (notificationBadgeSmall) notificationBadgeSmall.style.display = 'none';
+                    notificationBtn.style.animation = '';
+                } else if (permission === 'denied') {
+                    notificationBtn.classList.add('denied');
+                    notificationBtn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+                    tooltipMessage.innerHTML = 'Notifications blocked';
+                    notificationBtn.style.animation = '';
+                } else {
+                    notificationBtn.innerHTML = '<i class="fas fa-bell"></i>';
+                    tooltipMessage.textContent = 'Click to enable notifications';
+                    notificationBtn.style.animation = 'pulse 2s infinite';
+                }
+            }
+
+            // Request permission
+            function requestPermission() {
+                if (!window.Notification) {
+                    alert('Notifications not supported');
                     return;
                 }
                 
-                getOneSignalPermission(function(permission) {
-                    console.log('🔔 Updating button for permission:', permission);
-                    
-                    // Remove existing classes
-                    notificationBtn.classList.remove('has-permission', 'denied');
+                Notification.requestPermission().then(permission => {
+                    console.log('🔔 Permission result:', permission);
+                    updateNotificationButton();
                     
                     if (permission === 'granted') {
-                        notificationBtn.classList.add('has-permission');
-                        notificationBtn.innerHTML = '<i class="fas fa-bell"></i><i class="fas fa-check" style="position: absolute; bottom: 0; right: 0; font-size: 0.7rem; color: white; background: #28a745; border-radius: 50%; padding: 2px;"></i>';
-                        tooltipMessage.textContent = 'Notifications enabled ✓';
-                        if (notificationBadgeSmall) {
-                            notificationBadgeSmall.style.display = 'none';
-                        }
-                        // Remove pulse animation
-                        notificationBtn.style.animation = '';
-                    } 
-                    else if (permission === 'denied') {
-                        notificationBtn.classList.add('denied');
-                        notificationBtn.innerHTML = '<i class="fas fa-bell-slash"></i>';
-                        tooltipMessage.innerHTML = 'Notifications blocked. Click for instructions';
-                        notificationBtn.style.animation = '';
-                    } 
-                    else {
-                        // default - not asked yet
-                        notificationBtn.innerHTML = '<i class="fas fa-bell"></i>';
-                        tooltipMessage.textContent = 'Click to enable notifications';
-                        // Add pulse animation to draw attention
-                        notificationBtn.style.animation = 'pulse 2s infinite';
+                        tooltipMessage.textContent = '✓ Notifications enabled!';
+                        
+                        // Try to get OneSignal ID if available
+                        window.OneSignal.push(function() {
+                            window.OneSignal.getUserId(function(id) {
+                                console.log('📱 OneSignal ID:', id);
+                                if (id) {
+                                    // Auto-save to database
+                                    window.supabase?.auth.getSession().then(sessionData => {
+                                        const token = sessionData.data.session?.access_token;
+                                        if (token) {
+                                            fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Authorization': `Bearer ${token}`,
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify({
+                                                    onesignal_player_id: id,
+                                                    device_type: 'web',
+                                                    browser_info: navigator.userAgent
+                                                })
+                                            }).then(res => res.json()).then(data => {
+                                                console.log('✅ Auto-saved token:', data);
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        });
                     }
                 });
             }
 
-            // Handle button click
+            // Button click handler
             if (notificationBtn) {
                 notificationBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     
-                    if (!window.OneSignal) {
-                        console.log('⏳ OneSignal not ready');
-                        tooltipMessage.textContent = '⏳ Please wait...';
-                        notificationTooltip.style.display = 'block';
-                        setTimeout(() => {
-                            notificationTooltip.style.display = 'none';
-                        }, 2000);
-                        return;
-                    }
-
-                    // Show tooltip
+                    const permission = getPermissionStatus();
                     notificationTooltip.style.display = 'block';
                     
-                    getOneSignalPermission(function(permission) {
-                        if (permission === 'granted') {
-                            tooltipMessage.textContent = 'Notifications already enabled ✓';
-                            setTimeout(() => {
-                                notificationTooltip.style.display = 'none';
-                            }, 2000);
-                        } 
-                        else if (permission === 'denied') {
-                            tooltipMessage.innerHTML = '🔒 Notifications blocked.<br><small>Click lock icon in address bar → Site Settings → Allow notifications</small>';
-                            // Don't auto-hide for denied
-                        } 
-                        else {
-                            // Default - request permission
-                            tooltipMessage.textContent = '🔔 Requesting permission...';
-                            
-                            requestOneSignalPermission(function(newPermission) {
-                                console.log('🔔 New permission after request:', newPermission);
-                                updateNotificationButton();
-                                
-                                if (newPermission === 'granted') {
-                                    tooltipMessage.textContent = '✓ Notifications enabled!';
-                                } else {
-                                    tooltipMessage.textContent = '⚠️ Permission denied';
-                                }
-                                
-                                setTimeout(() => {
-                                    notificationTooltip.style.display = 'none';
-                                }, 3000);
-                            });
-                        }
-                    });
+                    if (permission === 'granted') {
+                        tooltipMessage.textContent = 'Notifications already enabled ✓';
+                        setTimeout(() => notificationTooltip.style.display = 'none', 2000);
+                    } else if (permission === 'denied') {
+                        tooltipMessage.innerHTML = '🔒 Notifications blocked. Click lock icon in address bar → Site Settings → Allow';
+                    } else {
+                        tooltipMessage.textContent = '🔔 Requesting permission...';
+                        requestPermission();
+                        setTimeout(() => notificationTooltip.style.display = 'none', 3000);
+                    }
                 });
 
-                // Hide tooltip when clicking elsewhere
                 document.addEventListener('click', function(e) {
                     if (!notificationBtn.contains(e.target) && !notificationTooltip.contains(e.target)) {
                         notificationTooltip.style.display = 'none';
@@ -760,97 +708,67 @@
                 });
             }
 
-            // Check permission periodically
-            let attempts = 0;
-            const checkInterval = setInterval(() => {
-                attempts++;
-                if (window.OneSignal) {
-                    clearInterval(checkInterval);
-                    console.log('🔔 OneSignal ready, updating button');
-                    updateNotificationButton();
-                    
-                    // Also update every 5 seconds
-                    setInterval(updateNotificationButton, 5000);
-                } else if (attempts > 30) {
-                    clearInterval(checkInterval);
-                    console.log('⚠️ OneSignal not loaded after 30 attempts');
-                }
-            }, 500);
-
-            // Also try to get user ID for debugging
-            setTimeout(() => {
-                if (window.OneSignal) {
-                    window.OneSignal.push(function() {
-                        if (typeof window.OneSignal.getUserId === 'function') {
-                            window.OneSignal.getUserId(function(id) {
-                                console.log('📱 OneSignal User ID:', id);
-                                if (id) {
-                                    // If we have ID but button shows default, update
-                                    updateNotificationButton();
-                                }
-                            });
-                        }
-                    });
-                }
-            }, 5000);
-        })();
+            // Initial update
+            updateNotificationButton();
+            setInterval(updateNotificationButton, 5000);
+        });
     </script>
 
-    <!-- Force OneSignal Initialization Check -->
+    <!-- Auto-save token when user is logged in and OneSignal has ID -->
     <script>
         (function() {
-            console.log('🔍 Checking OneSignal initialization...');
+            // Wait for both Supabase and OneSignal
+            let supabaseReady = false;
+            let oneSignalReady = false;
             
-            // Check every second for 10 seconds
-            let checks = 0;
-            const initCheck = setInterval(() => {
-                checks++;
+            function trySaveToken() {
+                if (!supabaseReady || !oneSignalReady) return;
                 
-                if (window.OneSignal && window.OneSignal.initialized) {
-                    console.log('✅ OneSignal is fully initialized!');
-                    clearInterval(initCheck);
-                    
-                    // Get the user ID
-                    window.OneSignal.push(function() {
-                        window.OneSignal.getUserId(function(id) {
-                            console.log('📱 OneSignal ID:', id);
+                window.OneSignal.push(function() {
+                    window.OneSignal.getUserId(function(id) {
+                        if (!id) return;
+                        
+                        window.supabase.auth.getSession().then(sessionData => {
+                            const token = sessionData.data.session?.access_token;
+                            if (!token) return;
                             
-                            if (id) {
-                                // Try to save to database automatically
-                                window.supabase.auth.getSession().then(sessionData => {
-                                    const token = sessionData.data.session?.access_token;
-                                    
-                                    if (token) {
-                                        fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Authorization': `Bearer ${token}`,
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: JSON.stringify({
-                                                onesignal_player_id: id,
-                                                device_type: 'web',
-                                                browser_info: navigator.userAgent
-                                            })
-                                        })
-                                        .then(res => res.json())
-                                        .then(data => {
-                                            console.log('✅ Auto-saved token:', data);
-                                        })
-                                        .catch(err => {
-                                            console.log('❌ Auto-save error:', err);
-                                        });
-                                    }
-                                });
-                            }
+                            fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    onesignal_player_id: id,
+                                    device_type: 'web',
+                                    browser_info: navigator.userAgent
+                                })
+                            }).then(res => res.json()).then(data => {
+                                console.log('✅ Token auto-saved:', data);
+                            });
                         });
                     });
-                    
-                } else if (checks > 10) {
-                    console.log('⚠️ OneSignal still not initialized after 10 seconds');
-                    clearInterval(initCheck);
+                });
+            }
+            
+            // Check Supabase
+            let supabaseChecks = 0;
+            const supabaseInterval = setInterval(() => {
+                supabaseChecks++;
+                if (window.supabase?.auth) {
+                    supabaseReady = true;
+                    clearInterval(supabaseInterval);
+                    trySaveToken();
+                } else if (supabaseChecks > 30) {
+                    clearInterval(supabaseInterval);
                 }
-            }, 1000);
+            }, 200);
+            
+            // Check OneSignal
+            waitForOneSignal(() => {
+                oneSignalReady = true;
+                trySaveToken();
+            });
         })();
     </script>
 </body>
