@@ -14,7 +14,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- FIXED CSP FOR CHROME MOBILE + IMGBB + ONESIGNAL -->
+    <!-- FIXED CSP FOR CHROME MOBILE + IMGBB + ONESIGNAL - COMPLETE FIXED VERSION -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 
         https://*.supabase.co 
@@ -43,7 +43,8 @@
         https://fonts.googleapis.com 
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
-        https://cdn.onesignal.com;
+        https://cdn.onesignal.com
+        https://onesignal.com;
         img-src 'self' data: blob: 
         https://*.ibb.co 
         https://i.ibb.co 
@@ -62,7 +63,14 @@
         https://i.ibb.co
         https://ibb.co
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        wss://onesignal.com
+        https://clientapi.onesignal.com
+        https://sync.onesignal.com
+        https://device.onesignal.com;
+        worker-src 'self' blob: 
+        https://cdn.onesignal.com
+        https://onesignal.com;
         media-src 'self' 
         https://i.ibb.co
         https://*.ibb.co;
@@ -123,7 +131,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- ONESIGNAL SDK -->
+    <!-- ONESIGNAL SDK - COMPLETE SETUP WITH AUTO-PERMISSION -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
         window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -137,9 +145,24 @@
                 serviceWorkerPath: "/OneSignalSDK.sw.js",
                 serviceWorkerParam: { scope: "/" },
                 allowLocalhostAsSecureOrigin: true,
+                autoRegister: true,
+                autoPrompt: true,
+                promptOptions: {
+                    autoPrompt: true,
+                    clickToAllow: true
+                }
             });
             
             console.log('✅ OneSignal initialized');
+            
+            // Auto-request permission after 3 seconds
+            setTimeout(async () => {
+                const permission = await OneSignal.Notifications.getPermission();
+                if (permission === 'default') {
+                    console.log('🔔 Auto-requesting notification permission...');
+                    await OneSignal.Notifications.requestPermission();
+                }
+            }, 3000);
         });
     </script>
 
@@ -553,6 +576,32 @@
         // Make function globally available
         window.fixImgBBUrls = fixImgBBUrls;
         window.isMobileChrome = isMobileChrome;
+    </script>
+
+    <!-- MANUAL NOTIFICATION TRIGGER BUTTON (for testing) -->
+    <button id="enableNotificationsBtn" style="position: fixed; bottom: 20px; right: 20px; background: #667eea; color: white; border: none; border-radius: 50px; padding: 12px 20px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 9999; display: none;">
+        🔔 Enable Notifications
+    </button>
+
+    <script>
+        // Show the enable notifications button if permission not granted
+        setTimeout(() => {
+            if (window.OneSignal) {
+                window.OneSignal.Notifications.getPermission().then(permission => {
+                    if (permission === 'default') {
+                        document.getElementById('enableNotificationsBtn').style.display = 'block';
+                    }
+                });
+            }
+        }, 5000);
+
+        // Handle button click
+        document.getElementById('enableNotificationsBtn').addEventListener('click', async () => {
+            if (window.OneSignal) {
+                await window.OneSignal.Notifications.requestPermission();
+                document.getElementById('enableNotificationsBtn').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
