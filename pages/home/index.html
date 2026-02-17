@@ -42,7 +42,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#007ACC">
 
-    <!-- Styles - FIXED CSP ALLOWS CLOUDFLARE -->
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -116,21 +116,22 @@
         frame-src 'none';
     ">
 
-    <!-- ✅ CRITICAL FIX: ONLY redirect if NOT logged in - SINGLE CHECK, NO FALLBACK -->
+    <!-- PRELOAD ONESIGNAL - CRITICAL FIX -->
+    <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
+    <link rel="preconnect" href="https://onesignal.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.onesignal.com">
+    <link rel="dns-prefetch" href="https://onesignal.com">
+    <link rel="preload" href="https://cdn.onesignal.com/sdks/OneSignalSDK.js" as="script">
+
+    <!-- ✅ CRITICAL FIX: ONLY redirect if NOT logged in -->
     <script>
         (function() {
             try {
-                // Check for Supabase session token
                 let hasSession = false;
-
-                // Check localStorage
                 const localToken = localStorage.getItem('supabase.auth.token');
-                // Check sessionStorage
                 const sessionToken = sessionStorage.getItem('supabase.auth.token');
-
                 hasSession = !!(localToken || sessionToken);
-
-                // Additional check: if we have persisted session in localStorage
+                
                 if (!hasSession) {
                     try {
                         const persistedSession = localStorage.getItem('supabase.auth.token');
@@ -140,45 +141,18 @@
                     } catch (e) {}
                 }
 
-                // ✅ ONLY redirect if NO session (not logged in)
                 if (!hasSession) {
                     console.log('🚫 No session - redirecting to root');
                     window.location.replace('/');
                 }
-                // ✅ NEVER redirect if logged in - stay on home page
             } catch (e) {
                 console.log('Session check error:', e);
             }
         })();
     </script>
 
-    <!-- OneSignal SDK - FIXED INITIALIZATION (NO BUTTON) -->
+    <!-- OneSignal SDK - Load with high priority -->
     <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
-    <script>
-        window.OneSignal = window.OneSignal || [];
-        window.OneSignal.push(function() {
-            window.OneSignal.init({
-                appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
-                safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
-                autoRegister: true,
-                notifyButton: {
-                    enable: false  // Disabled on home page
-                }
-            });
-            
-            // Force check initialization
-            setTimeout(function() {
-                if (!window.OneSignal.initialized) {
-                    console.log('⚠️ Home: OneSignal not initialized, trying again...');
-                    window.OneSignal.init({
-                        appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
-                    });
-                } else {
-                    console.log('✅ Home: OneSignal fully initialized');
-                }
-            }, 2000);
-        });
-    </script>
 </head>
 <body>
     <!-- Toast Container -->
@@ -190,7 +164,7 @@
         <div class="loading-text">✨ Loading Relay...</div>
     </div>
 
-    <!-- Top Header - ORIGINAL UNCHANGED (NO NOTIFICATION BUTTON) -->
+    <!-- Top Header - ORIGINAL UNCHANGED -->
     <header class="top-header">
         <button class="search-btn" onclick="openSearch()">
             <i class="fas fa-search"></i> Search Friends
@@ -296,64 +270,45 @@
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 
-    <!-- Auto Permission Logic (No Button) -->
+    <!-- Wait for OneSignal and auto-prompt -->
     <script>
-        (function() {
-            console.log('🔔 Setting up auto-notification prompt...');
-            
-            const notificationDecision = localStorage.getItem('notificationDecision');
-            
-            if (!notificationDecision) {
-                console.log('🔔 No previous decision found, will show prompt');
-                
-                let attempts = 0;
-                const checkInterval = setInterval(() => {
-                    attempts++;
-                    
-                    if (window.OneSignal) {
-                        clearInterval(checkInterval);
-                        
-                        window.OneSignal.push(function() {
-                            window.OneSignal.getPermission(function(permission) {
-                                console.log('🔔 Current permission:', permission);
-                                
-                                if (permission === 0) { // 0 = default
-                                    console.log('🔔 Showing notification prompt...');
-                                    setTimeout(() => {
-                                        window.OneSignal.showNativePrompt();
-                                        localStorage.setItem('notificationDecision', 'requested');
-                                    }, 3000);
-                                } else {
-                                    localStorage.setItem('notificationDecision', permission === 1 ? 'granted' : 'denied');
-                                }
-                            });
-                        });
-                    } else if (attempts > 20) {
-                        clearInterval(checkInterval);
-                    }
-                }, 500);
+        function waitForOneSignal(callback, maxAttempts = 30) {
+            if (window.OneSignal) {
+                callback();
+                return;
             }
-        })();
-    </script>
-
-    <!-- Force OneSignal Initialization Check -->
-    <script>
-        (function() {
-            console.log('🔍 Checking OneSignal initialization on home...');
             
-            let checks = 0;
-            const initCheck = setInterval(() => {
-                checks++;
-                
-                if (window.OneSignal && window.OneSignal.initialized) {
-                    console.log('✅ Home: OneSignal is fully initialized!');
-                    clearInterval(initCheck);
-                } else if (checks > 10) {
-                    console.log('⚠️ Home: OneSignal still not initialized');
-                    clearInterval(initCheck);
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (window.OneSignal) {
+                    clearInterval(interval);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    console.log('❌ OneSignal failed to load');
                 }
-            }, 1000);
-        })();
+            }, 200);
+        }
+
+        waitForOneSignal(() => {
+            window.OneSignal.push(function() {
+                window.OneSignal.init({
+                    appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
+                });
+                
+                // Auto-prompt if not decided
+                const notificationDecision = localStorage.getItem('notificationDecision');
+                if (!notificationDecision) {
+                    setTimeout(() => {
+                        if (window.Notification && Notification.permission === 'default') {
+                            Notification.requestPermission();
+                            localStorage.setItem('notificationDecision', 'requested');
+                        }
+                    }, 3000);
+                }
+            });
+        });
     </script>
 </body>
 </html>
