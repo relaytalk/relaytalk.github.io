@@ -14,7 +14,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- FIXED CSP FOR CHROME MOBILE + IMGBB -->
+    <!-- FIXED CSP FOR CHROME MOBILE + IMGBB + ONESIGNAL -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 
         https://*.supabase.co 
@@ -25,18 +25,25 @@
         https://i.ibb.co 
         https://*.github.io 
         https://github.com
-        https://fonts.googleapis.com;
+        https://fonts.googleapis.com
+        https://cdn.onesignal.com
+        https://onesignal.com
+        https://*.onesignal.com;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' 
         https://*.supabase.co 
         https://api.supabase.com 
         https://cdn.jsdelivr.net
         https://fonts.googleapis.com
         https://i.ibb.co
-        https://ibb.co;
+        https://ibb.co
+        https://cdn.onesignal.com
+        https://onesignal.com
+        https://*.onesignal.com;
         style-src 'self' 'unsafe-inline' 
         https://fonts.googleapis.com 
         https://cdn.jsdelivr.net
-        https://fonts.gstatic.com;
+        https://fonts.gstatic.com
+        https://cdn.onesignal.com;
         img-src 'self' data: blob: 
         https://*.ibb.co 
         https://i.ibb.co 
@@ -44,7 +51,8 @@
         https:;
         font-src 'self' data: 
         https://fonts.gstatic.com 
-        https://cdn.jsdelivr.net;
+        https://cdn.jsdelivr.net
+        https://cdn.onesignal.com;
         connect-src 'self' 
         wss://*.supabase.co 
         https://*.supabase.co 
@@ -52,7 +60,9 @@
         https://api.imgbb.com 
         https://*.github.io
         https://i.ibb.co
-        https://ibb.co;
+        https://ibb.co
+        https://onesignal.com
+        https://*.onesignal.com;
         media-src 'self' 
         https://i.ibb.co
         https://*.ibb.co;
@@ -83,6 +93,12 @@
     <link rel="dns-prefetch" href="https://ibb.co">
     <link rel="preload" as="image" href="https://i.ibb.co/placeholder/relaytalk-og.png">
 
+    <!-- PRELOAD ONESIGNAL -->
+    <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
+    <link rel="preconnect" href="https://onesignal.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.onesignal.com">
+    <link rel="dns-prefetch" href="https://onesignal.com">
+
     <!-- OPEN GRAPH -->
     <meta property="og:title" content="RelayTalk Chat">
     <meta property="og:description" content="Real-time chat application with image sharing">
@@ -106,6 +122,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- ONESIGNAL SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+                appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
+                safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
+                notifyButton: {
+                    enable: true,
+                },
+                serviceWorkerPath: "/OneSignalSDK.sw.js",
+                serviceWorkerParam: { scope: "/" },
+                allowLocalhostAsSecureOrigin: true,
+            });
+            
+            console.log('✅ OneSignal initialized');
+        });
+    </script>
 
     <style>
         /* CHROME MOBILE IMAGE RENDERING FIXES */
@@ -417,7 +453,7 @@
     </div>
 
     <!-- Toast Notification -->
-       <div class="modal-overlay" id="customToast" style="display: none; align-items: flex-end; justify-content: center; background: transparent; pointer-events: none;">
+    <div class="modal-overlay" id="customToast" style="display: none; align-items: flex-end; justify-content: center; background: transparent; pointer-events: none;">
         <div class="modal-content" style="max-width: 300px; margin-bottom: 20px; text-align: center;">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span id="toastIcon" style="font-size: 1.2rem;"></span>
