@@ -28,7 +28,8 @@
         https://fonts.googleapis.com
         https://cdn.onesignal.com
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        https://cdnjs.cloudflare.com;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' 
         https://*.supabase.co 
         https://api.supabase.com 
@@ -38,13 +39,15 @@
         https://ibb.co
         https://cdn.onesignal.com
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        https://cdnjs.cloudflare.com;
         style-src 'self' 'unsafe-inline' 
         https://fonts.googleapis.com 
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
         https://cdn.onesignal.com
-        https://onesignal.com;
+        https://onesignal.com
+        https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: 
         https://*.ibb.co 
         https://i.ibb.co 
@@ -53,7 +56,8 @@
         font-src 'self' data: 
         https://fonts.gstatic.com 
         https://cdn.jsdelivr.net
-        https://cdn.onesignal.com;
+        https://cdn.onesignal.com
+        https://cdnjs.cloudflare.com;
         connect-src 'self' 
         wss://*.supabase.co 
         https://*.supabase.co 
@@ -107,6 +111,9 @@
     <link rel="dns-prefetch" href="https://cdn.onesignal.com">
     <link rel="dns-prefetch" href="https://onesignal.com">
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <!-- OPEN GRAPH -->
     <meta property="og:title" content="RelayTalk Chat">
     <meta property="og:description" content="Real-time chat application with image sharing">
@@ -154,179 +161,165 @@
             });
             
             console.log('✅ OneSignal initialized');
-            
-            // Auto-request permission after 3 seconds
-            setTimeout(async () => {
-                const permission = await OneSignal.Notifications.getPermission();
-                if (permission === 'default') {
-                    console.log('🔔 Auto-requesting notification permission...');
-                    await OneSignal.Notifications.requestPermission();
-                }
-            }, 3000);
         });
     </script>
 
+    <!-- Notification Button Styles - Matching App Theme -->
     <style>
-        /* CHROME MOBILE IMAGE RENDERING FIXES */
-        img[src*="ibb.co"], img[src*="i.ibb.co"] {
-            content-visibility: auto;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            will-change: transform;
+        /* Notification button styles - matching app theme */
+        .notification-toggle-btn {
+            background: rgba(255, 255, 255, 0.9) !important;
+            border: 1px solid rgba(0, 122, 204, 0.2) !important;
+            color: #007acc !important;
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            touch-action: manipulation !important;
+            -webkit-tap-highlight-color: transparent !important;
+            margin-right: 10px !important;
+            position: relative !important;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.1) !important;
+            animation: fadeIn 0.3s ease !important;
         }
 
-        /* CHROME MOBILE TOUCH FIXES */
-        button, input, textarea {
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
+        .notification-toggle-btn:hover {
+            background: rgba(255, 255, 255, 1) !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2) !important;
         }
 
-        /* PREVENT BLUE HIGHLIGHT */
-        * {
-            -webkit-tap-highlight-color: transparent;
+        .notification-toggle-btn i {
+            font-size: 1.2rem !important;
+            transition: all 0.2s ease !important;
         }
 
-        /* PREVENT TEXT SIZE ADJUSTMENT */
-        html {
-            -webkit-text-size-adjust: 100%;
-            -moz-text-size-adjust: 100%;
-            text-size-adjust: 100%;
-            overflow-x: hidden;
+        .notification-toggle-btn:hover i {
+            transform: scale(1.1) !important;
         }
 
-        /* MOBILE-ONLY STYLES */
-        @media (max-width: 768px) {
-            .messages-container img {
-                max-width: 100% !important;
-                height: auto !important;
-                display: block;
-                border-radius: 12px;
-            }
-
-            .message-image {
-                max-width: 280px !important;
-                max-height: 400px !important;
-                object-fit: contain;
-            }
-
-            body {
-                overscroll-behavior-y: none;
-                -webkit-overflow-scrolling: touch;
-            }
+        .notification-toggle-btn.has-permission {
+            background: linear-gradient(135deg, #28a745, #34ce57) !important;
+            border-color: rgba(40, 167, 69, 0.3) !important;
+            color: white !important;
         }
 
-        /* Login Overlay Styles */
-        .login-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            animation: fadeIn 0.5s ease;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        .notification-toggle-btn.has-permission i {
+            color: white !important;
         }
 
-        .login-container {
-            background: rgba(26, 26, 46, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 25px;
-            padding: 35px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-            animation: slideUp 0.4s ease;
-            margin: env(safe-area-inset-top) auto env(safe-area-inset-bottom);
+        .notification-toggle-btn.denied {
+            background: rgba(220, 53, 69, 0.1) !important;
+            border-color: rgba(220, 53, 69, 0.3) !important;
+            color: #dc3545 !important;
         }
 
-        .login-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem;
+        .notification-badge-small {
+            position: absolute !important;
+            top: -2px !important;
+            right: -2px !important;
+            background: #dc3545 !important;
+            color: white !important;
+            font-size: 0.7rem !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            border-radius: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 4px !important;
+            border: 2px solid white !important;
+            font-weight: bold !important;
+            animation: pulse 2s infinite !important;
         }
 
-        .login-icon svg {
-            width: 40px;
-            height: 40px;
-            fill: white;
+        .notification-tooltip {
+            position: absolute !important;
+            top: 60px !important;
+            right: 80px !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(0, 122, 204, 0.2) !important;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
+            min-width: 220px !important;
+            max-width: 280px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+            z-index: 2000 !important;
+            animation: slideDown 0.2s ease !important;
+            color: #333333 !important;
+            font-size: 0.9rem !important;
         }
 
-        .login-container h2 {
-            font-size: 1.8rem;
-            margin: 0 0 0.5rem;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .notification-tooltip::before {
+            content: '' !important;
+            position: absolute !important;
+            top: -6px !important;
+            right: 15px !important;
+            width: 12px !important;
+            height: 12px !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-left: 1px solid rgba(0, 122, 204, 0.2) !important;
+            border-top: 1px solid rgba(0, 122, 204, 0.2) !important;
+            transform: rotate(45deg) !important;
         }
 
-        .login-container p {
-            color: #a0a0c0;
-            margin-bottom: 2rem;
-            font-size: 1rem;
-            line-height: 1.5;
+        .notification-tooltip p {
+            margin: 5px 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
         }
 
-        .login-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
+        .notification-tooltip i {
+            width: 20px !important;
+            color: #007acc !important;
         }
 
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 25px 20px;
-                border-radius: 20px;
-            }
-
-            .login-buttons {
-                flex-direction: column;
-            }
-
-            .btn-primary, .btn-secondary {
-                width: 100%;
-                padding: 14px 20px;
-                font-size: 16px;
-            }
-
-            .login-icon {
-                width: 70px;
-                height: 70px;
-                margin-bottom: 1rem;
-            }
-
-            .login-container h2 {
-                font-size: 1.5rem;
-            }
-        }
-
-        /* ANIMATIONS */
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
 
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .notification-toggle-btn {
+                width: 40px !important;
+                height: 40px !important;
+                margin-right: 8px !important;
+            }
+
+            .notification-tooltip {
+                right: 60px !important;
+                min-width: 200px !important;
+                top: 55px !important;
+            }
+
+            .notification-tooltip::before {
+                right: 15px !important;
+            }
+        }
+
+        /* Update chat actions to accommodate notification button */
+        .chat-actions {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
         }
     </style>
 </head>
@@ -350,7 +343,7 @@
 
     <!-- Chat Interface -->
     <div id="chat" style="display: none;">
-        <!-- Chat Header -->
+        <!-- Chat Header - Modified to include notification button -->
         <header class="chat-header">
             <button class="back-btn" onclick="goBack()">←</button>
             <div class="chat-user-info">
@@ -364,6 +357,13 @@
                 </div>
             </div>
             <div class="chat-actions">
+                <!-- Notification Button - Left of Settings -->
+                <button id="notificationToggleBtn" class="notification-toggle-btn" style="display: none;">
+                    <i class="fas fa-bell"></i>
+                    <span id="notificationBadgeSmall" class="notification-badge-small" style="display: none;">1</span>
+                </button>
+                
+                <!-- Settings Button (existing) -->
                 <button class="chat-action-btn" onclick="showUserInfo()">
                     <svg viewBox="0 0 24 24">
                         <path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M10,22C9.75,22 9.54,21.82 9.5,21.58L9.13,18.93C8.5,18.68 7.96,18.34 7.44,17.94L4.95,18.95C4.73,19.03 4.46,18.95 4.34,18.73L2.34,15.27C2.21,15.05 2.27,14.78 2.46,14.63L4.57,12.97L4.5,12L4.57,11L2.46,9.37C2.27,9.22 2.21,8.95 2.34,8.73L4.34,5.27C4.46,5.05 4.73,4.96 4.95,5.05L7.44,6.05C7.96,5.66 8.5,5.32 9.13,5.07L9.5,2.42C9.54,2.18 9.75,2 10,2H14C14.25,2 14.46,2.18 14.5,2.42L14.87,5.07C15.5,5.32 16.04,5.66 16.56,6.05L19.05,5.05C19.27,4.96 19.54,5.05 19.66,5.27L21.66,8.73C21.79,8.95 21.73,9.22 21.54,9.37L19.43,11L19.5,12L19.43,13L21.54,14.63C21.73,14.78 21.79,15.05 21.66,15.27L21.66,15.27L19.66,18.73C19.54,18.95 19.27,19.04 19.05,18.95L16.56,17.95C16.04,18.34 15.5,18.68 14.87,18.93L14.5,21.58C14.46,21.82 14.25,22 14,22H10Z"/>
@@ -371,6 +371,11 @@
                 </button>
             </div>
         </header>
+
+        <!-- Notification Tooltip (hidden by default) -->
+        <div id="notificationTooltip" class="notification-tooltip" style="display: none;">
+            <p><i class="fas fa-bell"></i> <span id="tooltipMessage">Enable notifications to get alerts</span></p>
+        </div>
 
         <!-- Main Chat Area -->
         <main class="main-content">
@@ -411,8 +416,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Color Picker Overlay -->
 
     <!-- Image Picker Overlay -->
     <div class="image-picker-overlay" id="imagePickerOverlay" style="display: none;">
@@ -508,10 +511,8 @@
             if (isMobileChrome() || isIOSChrome()) {
                 console.log('Chrome Mobile detected - applying fixes');
 
-                // Apply fixes to document
                 document.documentElement.setAttribute('data-chrome-mobile', 'true');
 
-                // Prevent double-tap zoom
                 let lastTouchEnd = 0;
                 document.addEventListener('touchend', function(event) {
                     const now = Date.now();
@@ -521,10 +522,8 @@
                     lastTouchEnd = now;
                 }, false);
 
-                // Prevent pull-to-refresh
                 document.body.style.overscrollBehavior = 'none';
 
-                // Fix 100vh issue on Chrome mobile
                 function setVH() {
                     let vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -532,14 +531,11 @@
                 setVH();
                 window.addEventListener('resize', setVH);
 
-                // Add Chrome mobile class for CSS targeting
                 document.body.classList.add('chrome-mobile');
 
-                // Pre-warm ImgBB connections
                 if (window.navigator.connection) {
                     const conn = window.navigator.connection;
                     if (conn.saveData === false) {
-                        // Preconnect to ImgBB on good connections
                         const preconnect = document.createElement('link');
                         preconnect.rel = 'preconnect';
                         preconnect.href = 'https://i.ibb.co';
@@ -552,56 +548,181 @@
             return false;
         }
 
-        // Initialize fixes on DOM ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', applyChromeMobileFixes);
         } else {
             applyChromeMobileFixes();
         }
 
-        // Fix for Chrome mobile image loading
         function fixImgBBUrls(url) {
             if (isMobileChrome() && url && url.includes('ibb.co')) {
-                // Always use i.ibb.co CDN for Chrome mobile
                 url = url.replace('https://ibb.co/', 'https://i.ibb.co/');
                 if (!url.includes('.jpg') && !url.includes('.png') && !url.includes('.gif')) {
                     url += '.jpg';
                 }
-                // Add cache busting for Chrome mobile
                 url += (url.includes('?') ? '&' : '?') + 't=' + Date.now();
             }
             return url;
         }
 
-        // Make function globally available
         window.fixImgBBUrls = fixImgBBUrls;
         window.isMobileChrome = isMobileChrome;
     </script>
 
-    <!-- MANUAL NOTIFICATION TRIGGER BUTTON (for testing) -->
-    <button id="enableNotificationsBtn" style="position: fixed; bottom: 20px; right: 20px; background: #667eea; color: white; border: none; border-radius: 50px; padding: 12px 20px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 9999; display: none;">
-        🔔 Enable Notifications
-    </button>
-
+    <!-- Notification Button Logic - FIXED API USAGE -->
     <script>
-        // Show the enable notifications button if permission not granted
-        setTimeout(() => {
-            if (window.OneSignal) {
-                window.OneSignal.Notifications.getPermission().then(permission => {
-                    if (permission === 'default') {
-                        document.getElementById('enableNotificationsBtn').style.display = 'block';
+        // Notification button functionality
+        (function() {
+            const notificationBtn = document.getElementById('notificationToggleBtn');
+            const notificationBadgeSmall = document.getElementById('notificationBadgeSmall');
+            const notificationTooltip = document.getElementById('notificationTooltip');
+            const tooltipMessage = document.getElementById('tooltipMessage');
+            
+            // Show button after a delay
+            setTimeout(() => {
+                if (notificationBtn) {
+                    notificationBtn.style.display = 'flex';
+                }
+            }, 3000);
+
+            // Check notification permission - CORRECT API
+            async function updateNotificationButton() {
+                if (!window.OneSignal) {
+                    console.log('⏳ OneSignal not ready');
+                    return;
+                }
+
+                try {
+                    // CORRECT: Use OneSignal.Notifications.getPermission()
+                    const permission = await window.OneSignal.Notifications.getPermission();
+                    console.log('🔔 Notification permission:', permission);
+                    
+                    // Update button appearance
+                    notificationBtn.classList.remove('has-permission', 'denied');
+                    
+                    if (permission === 'granted') {
+                        notificationBtn.classList.add('has-permission');
+                        notificationBtn.innerHTML = '<i class="fas fa-bell"></i><i class="fas fa-check" style="position: absolute; bottom: 0; right: 0; font-size: 0.7rem; color: white; background: #28a745; border-radius: 50%; padding: 2px;"></i>';
+                        tooltipMessage.textContent = 'Notifications enabled ✓';
+                        // Hide badge if shown
+                        if (notificationBadgeSmall) {
+                            notificationBadgeSmall.style.display = 'none';
+                        }
+                        
+                        // Hide tooltip after 2 seconds if shown
+                        setTimeout(() => {
+                            if (notificationTooltip) {
+                                notificationTooltip.style.display = 'none';
+                            }
+                        }, 2000);
+                    } else if (permission === 'denied') {
+                        notificationBtn.classList.add('denied');
+                        notificationBtn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+                        tooltipMessage.innerHTML = 'Notifications blocked. Click to see instructions';
+                    } else {
+                        // default - not asked yet
+                        notificationBtn.innerHTML = '<i class="fas fa-bell"></i>';
+                        tooltipMessage.textContent = 'Click to enable notifications';
+                        
+                        // Show a subtle pulse to draw attention
+                        notificationBtn.style.animation = 'pulse 2s infinite';
+                    }
+                } catch (err) {
+                    console.log('Permission check error:', err);
+                }
+            }
+
+            // Handle button click - CORRECT API
+            if (notificationBtn) {
+                notificationBtn.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    
+                    if (!window.OneSignal) {
+                        console.log('⏳ OneSignal not ready');
+                        return;
+                    }
+
+                    try {
+                        // Show tooltip
+                        notificationTooltip.style.display = 'block';
+                        
+                        // CORRECT: Use OneSignal.Notifications.getPermission()
+                        const permission = await window.OneSignal.Notifications.getPermission();
+                        
+                        if (permission === 'granted') {
+                            // Already granted
+                            tooltipMessage.textContent = 'Notifications already enabled ✓';
+                            setTimeout(() => {
+                                notificationTooltip.style.display = 'none';
+                            }, 2000);
+                        } else if (permission === 'denied') {
+                            // Denied - show instructions
+                            tooltipMessage.innerHTML = '🔒 Notifications blocked. To enable:<br>1. Click lock icon in address bar<br>2. Go to Site Settings<br>3. Set Notifications to Allow<br>4. Refresh page';
+                            
+                            // Don't auto-hide, let user close by clicking elsewhere
+                        } else {
+                            // Default - request permission
+                            tooltipMessage.textContent = '🔔 Requesting permission...';
+                            
+                            // CORRECT: Use OneSignal.Notifications.requestPermission()
+                            await window.OneSignal.Notifications.requestPermission();
+                            
+                            // Check new permission
+                            const newPermission = await window.OneSignal.Notifications.getPermission();
+                            if (newPermission === 'granted') {
+                                tooltipMessage.textContent = '✓ Notifications enabled!';
+                                updateNotificationButton();
+                            } else {
+                                tooltipMessage.textContent = '⚠️ Permission denied';
+                            }
+                            
+                            setTimeout(() => {
+                                notificationTooltip.style.display = 'none';
+                            }, 3000);
+                        }
+                    } catch (err) {
+                        console.log('Notification click error:', err);
+                        tooltipMessage.textContent = 'Error: ' + err.message;
+                    }
+                });
+
+                // Hide tooltip when clicking elsewhere
+                document.addEventListener('click', function(e) {
+                    if (!notificationBtn.contains(e.target) && !notificationTooltip.contains(e.target)) {
+                        notificationTooltip.style.display = 'none';
                     }
                 });
             }
-        }, 5000);
 
-        // Handle button click
-        document.getElementById('enableNotificationsBtn').addEventListener('click', async () => {
-            if (window.OneSignal) {
-                await window.OneSignal.Notifications.requestPermission();
-                document.getElementById('enableNotificationsBtn').style.display = 'none';
-            }
-        });
+            // Check permission on load
+            let attempts = 0;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (window.OneSignal) {
+                    clearInterval(checkInterval);
+                    updateNotificationButton();
+                    
+                    // Also listen for permission changes (check periodically)
+                    setInterval(updateNotificationButton, 5000);
+                } else if (attempts > 20) {
+                    clearInterval(checkInterval);
+                    console.log('⚠️ OneSignal not loaded after 20 attempts');
+                }
+            }, 500);
+
+            // Simulate notification count (replace with real data)
+            setTimeout(() => {
+                // Only show badge if permission not granted
+                if (notificationBtn && !notificationBtn.classList.contains('has-permission')) {
+                    // Random count for demo
+                    const count = Math.floor(Math.random() * 3) + 1;
+                    if (notificationBadgeSmall) {
+                        notificationBadgeSmall.textContent = count;
+                        notificationBadgeSmall.style.display = 'flex';
+                    }
+                }
+            }, 8000);
+        })();
     </script>
 </body>
 </html>
