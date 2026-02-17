@@ -138,12 +138,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- OneSignal SDK - CORRECT VERSION FOR OLDER API -->
+    <!-- OneSignal SDK - FIXED INITIALIZATION -->
     <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
     <script>
-        var OneSignal = window.OneSignal || [];
-        OneSignal.push(function() {
-            OneSignal.init({
+        window.OneSignal = window.OneSignal || [];
+        window.OneSignal.push(function() {
+            window.OneSignal.init({
                 appId: "57235c48-d945-4cd6-9b7e-5e3823144539",
                 safari_web_id: "web.onesignal.auto.445d0d2a-d94a-41a6-9db5-6271b7cfba3f",
                 autoRegister: true,
@@ -151,7 +151,18 @@
                     enable: true
                 }
             });
-            console.log('✅ OneSignal initialized with correct API');
+            
+            // Force check initialization
+            setTimeout(function() {
+                if (!window.OneSignal.initialized) {
+                    console.log('⚠️ OneSignal not initialized, trying again...');
+                    window.OneSignal.init({
+                        appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
+                    });
+                } else {
+                    console.log('✅ OneSignal fully initialized');
+                }
+            }, 2000);
         });
     </script>
 
@@ -450,7 +461,7 @@
     </div>
 
     <!-- Custom Alert Modal -->
-    <div class="modal-overlay" id="customAlert" style="display: none;">
+     <div class="modal-overlay" id="customAlert" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title" id="alertTitle">Alert</h3>
@@ -560,7 +571,7 @@
         window.isMobileChrome = isMobileChrome;
     </script>
 
-    <!-- FIXED Notification Button Logic for Older OneSignal API -->
+    <!-- Notification Button Logic for Older OneSignal API -->
     <script>
         // Notification button functionality for older OneSignal API - FIXED VERSION
         (function() {
@@ -782,6 +793,64 @@
                     });
                 }
             }, 5000);
+        })();
+    </script>
+
+    <!-- Force OneSignal Initialization Check -->
+    <script>
+        (function() {
+            console.log('🔍 Checking OneSignal initialization...');
+            
+            // Check every second for 10 seconds
+            let checks = 0;
+            const initCheck = setInterval(() => {
+                checks++;
+                
+                if (window.OneSignal && window.OneSignal.initialized) {
+                    console.log('✅ OneSignal is fully initialized!');
+                    clearInterval(initCheck);
+                    
+                    // Get the user ID
+                    window.OneSignal.push(function() {
+                        window.OneSignal.getUserId(function(id) {
+                            console.log('📱 OneSignal ID:', id);
+                            
+                            if (id) {
+                                // Try to save to database automatically
+                                window.supabase.auth.getSession().then(sessionData => {
+                                    const token = sessionData.data.session?.access_token;
+                                    
+                                    if (token) {
+                                        fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Authorization': `Bearer ${token}`,
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                onesignal_player_id: id,
+                                                device_type: 'web',
+                                                browser_info: navigator.userAgent
+                                            })
+                                        })
+                                        .then(res => res.json())
+                                        .then(data => {
+                                            console.log('✅ Auto-saved token:', data);
+                                        })
+                                        .catch(err => {
+                                            console.log('❌ Auto-save error:', err);
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    });
+                    
+                } else if (checks > 10) {
+                    console.log('⚠️ OneSignal still not initialized after 10 seconds');
+                    clearInterval(initCheck);
+                }
+            }, 1000);
         })();
     </script>
 </body>
