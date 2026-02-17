@@ -42,11 +42,11 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#007ACC">
 
-    <!-- Styles -->
+    <!-- Styles - FIXED CSP ALLOWS CLOUDFLARE -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Content Security Policy -->
+    <!-- FIXED CSP WITH ALL ONESIGNAL AND CLOUDFLARE DOMAINS -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 
         https://*.supabase.co 
@@ -60,7 +60,8 @@
         https://fonts.googleapis.com
         https://cdn.onesignal.com
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        https://cdnjs.cloudflare.com;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' 
         https://*.supabase.co 
         https://api.supabase.com 
@@ -70,12 +71,15 @@
         https://ibb.co
         https://cdn.onesignal.com
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        https://cdnjs.cloudflare.com;
         style-src 'self' 'unsafe-inline' 
         https://fonts.googleapis.com 
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
-        https://cdn.onesignal.com;
+        https://cdn.onesignal.com
+        https://onesignal.com
+        https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: 
         https://*.ibb.co 
         https://i.ibb.co 
@@ -84,7 +88,8 @@
         font-src 'self' data: 
         https://fonts.gstatic.com 
         https://cdn.jsdelivr.net
-        https://cdn.onesignal.com;
+        https://cdn.onesignal.com
+        https://cdnjs.cloudflare.com;
         connect-src 'self' 
         wss://*.supabase.co 
         https://*.supabase.co 
@@ -94,7 +99,14 @@
         https://i.ibb.co
         https://ibb.co
         https://onesignal.com
-        https://*.onesignal.com;
+        https://*.onesignal.com
+        wss://onesignal.com
+        https://clientapi.onesignal.com
+        https://sync.onesignal.com
+        https://device.onesignal.com;
+        worker-src 'self' blob: 
+        https://cdn.onesignal.com
+        https://onesignal.com;
         media-src 'self' 
         https://i.ibb.co
         https://*.ibb.co;
@@ -140,7 +152,7 @@
         })();
     </script>
 
-    <!-- OneSignal Direct - Complete Setup -->
+    <!-- OneSignal Direct - FIXED API USAGE -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"></script>
     <script>
         window.OneSignal = window.OneSignal || [];
@@ -270,7 +282,7 @@
         </div>
     </div>
 
-    <!-- Enable Notifications Button -->
+    <!-- Enable Notifications Button - FIXED API USAGE -->
     <button id="enableNotificationsBtn" style="position: fixed; bottom: 80px; right: 20px; background: #667eea; color: white; border: none; border-radius: 50px; padding: 12px 24px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 9999; display: none;">
         <i class="fas fa-bell"></i> Enable Notifications
     </button>
@@ -279,24 +291,48 @@
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 
+    <!-- FIXED OneSignal permission check -->
     <script>
-        // Show notification button if permission not granted
+        // Show notification button if permission not granted - CORRECT API
         setTimeout(() => {
             if (window.OneSignal) {
-                window.OneSignal.getPermission().then(permission => {
+                // CORRECT: Use OneSignal.Notifications.getPermission()
+                window.OneSignal.Notifications.getPermission().then(permission => {
+                    console.log('🔔 Notification permission:', permission);
                     if (permission === 'default') {
                         document.getElementById('enableNotificationsBtn').style.display = 'block';
                     }
+                }).catch(err => {
+                    console.log('Permission check error:', err);
                 });
             }
         }, 4000);
 
-        // Handle button click
+        // Handle button click - CORRECT API
         document.getElementById('enableNotificationsBtn').addEventListener('click', async () => {
             if (window.OneSignal) {
-                await window.OneSignal.showNativePrompt();
-                document.getElementById('enableNotificationsBtn').style.display = 'none';
+                try {
+                    // CORRECT: Use OneSignal.Notifications.requestPermission()
+                    await window.OneSignal.Notifications.requestPermission();
+                    document.getElementById('enableNotificationsBtn').style.display = 'none';
+                } catch (err) {
+                    console.log('Permission request error:', err);
+                }
             }
+        });
+
+        // Also try to auto-prompt after login
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (window.OneSignal) {
+                    window.OneSignal.Notifications.getPermission().then(permission => {
+                        if (permission === 'default') {
+                            // Don't auto-prompt immediately, let user click button
+                            console.log('🔔 Notifications available - click button to enable');
+                        }
+                    });
+                }
+            }, 5000);
         });
     </script>
 </body>
