@@ -115,7 +115,7 @@ async function subscribeToPush() {
         console.log('✅ Push SW registered');
 
         // Get VAPID public key (you'll need to generate this)
-        const vapidPublicKey = 'YOUR_VAPID_PUBLIC_KEY_HERE'; // You'll get this from web-push setup
+        const vapidPublicKey = 'BIOh7lV8XJqWYqVn7QxKxV3dKtU5jRqWlN8pL2mX9cY='; // You'll get this from web-push setup
         const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
 
         // Subscribe
