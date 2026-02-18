@@ -221,7 +221,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // VAPID Public Key (without = at the end)
-const VAPID_PUBLIC_KEY = 'BIOh7lV8XJqWYqVn7QxKxV3dKtU5jRqWlN8pL2mX9cY';
+const VAPID_PUBLIC_KEY = 'BIOh7lV8XJqWYqVn7QxKxV3dKtU5jRqWlN8pL2mX9cY=';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
 
 // Subscribe to push notifications
