@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION WITH WEB PUSH
+// utils/sw-manager.js - COMPLETE FINAL VERSION WITH FIXED VAPID CONVERSION
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -197,25 +197,31 @@ console.log('✅ SW Manager ready');
 // WEB PUSH NOTIFICATIONS - FINAL VERSION
 // ============================================
 
-// Convert base64 to Uint8Array
+// FIXED: Convert base64 to Uint8Array
 function urlBase64ToUint8Array(base64String) {
     try {
+        // Add padding if needed
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        
+        // Decode base64
         const rawData = window.atob(base64);
         const outputArray = new Uint8Array(rawData.length);
+        
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
+        
+        console.log('✅ Key converted successfully, length:', outputArray.length);
         return outputArray;
     } catch (error) {
-        console.log('Error converting VAPID key:', error);
+        console.log('❌ Error converting VAPID key:', error);
         return null;
     }
 }
 
-// VAPID Public Key
-const VAPID_PUBLIC_KEY = 'BIOh7lV8XJqWYqVn7QxKxV3dKtU5jRqWlN8pL2mX9cY=';
+// VAPID Public Key (without = at the end)
+const VAPID_PUBLIC_KEY = 'BIOh7lV8XJqWYqVn7QxKxV3dKtU5jRqWlN8pL2mX9cY';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
 
 // Subscribe to push notifications
@@ -371,15 +377,26 @@ console.log('✅ Web Push ready');
 // Check status on load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const { data: { user } } = await window.supabase.auth.getUser();
-        
-        if (user) {
-            console.log('User logged in, checking push status...');
-            const hasPush = await checkPushStatus();
-            if (hasPush) {
-                console.log('Already has push subscription');
+        // Wait for Supabase to be ready
+        let attempts = 0;
+        const checkSupabase = setInterval(async () => {
+            attempts++;
+            if (window.supabase?.auth) {
+                clearInterval(checkSupabase);
+                const { data: { user } } = await window.supabase.auth.getUser();
+                
+                if (user) {
+                    console.log('User logged in, checking push status...');
+                    const hasPush = await checkPushStatus();
+                    if (hasPush) {
+                        console.log('Already has push subscription');
+                    }
+                }
+            } else if (attempts > 20) {
+                clearInterval(checkSupabase);
+                console.log('Supabase not ready after 20 attempts');
             }
-        }
+        }, 500);
     } catch (error) {
         console.log('Error checking initial status:', error);
     }
