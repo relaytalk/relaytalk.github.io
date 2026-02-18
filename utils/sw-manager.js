@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FIXED VERSION WITH CORRECT ONESIGNAL API
+// utils/sw-manager.js - COMPLETE FIXED VERSION WITH ONESIGNAL
 console.log('⚡ SW Manager loaded');
 
 // Simple network detection
@@ -183,12 +183,39 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// ONESIGNAL PUSH NOTIFICATION INTEGRATION - FIXED FOR OLDER API
+// ONESIGNAL PUSH NOTIFICATION INTEGRATION - FIXED
 // ============================================
 
 // OneSignal Configuration
 const ONESIGNAL_APP_ID = "57235c48-d945-4cd6-9b7e-5e3823144539";
 const REGISTER_FUNCTION_URL = "https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token";
+const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A";
+
+// Initialize OneSignal
+function initOneSignal() {
+    console.log('🔔 Initializing OneSignal...');
+    
+    // Load OneSignal SDK if not already loaded
+    if (!document.querySelector('script[src*="onesignal"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js';
+        script.async = true;
+        document.head.appendChild(script);
+    }
+    
+    // Setup OneSignal initialization
+    window.OneSignal = window.OneSignal || [];
+    window.OneSignal.push(function() {
+        window.OneSignal.init({
+            appId: ONESIGNAL_APP_ID,
+            autoRegister: true,
+            notifyButton: {
+                enable: true
+            }
+        });
+        console.log('✅ OneSignal initialized');
+    });
+}
 
 // CORRECT way to get OneSignal ID for older SDK
 function getOneSignalId() {
@@ -236,6 +263,7 @@ async function registerPushToken() {
         }
 
         console.log('👤 User:', user.email);
+        console.log('👤 User ID:', user.id);
 
         // Check OneSignal
         if (!window.OneSignal) {
@@ -254,49 +282,29 @@ async function registerPushToken() {
 
         console.log('📱 Player ID:', playerId);
 
-        // Get access token
-        const { data: sessionData } = await window.supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-
-        if (!accessToken) {
-            console.error('❌ No access token');
-            return false;
-        }
-
-        // Register with edge function
+        // Register with edge function using service role key and user_id
         const response = await fetch(REGISTER_FUNCTION_URL, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
+                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 onesignal_player_id: playerId,
                 device_type: 'web',
-                browser_info: navigator.userAgent
+                browser_info: navigator.userAgent,
+                user_id: user.id  // Send user ID directly
             })
         });
 
         const result = await response.json();
         
         if (response.ok) {
-            console.log('✅ Push token registered successfully!');
-            
-            // Check permission with older SDK
-            window.OneSignal.push(function() {
-                window.OneSignal.getPermission(function(permission) {
-                    console.log('🔔 Permission status:', permission);
-                    if (permission === 1) { // 1 = granted in older SDK
-                        showNotification('Notifications enabled!', 'success');
-                    } else if (permission === 0) { // 0 = default/not asked
-                        window.OneSignal.showNativePrompt();
-                    }
-                });
-            });
-            
+            console.log('✅ Push token registered successfully!', result);
+            showNotification('Notifications ready!', 'success');
             return true;
         } else {
-            console.error('❌ Registration failed:', result.error);
+            console.error('❌ Registration failed:', result);
             return false;
         }
 
@@ -341,16 +349,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     
-    // Set a timeout to check for OneSignal
-    setTimeout(() => {
-        if (window.OneSignal) {
-            console.log('✅ OneSignal detected, setting up...');
-            checkAndRegisterPushToken();
-            setupOneSignalAuthListener();
-        } else {
-            console.log('⏳ OneSignal not loaded yet');
-        }
-    }, 3000);
+    initOneSignal();
+    setupOneSignalAuthListener();
+    
+    // Also check after a delay
+    setTimeout(checkAndRegisterPushToken, 5000);
 });
 
 // Make functions globally available
