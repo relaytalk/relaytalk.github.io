@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION WITH FIXED VAPID CONVERSION
+// utils/sw-manager.js - COMPLETE FINAL VERSION WITH WORKING VAPID CONVERSION
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -194,15 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// WEB PUSH NOTIFICATIONS - FINAL VERSION
+// WEB PUSH NOTIFICATIONS - FINAL WORKING VERSION
 // ============================================
 
-// FIXED: Convert base64 to Uint8Array
+// SIMPLIFIED: Convert base64 to Uint8Array - THIS WORKS
 function urlBase64ToUint8Array(base64String) {
     try {
-        // Add padding if needed
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        // Remove any padding and replace URL-safe chars
+        const base64 = base64String.replace(/-/g, '+').replace(/_/g, '/');
         
         // Decode base64
         const rawData = window.atob(base64);
@@ -212,7 +211,7 @@ function urlBase64ToUint8Array(base64String) {
             outputArray[i] = rawData.charCodeAt(i);
         }
         
-        console.log('✅ Key converted successfully, length:', outputArray.length);
+        console.log('✅ Key converted, length:', outputArray.length);
         return outputArray;
     } catch (error) {
         console.log('❌ Error converting VAPID key:', error);
@@ -220,7 +219,7 @@ function urlBase64ToUint8Array(base64String) {
     }
 }
 
-// VAPID Public Key (without = at the end)
+// VAPID Public Key (from generator)
 const VAPID_PUBLIC_KEY = 'BNIuLMHndbU3YrVJ-sc3H9DoyqviASHmttzEfgrz7MmtjiYnRvAAujMyJk7Raw54QUi_DhnhzH1bP7jWyCsUEnY';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
 
