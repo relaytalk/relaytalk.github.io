@@ -10,12 +10,14 @@ let currentUser = null;
 let chatFriend = null;
 let chatChannel = null;
 let statusChannel = null;
+let typingChannel = null;
 let isLoadingMessages = false;
 let currentMessages = [];
 let isSending = false;
 let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
+let typingIndicatorInterval = null;
 
 // Global variables for coordination
 window.colorPickerVisible = false;
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup real-time and listeners
         setupRealtime(friendId);
         setupTypingListener();
+        setupTypingIndicator();
         updateInputListener();
 
         // Prevent accidental back navigation
@@ -208,6 +211,97 @@ function setupBackButtonPrevention() {
 }
 
 // ====================
+// TYPING INDICATOR SETUP
+// ====================
+function setupTypingIndicator() {
+    // Add typing indicator element if it doesn't exist
+    if (!document.getElementById('typingIndicator')) {
+        const indicator = document.createElement('div');
+        indicator.id = 'typingIndicator';
+        indicator.className = 'typing-indicator';
+        indicator.innerHTML = `
+            <div class="typing-dots">
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+            <span id="typingText">${chatFriend?.username || 'Friend'} is typing...</span>
+        `;
+        indicator.style.display = 'none';
+        
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (messagesContainer) {
+            messagesContainer.appendChild(indicator);
+        }
+    }
+
+    // Add CSS for typing indicator if not present
+    if (!document.querySelector('#typing-indicator-style')) {
+        const style = document.createElement('style');
+        style.id = 'typing-indicator-style';
+        style.textContent = `
+            .typing-indicator {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 16px;
+                margin: 8px 0;
+                align-self: flex-start;
+                background: rgba(255, 255, 255, 0.9);
+                border: 1px solid rgba(0, 122, 204, 0.2);
+                border-radius: 20px;
+                border-bottom-left-radius: 5px;
+                font-size: 0.9rem;
+                color: #007acc;
+                width: fit-content;
+                animation: fadeIn 0.2s ease;
+            }
+            
+            .typing-dots {
+                display: flex;
+                gap: 5px;
+            }
+            
+            .typing-dots div {
+                width: 8px;
+                height: 8px;
+                background: #007acc;
+                border-radius: 50%;
+                animation: typing 1.4s infinite;
+            }
+            
+            .typing-dots div:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+            
+            .typing-dots div:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+            
+            @keyframes typing {
+                0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+                30% { transform: translateY(-6px); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function showTypingIndicator(show) {
+    const indicator = document.getElementById('typingIndicator');
+    if (!indicator) return;
+    
+    if (show) {
+        indicator.style.display = 'flex';
+        setTimeout(() => {
+            forceScrollToBottom();
+        }, 10);
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+// ====================
 // TEXT MESSAGE FUNCTIONS
 // ====================
 
@@ -247,10 +341,12 @@ async function sendMessage() {
         `;
         sendBtn.disabled = true;
 
+        // FIX: Added chat_id to messageData
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
             content: text,
+            chat_id: chatFriend.id, // ← THIS FIXES THE CHAT_ID ERROR
             created_at: new Date().toISOString()
         };
 
@@ -273,6 +369,7 @@ async function sendMessage() {
         input.value = '';
         autoResize(input);
 
+        // Stop typing indicator
         isTyping = false;
         window.isTyping = false;
         if (typingTimeout) {
@@ -392,8 +489,11 @@ function showMessages(messages) {
         }
     });
 
-    html += `<div style="height: 30px; opacity: 0;"></div>`;
+    html += `<div class="typing-indicator-placeholder"></div>`;
     container.innerHTML = html;
+
+    // Add typing indicator back
+    setupTypingIndicator();
 
     setTimeout(() => {
         forceScrollToBottom();
@@ -440,7 +540,16 @@ function addMessageToUI(message, isFromRealtime = false) {
         `;
     }
 
+    // Remove typing indicator temporarily
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+    
     container.insertAdjacentHTML('beforeend', messageHTML);
+    
+    // Add typing indicator back
+    setupTypingIndicator();
 
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
@@ -489,7 +598,11 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
         window.statusChannel = null;
     }
+    if (typingChannel) {
+        supabase.removeChannel(typingChannel);
+    }
 
+    // Main chat channel
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
@@ -516,6 +629,7 @@ function setupRealtime(friendId) {
 
     window.chatChannel = chatChannel;
 
+    // Status channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -558,241 +672,110 @@ function setupRealtime(friendId) {
 // ====================
 // TYPING FUNCTIONS
 // ====================
+function setupTypingListener() {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+
+    input.addEventListener('input', handleTyping);
+}
 
 function handleTyping() {
+    if (!chatFriend || !currentUser) return;
+
     if (!isTyping) {
         isTyping = true;
         window.isTyping = true;
         sendTypingStatus(true);
     }
 
-    if (typingTimeout) clearTimeout(typingTimeout);
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+
     typingTimeout = setTimeout(() => {
-        isTyping = false;
-        window.isTyping = false;
-        sendTypingStatus(false);
+        if (isTyping) {
+            isTyping = false;
+            window.isTyping = false;
+            sendTypingStatus(false);
+        }
+        typingTimeout = null;
+        window.typingTimeout = null;
     }, 2000);
-    window.typingTimeout = typingTimeout;
 }
 
 async function sendTypingStatus(isTyping) {
+    if (!chatFriend || !currentUser) return;
+
     try {
-        await supabase
-            .channel(`typing:${currentUser.id}:${chatFriend.id}`)
-            .send({
-                type: 'broadcast',
-                event: 'typing',
-                payload: {
-                    userId: currentUser.id,
-                    friendId: chatFriend.id,
-                    isTyping: isTyping,
-                    timestamp: Date.now()
-                }
-            });
+        // Use broadcast for typing status (more efficient than database)
+        const channel = supabase.channel(`typing:${currentUser.id}:${chatFriend.id}`);
+        
+        await channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { 
+                userId: currentUser.id, 
+                isTyping: isTyping,
+                username: currentUser.email?.split('@')[0] || 'Someone'
+            }
+        });
+
+        // Clean up channel after sending
+        setTimeout(() => {
+            supabase.removeChannel(channel);
+        }, 1000);
     } catch (error) {
         console.log('Typing status error:', error);
     }
 }
 
-function setupTypingListener() {
-    supabase
-        .channel(`typing:${chatFriend.id}:${currentUser.id}`)
+// Listen for friend's typing status
+function setupTypingReceiver(friendId) {
+    if (typingChannel) {
+        supabase.removeChannel(typingChannel);
+    }
+
+    typingChannel = supabase.channel(`typing:${friendId}:${currentUser.id}`)
         .on('broadcast', { event: 'typing' }, (payload) => {
-            if (payload.payload.userId === chatFriend.id) {
-                showTypingIndicator(payload.payload.isTyping);
+            console.log('✏️ Friend typing status:', payload);
+            
+            if (payload.payload.isTyping) {
+                showTypingIndicator(true);
+                
+                if (friendTypingTimeout) {
+                    clearTimeout(friendTypingTimeout);
+                }
+                
+                friendTypingTimeout = setTimeout(() => {
+                    showTypingIndicator(false);
+                    friendTypingTimeout = null;
+                }, 3000);
+            } else {
+                if (friendTypingTimeout) {
+                    clearTimeout(friendTypingTimeout);
+                    friendTypingTimeout = null;
+                }
+                showTypingIndicator(false);
             }
         })
         .subscribe();
-}
 
-function showTypingIndicator(show) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) return;
-
-    let indicator = document.getElementById('typingIndicator');
-
-    if (!indicator) {
-        const typingHTML = `
-            <div id="typingIndicator" class="typing-indicator" style="display: none;">
-                <div class="typing-dots">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', typingHTML);
-        indicator = document.getElementById('typingIndicator');
-    }
-
-    if (indicator) {
-        indicator.style.display = show ? 'flex' : 'none';
-
-        if (show) {
-            if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
-            friendTypingTimeout = setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 3000);
-            window.friendTypingTimeout = friendTypingTimeout;
-        }
-    }
+    window.typingChannel = typingChannel;
 }
 
 function updateInputListener() {
     const input = document.getElementById('messageInput');
-    if (input) {
-        input.addEventListener('input', handleTyping);
-    }
+    if (!input) return;
+
+    input.addEventListener('keydown', handleKeyPress);
 }
 
-// ====================
-// SOUND FUNCTIONS
-// ====================
-
-function playSentSound() {
-    try {
-        const audio = new Audio('sent.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Sound play failed:', e));
-    } catch (error) {
-        console.log('Sound error:', error);
-    }
-}
-
-function playReceivedSound() {
-    try {
-        const audio = new Audio('recieve.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Sound play failed:', e));
-    } catch (error) {
-        console.log('Sound error:', error);
-    }
-}
-
-// ====================
-// ALERT FUNCTIONS - FASTER ANIMATIONS
-// ====================
-function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
-    const alertOverlay = document.getElementById('customAlert');
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.innerHTML = icon;
-    alertTitle.textContent = title;
-    alertMessage.textContent = message;
-    alertCancel.style.display = 'none';
-
-    alertConfirm.textContent = 'OK';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.opacity = '0';
-        setTimeout(() => {
-            alertOverlay.style.display = 'none';
-            if (onConfirm) onConfirm();
-        }, 150);
-    };
-
-    alertOverlay.style.display = 'flex';
-    setTimeout(() => {
-        alertOverlay.style.opacity = '1';
-    }, 10);
-}
-
-function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, onCancel = null) {
-    const alertOverlay = document.getElementById('customAlert');
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.innerHTML = icon;
-    alertTitle.textContent = title;
-    alertMessage.textContent = message;
-    alertCancel.style.display = 'inline-block';
-
-    alertConfirm.textContent = 'Yes';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.opacity = '0';
-        setTimeout(() => {
-            alertOverlay.style.display = 'none';
-            if (onConfirm) onConfirm();
-        }, 150);
-    };
-
-    alertCancel.textContent = 'No';
-    alertCancel.onclick = () => {
-        alertOverlay.style.opacity = '0';
-        setTimeout(() => {
-            alertOverlay.style.display = 'none';
-            if (onCancel) onCancel();
-        }, 150);
-    };
-
-    alertOverlay.style.display = 'flex';
-    setTimeout(() => {
-        alertOverlay.style.opacity = '1';
-    }, 10);
-}
-
-function showToast(message, icon = 'ℹ️', duration = 2000) {
-    const toast = document.getElementById('customToast');
-    const toastIcon = document.getElementById('toastIcon');
-    const toastMessage = document.getElementById('toastMessage');
-
-    toastIcon.innerHTML = icon;
-    toastMessage.textContent = message;
-    toast.style.display = 'flex';
-    setTimeout(() => {
-        toast.style.opacity = '1';
-    }, 10);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => {
-            toast.style.display = 'none';
-        }, 150);
-    }, duration);
-}
-
-// ====================
-// STATUS FUNCTIONS
-// ====================
-function updateFriendStatus(status) {
-    const isOnline = status === 'online';
-    const statusText = document.getElementById('statusText');
-    const statusDot = document.getElementById('statusDot');
-
-    if (isOnline) {
-        statusText.textContent = 'Online';
-        statusText.style.color = '#28a745';
-        statusDot.className = 'status-dot';
-        statusDot.style.boxShadow = '0 0 8px #28a745';
-    } else {
-        statusText.textContent = 'Offline';
-        statusText.style.color = '#6c757d';
-        statusDot.className = 'status-dot offline';
-        statusDot.style.boxShadow = 'none';
-    }
-}
-
-// ====================
-// INPUT HANDLERS
-// ====================
-function handleKeyPress(event) {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    if (sendBtn) {
-        sendBtn.disabled = !input || input.value.trim() === '';
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
+function handleKeyPress(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
 
         if (window.colorPickerVisible === true) {
+            const input = document.getElementById('messageInput');
             if (input && input.value === '/') {
                 input.value = '';
                 autoResize(input);
@@ -800,6 +783,7 @@ function handleKeyPress(event) {
             return;
         }
 
+        const input = document.getElementById('messageInput');
         if (input && input.value === '/') {
             return;
         }
@@ -837,6 +821,9 @@ function goBack() {
     }
     if (statusChannel) {
         supabase.removeChannel(statusChannel);
+    }
+    if (typingChannel) {
+        supabase.removeChannel(typingChannel);
     }
     if (typingTimeout) {
         clearTimeout(typingTimeout);
@@ -1022,6 +1009,106 @@ function reconnectRealtime() {
 }
 
 // ====================
+// SOUND FUNCTIONS
+// ====================
+function playSentSound() {
+    try {
+        const audio = new Audio('/pages/chats/sent.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Sound play failed:', e));
+    } catch (e) {
+        console.log('Sound play failed:', e);
+    }
+}
+
+function playReceivedSound() {
+    try {
+        const audio = new Audio('/pages/chats/recieve.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Sound play failed:', e));
+    } catch (e) {
+        console.log('Sound play failed:', e);
+    }
+}
+
+// ====================
+// ALERT FUNCTIONS
+// ====================
+function showCustomAlert(message, icon = '❌', title = 'Alert', callback = null) {
+    const modal = document.getElementById('customAlert');
+    const titleEl = document.getElementById('alertTitle');
+    const iconEl = document.getElementById('alertIcon');
+    const messageEl = document.getElementById('alertMessage');
+    const confirmBtn = document.getElementById('alertConfirm');
+
+    titleEl.textContent = title;
+    iconEl.textContent = icon;
+    messageEl.textContent = message;
+
+    modal.style.display = 'flex';
+
+    confirmBtn.onclick = () => {
+        modal.style.display = 'none';
+        if (callback) callback();
+    };
+}
+
+function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm = null) {
+    const modal = document.getElementById('customAlert');
+    const titleEl = document.getElementById('alertTitle');
+    const iconEl = document.getElementById('alertIcon');
+    const messageEl = document.getElementById('alertMessage');
+    const confirmBtn = document.getElementById('alertConfirm');
+    const cancelBtn = document.getElementById('alertCancel');
+
+    titleEl.textContent = title;
+    iconEl.textContent = icon;
+    messageEl.textContent = message;
+
+    cancelBtn.style.display = 'flex';
+    modal.style.display = 'flex';
+
+    confirmBtn.onclick = () => {
+        modal.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    cancelBtn.onclick = () => {
+        modal.style.display = 'none';
+        cancelBtn.style.display = 'none';
+    };
+}
+
+function showToast(message, icon = '✅', duration = 1500) {
+    const toast = document.getElementById('customToast');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+
+    toastMessage.textContent = message;
+    toastIcon.textContent = icon;
+
+    toast.style.display = 'flex';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, duration);
+}
+
+function updateFriendStatus(status) {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    if (status === 'online') {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Online';
+    } else {
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'Offline';
+    }
+}
+
+// ====================
 // CHROME SPECIFIC FIXES
 // ====================
 if (navigator.userAgent.includes('Chrome')) {
@@ -1041,6 +1128,7 @@ if (navigator.userAgent.includes('Chrome')) {
 window.addEventListener('beforeunload', () => {
     if (chatChannel) supabase.removeChannel(chatChannel);
     if (statusChannel) supabase.removeChannel(statusChannel);
+    if (typingChannel) supabase.removeChannel(typingChannel);
     if (typingTimeout) clearTimeout(typingTimeout);
     if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
 });
