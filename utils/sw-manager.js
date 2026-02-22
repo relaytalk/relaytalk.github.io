@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION WITH COMBINED SERVICE WORKER
+// utils/sw-manager.js - COMPLETE FINAL VERSION
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -25,8 +25,7 @@ window.addEventListener('offline', () => {
 // Register combined service worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        // Determine correct SW path based on current page
-        let swPath = 'service-worker.js'; // Now this is the combined file
+        let swPath = 'service-worker.js';
 
         if (window.location.pathname.includes('/pages/')) {
             swPath = '../../service-worker.js';
@@ -122,7 +121,6 @@ function showNotification(message, type = 'info', duration = 3000) {
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 z-index: 9999;
                 animation: slideIn 0.3s ease;
-                font-family: 'Segoe UI', sans-serif;
                 max-width: 300px;
                 word-wrap: break-word;
             ">
@@ -157,7 +155,6 @@ function showNotification(message, type = 'info', duration = 3000) {
     }
 }
 
-// Public API
 window.SWManager = {
     isOnline: () => isOnline,
     checkGameCache,
@@ -185,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// WEB PUSH NOTIFICATIONS - USING COMBINED SW
+// WEB PUSH NOTIFICATIONS
 // ============================================
 
 function urlBase64ToUint8Array(base64String) {
@@ -196,7 +193,6 @@ function urlBase64ToUint8Array(base64String) {
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
-        console.log('✅ Key converted, length:', outputArray.length);
         return outputArray;
     } catch (error) {
         console.log('❌ Error converting VAPID key:', error);
@@ -204,148 +200,92 @@ function urlBase64ToUint8Array(base64String) {
     }
 }
 
-// VAPID Public Key
 const VAPID_PUBLIC_KEY = 'BGXg4PCPp477Kc0VYePQf5_DPN2PhwXgpJAItJPHoj8Pq2v2DRyaDpBypuX9MfADIWGuV4EOfw-SC4eP9weFZNc';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
 
-// Subscribe to push notifications
-async function subscribeToPush() {
-    try {
-        console.log('🔔 Setting up push notifications...');
-
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            console.log('Push not supported');
-            return null;
-        }
-
-        if (Notification.permission !== 'granted') {
-            console.log('Permission not granted yet');
-            return null;
-        }
-
-        // Get the combined service worker
-        const registration = await navigator.serviceWorker.ready;
-        console.log('✅ Combined SW ready');
-
-        // Convert VAPID key
-        const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        if (!convertedKey) return null;
-
-        // Check existing subscription
-        let subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-            console.log('✅ Already subscribed');
-            return subscription;
-        }
-
-        // Subscribe
-        subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedKey
-        });
-
-        console.log('✅ New push subscription created');
-        return subscription;
-    } catch (error) {
-        console.log('❌ Push subscription error:', error);
-        return null;
+// Show the blue button and attach handler
+function setupNotificationButton() {
+    const btn = document.getElementById('notificationToggleBtn');
+    if (!btn) {
+        console.log('⏳ Waiting for notification button...');
+        setTimeout(setupNotificationButton, 500);
+        return;
     }
-}
 
-// Save subscription to database
-async function saveSubscription(subscription) {
-    try {
-        const { data: { user } } = await window.supabase.auth.getUser();
-        if (!user) return false;
+    console.log('🔔 Setting up notification button');
+    btn.style.display = 'flex';
 
-        const pushId = 'push_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+    // Remove old handler
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
 
-        const response = await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                onesignal_player_id: pushId,
-                device_type: 'web-push',
-                browser_info: JSON.stringify(subscription),
-                user_id: user.id
-            })
-        });
+    // Add new handler
+    newBtn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        console.log('🔔 Notification button clicked');
 
-        const result = await response.json();
-        console.log('✅ Push subscription saved:', result);
-        showNotification('Notifications enabled!', 'success');
-        return true;
-    } catch (error) {
-        console.log('❌ Error saving subscription:', error);
-        return false;
-    }
-}
+        if (!('Notification' in window)) {
+            alert('Your browser does not support notifications');
+            return;
+        }
 
-// Enable notifications
-async function enableNotifications() {
-    try {
         const permission = await Notification.requestPermission();
-        console.log('Permission result:', permission);
+        console.log('Permission:', permission);
 
         if (permission === 'granted') {
-            const subscription = await subscribeToPush();
-            if (subscription) {
-                return await saveSubscription(subscription);
-            }
-            return false;
-        } else {
-            showNotification('Notification permission denied', 'error');
-            return false;
-        }
-    } catch (error) {
-        console.log('❌ Error enabling notifications:', error);
-        return false;
-    }
-}
+            this.classList.add('has-permission');
+            this.innerHTML = '<i class="fas fa-bell"></i>';
+            showNotification('Notifications enabled!', 'success');
 
-// Check if already subscribed
-async function checkPushStatus() {
-    try {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        return !!subscription;
-    } catch (error) {
-        console.log('Error checking push status:', error);
-        return false;
-    }
-}
+            // Try to create subscription
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+                
+                if (!convertedKey) return;
 
-window.NotificationManager = {
-    enable: enableNotifications,
-    checkStatus: checkPushStatus
-};
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: convertedKey
+                });
 
-console.log('✅ Web Push ready');
-
-// Check status on load
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        let attempts = 0;
-        const checkSupabase = setInterval(async () => {
-            attempts++;
-            if (window.supabase?.auth) {
-                clearInterval(checkSupabase);
+                console.log('✅ Subscription created');
+                
+                // Save to database
                 const { data: { user } } = await window.supabase.auth.getUser();
                 if (user) {
-                    console.log('User logged in, checking push status...');
-                    const hasPush = await checkPushStatus();
-                    if (hasPush) console.log('Already has push subscription');
+                    const pushId = 'push_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+                    
+                    await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            onesignal_player_id: pushId,
+                            device_type: 'web-push',
+                            browser_info: JSON.stringify(subscription),
+                            user_id: user.id
+                        })
+                    });
+                    
+                    console.log('✅ Subscription saved');
                 }
-            } else if (attempts > 20) {
-                clearInterval(checkSupabase);
-                console.log('Supabase not ready after 20 attempts');
+            } catch (err) {
+                console.log('Subscription error:', err);
             }
-        }, 500);
-    } catch (error) {
-        console.log('Error checking initial status:', error);
-    }
-});
+        } else {
+            showNotification('Notifications blocked', 'error');
+        }
+    });
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupNotificationButton);
+} else {
+    setupNotificationButton();
+}
+
+console.log('✅ Web Push ready');
