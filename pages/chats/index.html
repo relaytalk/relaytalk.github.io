@@ -140,161 +140,7 @@
 
     <!-- Notification Button Styles - Matching App Theme -->
     <style>
-        /* Notification button styles - matching app theme */
-        .notification-toggle-btn {
-            background: rgba(255, 255, 255, 0.9) !important;
-            border: 1px solid rgba(0, 122, 204, 0.2) !important;
-            color: #007acc !important;
-            width: 44px !important;
-            height: 44px !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-            touch-action: manipulation !important;
-            -webkit-tap-highlight-color: transparent !important;
-            margin-right: 10px !important;
-            position: relative !important;
-            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.1) !important;
-            animation: fadeIn 0.3s ease !important;
-        }
-
-        .notification-toggle-btn:hover {
-            background: rgba(255, 255, 255, 1) !important;
-            transform: scale(1.05) !important;
-            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2) !important;
-        }
-
-        .notification-toggle-btn i {
-            font-size: 1.2rem !important;
-            transition: all 0.2s ease !important;
-        }
-
-        .notification-toggle-btn:hover i {
-            transform: scale(1.1) !important;
-        }
-
-        .notification-toggle-btn.has-permission {
-            background: linear-gradient(135deg, #28a745, #34ce57) !important;
-            border-color: rgba(40, 167, 69, 0.3) !important;
-            color: white !important;
-        }
-
-        .notification-toggle-btn.has-permission i {
-            color: white !important;
-        }
-
-        .notification-toggle-btn.denied {
-            background: rgba(220, 53, 69, 0.1) !important;
-            border-color: rgba(220, 53, 69, 0.3) !important;
-            color: #dc3545 !important;
-        }
-
-        .notification-badge-small {
-            position: absolute !important;
-            top: -2px !important;
-            right: -2px !important;
-            background: #dc3545 !important;
-            color: white !important;
-            font-size: 0.7rem !important;
-            min-width: 18px !important;
-            height: 18px !important;
-            border-radius: 10px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0 4px !important;
-            border: 2px solid white !important;
-            font-weight: bold !important;
-            animation: pulse 2s infinite !important;
-        }
-
-        .notification-tooltip {
-            position: absolute !important;
-            top: 60px !important;
-            right: 80px !important;
-            background: rgba(255, 255, 255, 0.95) !important;
-            backdrop-filter: blur(10px) !important;
-            -webkit-backdrop-filter: blur(10px) !important;
-            border: 1px solid rgba(0, 122, 204, 0.2) !important;
-            border-radius: 12px !important;
-            padding: 12px 16px !important;
-            min-width: 220px !important;
-            max-width: 280px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-            z-index: 2000 !important;
-            animation: slideDown 0.2s ease !important;
-            color: #333333 !important;
-            font-size: 0.9rem !important;
-        }
-
-        .notification-tooltip::before {
-            content: '' !important;
-            position: absolute !important;
-            top: -6px !important;
-            right: 15px !important;
-            width: 12px !important;
-            height: 12px !important;
-            background: rgba(255, 255, 255, 0.95) !important;
-            border-left: 1px solid rgba(0, 122, 204, 0.2) !important;
-            border-top: 1px solid rgba(0, 122, 204, 0.2) !important;
-            transform: rotate(45deg) !important;
-        }
-
-        .notification-tooltip p {
-            margin: 5px 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-        }
-
-        .notification-tooltip i {
-            width: 20px !important;
-            color: #007acc !important;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        /* Mobile adjustments */
-        @media (max-width: 768px) {
-            .notification-toggle-btn {
-                width: 40px !important;
-                height: 40px !important;
-                margin-right: 8px !important;
-            }
-
-            .notification-tooltip {
-                right: 60px !important;
-                min-width: 200px !important;
-                top: 55px !important;
-            }
-
-            .notification-tooltip::before {
-                right: 15px !important;
-            }
-        }
-
-        /* Update chat actions to accommodate notification button */
-        .chat-actions {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-        }
+        /* Additional inline styles if needed */
     </style>
 </head>
 <body>
@@ -317,12 +163,12 @@
 
     <!-- Chat Interface -->
     <div id="chat" style="display: none;">
-        <!-- Chat Header - WITH BLUE NOTIFICATION BUTTON -->
+        <!-- Chat Header - WITH BLUE NOTIFICATION BUTTON ONLY -->
         <header class="chat-header">
             <button class="back-btn" onclick="goBack()">←</button>
             <div class="chat-user-info">
                 <div class="chat-user-avatar" id="chatUserAvatar">U</div>
-                <div>
+                <div class="chat-user-details">
                     <h3 id="chatUserName">User</h3>
                     <div class="chat-user-status">
                         <span id="statusDot" class="status-dot offline"></span>
@@ -331,17 +177,10 @@
                 </div>
             </div>
             <div class="chat-actions">
-                <!-- BLUE NOTIFICATION BUTTON - Left of Settings -->
+                <!-- ONLY NOTIFICATION BUTTON - Settings button removed -->
                 <button id="notificationToggleBtn" class="notification-toggle-btn" style="display: none;">
                     <i class="fas fa-bell"></i>
                     <span id="notificationBadgeSmall" class="notification-badge-small" style="display: none;">1</span>
-                </button>
-                
-                <!-- Settings Button -->
-                <button class="chat-action-btn" onclick="showUserInfo()">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M10,22C9.75,22 9.54,21.82 9.5,21.58L9.13,18.93C8.5,18.68 7.96,18.34 7.44,17.94L4.95,18.95C4.73,19.03 4.46,18.95 4.34,18.73L2.34,15.27C2.21,15.05 2.27,14.78 2.46,14.63L4.57,12.97L4.5,12L4.57,11L2.46,9.37C2.27,9.22 2.21,8.95 2.34,8.73L4.34,5.27C4.46,5.05 4.73,4.96 4.95,5.05L7.44,6.05C7.96,5.66 8.5,5.32 9.13,5.07L9.5,2.42C9.54,2.18 9.75,2 10,2H14C14.25,2 14.46,2.18 14.5,2.42L14.87,5.07C15.5,5.32 16.04,5.66 16.56,6.05L19.05,5.05C19.27,4.96 19.54,5.05 19.66,5.27L21.66,8.73C21.79,8.95 21.73,9.22 21.54,9.37L19.43,11L19.5,12L19.43,13L21.54,14.63C21.73,14.78 21.79,15.05 21.66,15.27L21.66,15.27L19.66,18.73C19.54,18.95 19.27,19.04 19.05,18.95L16.56,17.95C16.04,18.34 15.5,18.68 14.87,18.93L14.5,21.58C14.46,21.82 14.25,22 14,22H10Z"/>
-                    </svg>
                 </button>
             </div>
         </header>
@@ -484,8 +323,8 @@
         function applyChromeMobileFixes() {
             if (isMobileChrome() || isIOSChrome()) {
                 console.log('Chrome Mobile detected - applying fixes');
-
                 document.documentElement.setAttribute('data-chrome-mobile', 'true');
+                document.body.classList.add('chrome-mobile');
 
                 let lastTouchEnd = 0;
                 document.addEventListener('touchend', function(event) {
@@ -496,30 +335,13 @@
                     lastTouchEnd = now;
                 }, false);
 
-                document.body.style.overscrollBehavior = 'none';
-
                 function setVH() {
                     let vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
                 }
                 setVH();
                 window.addEventListener('resize', setVH);
-
-                document.body.classList.add('chrome-mobile');
-
-                if (window.navigator.connection) {
-                    const conn = window.navigator.connection;
-                    if (conn.saveData === false) {
-                        const preconnect = document.createElement('link');
-                        preconnect.rel = 'preconnect';
-                        preconnect.href = 'https://i.ibb.co';
-                        document.head.appendChild(preconnect);
-                    }
-                }
-
-                return true;
             }
-            return false;
         }
 
         if (document.readyState === 'loading') {
