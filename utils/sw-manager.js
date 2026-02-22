@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION WITH WORKING BUTTON
+// utils/sw-manager.js - COMPLETE WORKING VERSION WITH SUBSCRIPTION CREATION
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -183,13 +183,88 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// SIMPLE NOTIFICATION SYSTEM - WORKS PERFECTLY
+// COMPLETE NOTIFICATION SYSTEM WITH SUBSCRIPTION
 // ============================================
 
-// Create NotificationManager
+// VAPID Key (from your Firebase)
+const VAPID_PUBLIC_KEY = 'BGXg4PCPp477Kc0VYePQf5_DPN2PhwXgpJAItJPHoj8Pq2v2DRyaDpBypuX9MfADIWGuV4EOfw-SC4eP9weFZNc';
+const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
+
+// Convert VAPID key to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+    try {
+        const base64 = base64String.replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    } catch (error) {
+        console.log('❌ Error converting VAPID key:', error);
+        return null;
+    }
+}
+
+// Create push subscription
+async function createPushSubscription() {
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        
+        if (!convertedKey) {
+            throw new Error('Failed to convert VAPID key');
+        }
+        
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey
+        });
+        
+        console.log('✅ Push subscription created');
+        return subscription;
+    } catch (error) {
+        console.log('❌ Subscription creation failed:', error);
+        throw error;
+    }
+}
+
+// Save subscription to database
+async function saveSubscription(subscription) {
+    try {
+        const { data: { user } } = await window.supabase.auth.getUser();
+        if (!user) throw new Error('No user logged in');
+        
+        const pushId = 'push_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        
+        const response = await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                onesignal_player_id: pushId,
+                device_type: 'web-push',
+                browser_info: JSON.stringify(subscription),
+                user_id: user.id
+            })
+        });
+        
+        const result = await response.json();
+        console.log('✅ Subscription saved:', result);
+        return result;
+    } catch (error) {
+        console.log('❌ Error saving subscription:', error);
+        throw error;
+    }
+}
+
+// NotificationManager with full functionality
 window.NotificationManager = {
     enable: async function() {
         try {
+            // Request permission
             const permission = await Notification.requestPermission();
             console.log('Permission:', permission);
             
@@ -199,7 +274,17 @@ window.NotificationManager = {
                     btn.classList.add('has-permission');
                     btn.innerHTML = '<i class="fas fa-bell"></i>';
                 }
-                showNotification('✅ Notifications enabled!', 'success');
+                
+                // Create and save subscription
+                try {
+                    const subscription = await createPushSubscription();
+                    await saveSubscription(subscription);
+                    showNotification('✅ Notifications enabled!', 'success');
+                } catch (subError) {
+                    console.log('Subscription error:', subError);
+                    showNotification('✅ Permission granted', 'success');
+                }
+                
                 return true;
             } else if (permission === 'denied') {
                 const btn = document.getElementById('notificationToggleBtn');
@@ -230,7 +315,7 @@ function setupNotificationButton() {
     
     console.log('🔔 Setting up notification button');
     
-    // SHOW THE BUTTON - THIS IS THE KEY FIX
+    // SHOW THE BUTTON
     btn.style.display = 'flex';
     btn.style.pointerEvents = 'auto';
     
@@ -243,7 +328,7 @@ function setupNotificationButton() {
         btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
     }
     
-    // Remove any existing click handlers by cloning
+    // Remove any existing click handlers
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
@@ -268,4 +353,4 @@ setTimeout(setupNotificationButton, 1000);
 setTimeout(setupNotificationButton, 2000);
 setTimeout(setupNotificationButton, 3000);
 
-console.log('✅ Web Push ready - Blue button will appear and be clickable');
+console.log('✅ Web Push ready - Full subscription system active');
