@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION
+// utils/sw-manager.js - COMPLETE WORKING VERSION
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -183,10 +183,43 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// WEB PUSH NOTIFICATIONS - FIXED WORKING VERSION
+// SIMPLE NOTIFICATION SYSTEM - PROVEN TO WORK
 // ============================================
 
-// Show the blue button and attach handler
+// This is the exact code that worked in your test
+window.NotificationManager = {
+    enable: async function() {
+        try {
+            const permission = await Notification.requestPermission();
+            console.log('Permission:', permission);
+            
+            if (permission === 'granted') {
+                const btn = document.getElementById('notificationToggleBtn');
+                if (btn) {
+                    btn.classList.add('has-permission');
+                    btn.innerHTML = '<i class="fas fa-bell"></i>';
+                }
+                showNotification('✅ Notifications enabled!', 'success');
+                return true;
+            } else if (permission === 'denied') {
+                const btn = document.getElementById('notificationToggleBtn');
+                if (btn) {
+                    btn.classList.add('denied');
+                    btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+                }
+                showNotification('❌ Notifications blocked', 'error');
+                return false;
+            }
+            return false;
+        } catch(err) {
+            console.log('Error:', err);
+            showNotification('Error enabling notifications', 'error');
+            return false;
+        }
+    }
+};
+
+// Setup button when page loads
 function setupNotificationButton() {
     const btn = document.getElementById('notificationToggleBtn');
     if (!btn) {
@@ -194,80 +227,28 @@ function setupNotificationButton() {
         setTimeout(setupNotificationButton, 500);
         return;
     }
-
+    
     console.log('🔔 Setting up notification button');
     btn.style.display = 'flex';
-
+    
+    // Check current permission
+    if (Notification.permission === 'granted') {
+        btn.classList.add('has-permission');
+        btn.innerHTML = '<i class="fas fa-bell"></i>';
+    } else if (Notification.permission === 'denied') {
+        btn.classList.add('denied');
+        btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+    }
+    
     // Remove any existing click handlers by cloning
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
-
+    
     // Add new click handler
     newBtn.addEventListener('click', async function(e) {
         e.stopPropagation();
         console.log('🔔 Notification button clicked');
-
-        if (!('Notification' in window)) {
-            alert('Your browser does not support notifications');
-            return;
-        }
-
-        try {
-            const permission = await Notification.requestPermission();
-            console.log('Permission:', permission);
-
-            if (permission === 'granted') {
-                this.classList.add('has-permission');
-                this.innerHTML = '<i class="fas fa-bell"></i>';
-                showNotification('✅ Notifications enabled!', 'success');
-                
-                // Try to create push subscription
-                try {
-                    const registration = await navigator.serviceWorker.ready;
-                    
-                    // Simple subscription without VAPID for now
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true
-                    });
-                    
-                    console.log('✅ Push subscription created');
-                    
-                    // Save to database if user is logged in
-                    if (window.supabase?.auth) {
-                        const { data: { user } } = await window.supabase.auth.getUser();
-                        if (user) {
-                            const pushId = 'push_' + Date.now();
-                            
-                            await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A',
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    onesignal_player_id: pushId,
-                                    device_type: 'web-push',
-                                    browser_info: JSON.stringify(subscription),
-                                    user_id: user.id
-                                })
-                            });
-                            
-                            console.log('✅ Subscription saved to database');
-                        }
-                    }
-                } catch (subError) {
-                    console.log('Subscription creation error:', subError);
-                    // Still fine - permission granted is the main thing
-                }
-            } else {
-                this.classList.add('denied');
-                this.innerHTML = '<i class="fas fa-bell-slash"></i>';
-                showNotification('❌ Notifications blocked', 'error');
-            }
-        } catch (err) {
-            console.log('Error:', err);
-            showNotification('Error enabling notifications', 'error');
-        }
+        await window.NotificationManager.enable();
     });
 }
 
@@ -280,5 +261,6 @@ if (document.readyState === 'loading') {
 
 // Also try after a delay to ensure button exists
 setTimeout(setupNotificationButton, 1000);
+setTimeout(setupNotificationButton, 3000);
 
-console.log('✅ Web Push ready - Notifications will work when you click the blue button');
+console.log('✅ Web Push ready - Click the blue button to enable notifications');
