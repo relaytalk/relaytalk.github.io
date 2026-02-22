@@ -2,146 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <!-- CRITICAL: CHROME MOBILE VIEWPORT FIX -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-
-    <!-- CHROME MOBILE CACHE CONTROL -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- FIXED CSP FOR CHROME MOBILE + IMGBB + ONESIGNAL - COMPLETE FIXED VERSION -->
+    <meta name="theme-color" content="#0a0a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- CSP -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://*.supabase.in 
-        https://api.imgbb.com 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.github.io 
-        https://github.com
-        https://fonts.googleapis.com
-        https://cdn.onesignal.com
-        https://onesignal.com
-        https://*.onesignal.com
-        https://cdnjs.cloudflare.com;
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://cdn.jsdelivr.net
-        https://fonts.googleapis.com
-        https://i.ibb.co
-        https://ibb.co
-        https://cdn.onesignal.com
-        https://onesignal.com
-        https://*.onesignal.com
-        https://cdnjs.cloudflare.com;
-        style-src 'self' 'unsafe-inline' 
-        https://fonts.googleapis.com 
-        https://cdn.jsdelivr.net
-        https://fonts.gstatic.com
-        https://cdn.onesignal.com
-        https://onesignal.com
-        https://cdnjs.cloudflare.com;
-        img-src 'self' data: blob: 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.imgbb.com 
-        https:;
-        font-src 'self' data: 
-        https://fonts.gstatic.com 
-        https://cdn.jsdelivr.net
-        https://cdn.onesignal.com
-        https://cdnjs.cloudflare.com;
-        connect-src 'self' 
-        wss://*.supabase.co 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
-        https://*.github.io
-        https://i.ibb.co
-        https://ibb.co
-        https://onesignal.com
-        https://*.onesignal.com
-        wss://onesignal.com
-        https://clientapi.onesignal.com
-        https://sync.onesignal.com
-        https://device.onesignal.com;
-        worker-src 'self' blob: 
-        https://cdn.onesignal.com
-        https://onesignal.com;
-        media-src 'self' 
-        https://i.ibb.co
-        https://*.ibb.co;
+        default-src 'self' https://*.supabase.co https://api.supabase.com https://*.supabase.in https://api.imgbb.com https://*.ibb.co https://i.ibb.co https://*.github.io https://github.com https://fonts.googleapis.com https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com https://cdnjs.cloudflare.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://api.supabase.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://i.ibb.co https://ibb.co https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdn.onesignal.com https://onesignal.com https://cdnjs.cloudflare.com;
+        img-src 'self' data: blob: https://*.ibb.co https://i.ibb.co https://*.imgbb.com https:;
+        font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdn.onesignal.com https://cdnjs.cloudflare.com;
+        connect-src 'self' wss://*.supabase.co https://*.supabase.co https://api.supabase.com https://api.imgbb.com https://*.github.io https://i.ibb.co https://ibb.co https://onesignal.com https://*.onesignal.com wss://onesignal.com https://clientapi.onesignal.com https://sync.onesignal.com https://device.onesignal.com;
+        worker-src 'self' blob: https://cdn.onesignal.com https://onesignal.com;
+        media-src 'self' https://i.ibb.co https://*.ibb.co;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
         frame-src 'none';
     ">
 
-    <!-- CHROME MOBILE THEME & META -->
-    <meta name="theme-color" content="#0a0a1a">
-    <meta name="msapplication-TileColor" content="#0a0a1a">
-    <meta name="application-name" content="RelayTalk">
-    <meta name="description" content="Real-time chat application with image sharing">
-    <meta name="keywords" content="chat, messaging, realtime, relaytalk, images, friends">
-    <meta name="author" content="RelayTalk Team">
-
-    <!-- CHROME MOBILE SPECIFIC TAGS -->
-    <meta name="format-detection" content="telephone=no">
-    <meta name="google" content="notranslate">
-    <meta name="HandheldFriendly" content="true">
-    <meta name="MobileOptimized" content="width">
-
-    <!-- PRELOAD IMGBB FOR FASTER CHROME MOBILE LOADING -->
+    <!-- Preloads -->
     <link rel="preconnect" href="https://i.ibb.co" crossorigin>
-    <link rel="preconnect" href="https://ibb.co" crossorigin>
-    <link rel="dns-prefetch" href="https://i.ibb.co">
-    <link rel="dns-prefetch" href="https://ibb.co">
-    <link rel="preload" as="image" href="https://i.ibb.co/placeholder/relaytalk-og.png">
-
-    <!-- PRELOAD ONESIGNAL -->
     <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
-    <link rel="preconnect" href="https://onesignal.com" crossorigin>
+    <link rel="dns-prefetch" href="https://i.ibb.co">
     <link rel="dns-prefetch" href="https://cdn.onesignal.com">
-    <link rel="dns-prefetch" href="https://onesignal.com">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- OPEN GRAPH -->
+    <!-- Open Graph -->
     <meta property="og:title" content="RelayTalk Chat">
     <meta property="og:description" content="Real-time chat application with image sharing">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://relaytalk.github.io">
     <meta property="og:image" content="https://i.ibb.co/placeholder/relaytalk-og.png">
 
-    <!-- FAVICONS -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="manifest" href="manifest.json">
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/relay.png">
+    <link rel="manifest" href="/manifest.json">
 
     <title>RelayTalk Chat</title>
 
-    <!-- STYLES -->
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- FONTS -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Notification Button Styles - Matching App Theme -->
-    <style>
-        /* Additional inline styles if needed */
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Login Overlay -->
@@ -163,7 +79,7 @@
 
     <!-- Chat Interface -->
     <div id="chat" style="display: none;">
-        <!-- Chat Header - WITH BLUE NOTIFICATION BUTTON ONLY -->
+        <!-- Chat Header - ONLY NOTIFICATION BUTTON -->
         <header class="chat-header">
             <button class="back-btn" onclick="goBack()">←</button>
             <div class="chat-user-info">
@@ -177,7 +93,7 @@
                 </div>
             </div>
             <div class="chat-actions">
-                <!-- ONLY NOTIFICATION BUTTON - Settings button removed -->
+                <!-- ONLY NOTIFICATION BUTTON -->
                 <button id="notificationToggleBtn" class="notification-toggle-btn" style="display: none;">
                     <i class="fas fa-bell"></i>
                     <span id="notificationBadgeSmall" class="notification-badge-small" style="display: none;">1</span>
@@ -185,7 +101,7 @@
             </div>
         </header>
 
-        <!-- Notification Tooltip (hidden by default) -->
+        <!-- Notification Tooltip -->
         <div id="notificationTooltip" class="notification-tooltip" style="display: none;">
             <p><i class="fas fa-bell"></i> <span id="tooltipMessage">Enable notifications to get alerts</span></p>
         </div>
@@ -193,7 +109,6 @@
         <!-- Main Chat Area -->
         <main class="main-content">
             <div class="messages-container" id="messagesContainer">
-                <!-- Messages will be loaded here -->
                 <div class="empty-chat">
                     <svg class="empty-chat-icon" viewBox="0 0 24 24">
                         <path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2Z"/>
@@ -204,7 +119,7 @@
             </div>
         </main>
 
-        <!-- Message Input Area -->
+        <!-- Message Input -->
         <div class="message-input-wrapper">
             <div class="message-input-container">
                 <button class="attach-btn" id="attachBtn" onclick="showImagePicker()">
@@ -230,7 +145,7 @@
         </div>
     </div>
 
-    <!-- Image Picker Overlay -->
+    <!-- Image Picker -->
     <div class="image-picker-overlay" id="imagePickerOverlay" style="display: none;">
         <div class="image-picker-container">
             <div class="image-picker-header">
@@ -265,9 +180,7 @@
                 <h3 class="modal-title">User Info</h3>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
-            <div class="modal-body" id="userInfoContent">
-                <!-- User info will be loaded here -->
-            </div>
+            <div class="modal-body" id="userInfoContent"></div>
         </div>
     </div>
 
@@ -301,66 +214,45 @@
         </div>
     </div>
 
-    <!-- Import JavaScript Modules -->
+    <!-- Scripts -->
     <script type="module" src="script.js"></script>
+    <script src="/utils/sw-manager.js"></script>
 
-    <!-- ADVANCED MOBILE DETECTION & FIXES -->
+    <!-- Mobile Detection -->
     <script>
-        // Enhanced mobile Chrome detection
         function isMobileChrome() {
             const ua = navigator.userAgent;
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-            const isChrome = /Chrome/i.test(ua) && !/Edge|Edg|OPR/i.test(ua);
-            return isMobile && isChrome;
+            return (/Android/i.test(ua) && /Chrome/i.test(ua) && !/Edg/i.test(ua));
         }
-
-        function isIOSChrome() {
-            const ua = navigator.userAgent;
-            return /CriOS/i.test(ua) && /iPhone|iPad|iPod/i.test(ua);
-        }
-
-        // Apply Chrome mobile fixes
+        
         function applyChromeMobileFixes() {
-            if (isMobileChrome() || isIOSChrome()) {
-                console.log('Chrome Mobile detected - applying fixes');
-                document.documentElement.setAttribute('data-chrome-mobile', 'true');
+            if (isMobileChrome()) {
                 document.body.classList.add('chrome-mobile');
-
-                let lastTouchEnd = 0;
-                document.addEventListener('touchend', function(event) {
-                    const now = Date.now();
-                    if (now - lastTouchEnd <= 300) {
-                        event.preventDefault();
-                    }
-                    lastTouchEnd = now;
-                }, false);
-
-                function setVH() {
+                let vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+                window.addEventListener('resize', () => {
                     let vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
-                }
-                setVH();
-                window.addEventListener('resize', setVH);
+                });
             }
         }
-
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', applyChromeMobileFixes);
         } else {
             applyChromeMobileFixes();
         }
-
+        
         function fixImgBBUrls(url) {
             if (isMobileChrome() && url && url.includes('ibb.co')) {
                 url = url.replace('https://ibb.co/', 'https://i.ibb.co/');
                 if (!url.includes('.jpg') && !url.includes('.png') && !url.includes('.gif')) {
                     url += '.jpg';
                 }
-                url += (url.includes('?') ? '&' : '?') + 't=' + Date.now();
             }
             return url;
         }
-
+        
         window.fixImgBBUrls = fixImgBBUrls;
         window.isMobileChrome = isMobileChrome;
     </script>
