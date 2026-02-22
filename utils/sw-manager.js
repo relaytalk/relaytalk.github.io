@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE FINAL VERSION WITH WORKING VAPID CONVERSION
+// utils/sw-manager.js - COMPLETE FINAL VERSION WITH COMBINED SERVICE WORKER
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -22,33 +22,28 @@ window.addEventListener('offline', () => {
     showNotification('You are offline', 'warning');
 });
 
-// Register service worker
+// Register combined service worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
         // Determine correct SW path based on current page
-        let swPath = 'service-worker.js';
-        
-        // If we're in pages folder, go up two levels
+        let swPath = 'service-worker.js'; // Now this is the combined file
+
         if (window.location.pathname.includes('/pages/')) {
             swPath = '../../service-worker.js';
-        }
-        // If we're in utils folder
-        else if (window.location.pathname.includes('/utils/')) {
+        } else if (window.location.pathname.includes('/utils/')) {
             swPath = '../service-worker.js';
         }
-        
-        console.log('Registering SW from:', swPath);
-        
+
+        console.log('Registering Combined SW from:', swPath);
+
         navigator.serviceWorker.register(swPath)
             .then(function(registration) {
-                console.log('✅ Service Worker registered with scope:', registration.scope);
+                console.log('✅ Combined Service Worker registered with scope:', registration.scope);
                 
-                // Check for updates
                 registration.addEventListener('updatefound', () => {
                     console.log('🔄 New Service Worker found');
                 });
-                
-                // Send ready message to SW
+
                 if (registration.active) {
                     registration.active.postMessage({ type: 'CLIENT_READY' });
                 }
@@ -66,15 +61,14 @@ function messageSW(message) {
             reject('No Service Worker');
             return;
         }
-        
+
         const channel = new MessageChannel();
         channel.port1.onmessage = (event) => {
             resolve(event.data);
             channel.port1.close();
         };
-        
+
         navigator.serviceWorker.controller.postMessage(message, [channel.port2]);
-        
         setTimeout(() => reject('Timeout'), 5000);
     });
 }
@@ -104,17 +98,16 @@ async function cacheGame() {
 // Show notification
 function showNotification(message, type = 'info', duration = 3000) {
     try {
-        // Remove existing notifications
         const existing = document.querySelector('.sw-notification');
         if (existing) existing.remove();
-        
+
         const colors = {
             success: '#10b981',
             error: '#ef4444',
             info: '#3b82f6',
             warning: '#f59e0b'
         };
-        
+
         const notification = document.createElement('div');
         notification.className = 'sw-notification';
         notification.innerHTML = `
@@ -136,16 +129,14 @@ function showNotification(message, type = 'info', duration = 3000) {
                 ${message}
             </div>
         `;
-        
+
         document.body.appendChild(notification);
-        
-        // Auto remove
+
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, duration);
-        
-        // Add styles if not present
+
         if (!document.querySelector('#sw-notification-styles')) {
             const style = document.createElement('style');
             style.id = 'sw-notification-styles';
@@ -194,23 +185,17 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// WEB PUSH NOTIFICATIONS - FINAL WORKING VERSION
+// WEB PUSH NOTIFICATIONS - USING COMBINED SW
 // ============================================
 
-// SIMPLIFIED: Convert base64 to Uint8Array - THIS WORKS
 function urlBase64ToUint8Array(base64String) {
     try {
-        // Remove any padding and replace URL-safe chars
         const base64 = base64String.replace(/-/g, '+').replace(/_/g, '/');
-        
-        // Decode base64
         const rawData = window.atob(base64);
         const outputArray = new Uint8Array(rawData.length);
-        
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
-        
         console.log('✅ Key converted, length:', outputArray.length);
         return outputArray;
     } catch (error) {
@@ -219,22 +204,17 @@ function urlBase64ToUint8Array(base64String) {
     }
 }
 
-// VAPID Public Key (from generator)
-const VAPID_PUBLIC_KEY = 'BNIuLMHndbU3YrVJ-sc3H9DoyqviASHmttzEfgrz7MmtjiYnRvAAujMyJk7Raw54QUi_DhnhzH1bP7jWyCsUEnY';
+// VAPID Public Key
+const VAPID_PUBLIC_KEY = 'BGXg4PCPp477Kc0VYePQf5_DPN2PhwXgpJAItJPHoj8Pq2v2DRyaDpBypuX9MfADIWGuV4EOfw-SC4eP9weFZNc';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4MjE4MiwiZXhwIjoyMDgyNjU4MTgyfQ.z5xjJzr47A1qP0uYnBWzRKwQEwG_clgF1VujOfL4r4A';
 
 // Subscribe to push notifications
 async function subscribeToPush() {
     try {
         console.log('🔔 Setting up push notifications...');
-        
-        if (!('serviceWorker' in navigator)) {
-            console.log('Service Worker not supported');
-            return null;
-        }
-        
-        if (!('PushManager' in window)) {
-            console.log('Push Manager not supported');
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.log('Push not supported');
             return null;
         }
 
@@ -243,31 +223,18 @@ async function subscribeToPush() {
             return null;
         }
 
-        // Register push service worker
-        let swPath = 'push-sw.js';
-        if (window.location.pathname.includes('/pages/')) {
-            swPath = '../../push-sw.js';
-        } else if (window.location.pathname.includes('/utils/')) {
-            swPath = '../push-sw.js';
-        }
-
-        console.log('Registering push SW from:', swPath);
-        
-        const registration = await navigator.serviceWorker.register(swPath);
-        console.log('✅ Push SW registered');
+        // Get the combined service worker
+        const registration = await navigator.serviceWorker.ready;
+        console.log('✅ Combined SW ready');
 
         // Convert VAPID key
         const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        if (!convertedKey) {
-            console.log('Failed to convert VAPID key');
-            return null;
-        }
+        if (!convertedKey) return null;
 
         // Check existing subscription
         let subscription = await registration.pushManager.getSubscription();
-        
         if (subscription) {
-            console.log('✅ Already subscribed:', subscription);
+            console.log('✅ Already subscribed');
             return subscription;
         }
 
@@ -277,7 +244,7 @@ async function subscribeToPush() {
             applicationServerKey: convertedKey
         });
 
-        console.log('✅ New push subscription created:', subscription);
+        console.log('✅ New push subscription created');
         return subscription;
     } catch (error) {
         console.log('❌ Push subscription error:', error);
@@ -288,19 +255,11 @@ async function subscribeToPush() {
 // Save subscription to database
 async function saveSubscription(subscription) {
     try {
-        const { data: { user }, error: userError } = await window.supabase.auth.getUser();
-        
-        if (userError || !user) {
-            console.log('No user logged in');
-            return false;
-        }
+        const { data: { user } } = await window.supabase.auth.getUser();
+        if (!user) return false;
 
-        // Generate unique ID
         const pushId = 'push_' + Date.now() + '_' + Math.random().toString(36).substring(2);
 
-        console.log('Saving subscription for user:', user.id);
-
-        // Save to database using service role key
         const response = await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
             method: 'POST',
             headers: {
@@ -325,14 +284,12 @@ async function saveSubscription(subscription) {
     }
 }
 
-// Request notification permission
+// Enable notifications
 async function enableNotifications() {
     try {
-        console.log('Requesting notification permission...');
-        
         const permission = await Notification.requestPermission();
         console.log('Permission result:', permission);
-        
+
         if (permission === 'granted') {
             const subscription = await subscribeToPush();
             if (subscription) {
@@ -352,10 +309,7 @@ async function enableNotifications() {
 // Check if already subscribed
 async function checkPushStatus() {
     try {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            return false;
-        }
-
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
         return !!subscription;
@@ -365,7 +319,6 @@ async function checkPushStatus() {
     }
 }
 
-// Make functions available globally
 window.NotificationManager = {
     enable: enableNotifications,
     checkStatus: checkPushStatus
@@ -376,20 +329,16 @@ console.log('✅ Web Push ready');
 // Check status on load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Wait for Supabase to be ready
         let attempts = 0;
         const checkSupabase = setInterval(async () => {
             attempts++;
             if (window.supabase?.auth) {
                 clearInterval(checkSupabase);
                 const { data: { user } } = await window.supabase.auth.getUser();
-                
                 if (user) {
                     console.log('User logged in, checking push status...');
                     const hasPush = await checkPushStatus();
-                    if (hasPush) {
-                        console.log('Already has push subscription');
-                    }
+                    if (hasPush) console.log('Already has push subscription');
                 }
             } else if (attempts > 20) {
                 clearInterval(checkSupabase);
