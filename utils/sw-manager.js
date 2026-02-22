@@ -3,7 +3,7 @@ console.log('⚡ SW Manager loaded');
 
 // Catch all errors
 window.addEventListener('error', function(e) {
-  console.log('🔥 Caught error:', e.error);
+    console.log('🔥 Caught error:', e.error);
 });
 
 // Simple network detection
@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register(swPath)
             .then(function(registration) {
                 console.log('✅ Combined Service Worker registered with scope:', registration.scope);
-                
+
                 registration.addEventListener('updatefound', () => {
                     console.log('🔄 New Service Worker found');
                 });
@@ -116,13 +116,14 @@ function showNotification(message, type = 'info', duration = 3000) {
                 right: 20px;
                 background: ${colors[type]};
                 color: white;
-                padding: 12px 20px;
+                padding: 10px 16px;
                 border-radius: 8px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 z-index: 9999;
                 animation: slideIn 0.3s ease;
-                max-width: 300px;
+                max-width: 280px;
                 word-wrap: break-word;
+                font-size: 0.95rem;
             ">
                 ${message}
             </div>
@@ -241,7 +242,7 @@ function setupNotificationButton() {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-                
+
                 if (!convertedKey) return;
 
                 const subscription = await registration.pushManager.subscribe({
@@ -250,12 +251,12 @@ function setupNotificationButton() {
                 });
 
                 console.log('✅ Subscription created');
-                
+
                 // Save to database
                 const { data: { user } } = await window.supabase.auth.getUser();
                 if (user) {
                     const pushId = 'push_' + Date.now() + '_' + Math.random().toString(36).substring(2);
-                    
+
                     await fetch('https://blxtldgnssvasuinpyit.supabase.co/functions/v1/register-push-token', {
                         method: 'POST',
                         headers: {
@@ -269,7 +270,7 @@ function setupNotificationButton() {
                             user_id: user.id
                         })
                     });
-                    
+
                     console.log('✅ Subscription saved');
                 }
             } catch (err) {
