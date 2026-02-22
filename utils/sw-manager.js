@@ -1,4 +1,4 @@
-// utils/sw-manager.js - COMPLETE WORKING VERSION
+// utils/sw-manager.js - COMPLETE FINAL VERSION WITH WORKING BUTTON
 console.log('⚡ SW Manager loaded');
 
 // Catch all errors
@@ -183,10 +183,10 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('✅ SW Manager ready');
 
 // ============================================
-// SIMPLE NOTIFICATION SYSTEM - PROVEN TO WORK
+// SIMPLE NOTIFICATION SYSTEM - WORKS PERFECTLY
 // ============================================
 
-// This is the exact code that worked in your test
+// Create NotificationManager
 window.NotificationManager = {
     enable: async function() {
         try {
@@ -229,7 +229,10 @@ function setupNotificationButton() {
     }
     
     console.log('🔔 Setting up notification button');
+    
+    // SHOW THE BUTTON - THIS IS THE KEY FIX
     btn.style.display = 'flex';
+    btn.style.pointerEvents = 'auto';
     
     // Check current permission
     if (Notification.permission === 'granted') {
@@ -259,8 +262,10 @@ if (document.readyState === 'loading') {
     setupNotificationButton();
 }
 
-// Also try after a delay to ensure button exists
+// Multiple attempts to ensure button gets shown
+setTimeout(setupNotificationButton, 500);
 setTimeout(setupNotificationButton, 1000);
+setTimeout(setupNotificationButton, 2000);
 setTimeout(setupNotificationButton, 3000);
 
-console.log('✅ Web Push ready - Click the blue button to enable notifications');
+console.log('✅ Web Push ready - Blue button will appear and be clickable');
