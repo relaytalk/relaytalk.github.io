@@ -1,4 +1,4 @@
-// RelayTalk Combined Service Worker - v5.0 (Caching + Push Notifications)
+// RelayTalk Combined Service Worker - v5.0.0 (Caching + Push Notifications)
 const CACHE_NAME = 'relaytalk-cache-v5-0';
 const OFFLINE_URL = '/offline/index.html';
 const APP_VERSION = '5.0.0';
@@ -18,12 +18,10 @@ const CAR_GAME_FILES = [
 
 // ====== ALL FILES TO CACHE ======
 const FILES_TO_CACHE = [
-  // Essential app files
   '/',
   '/index.html',
   '/offline/index.html',
   '/relay.png',
-  // Car Game Files
   '/cargame',
   ...CAR_GAME_FILES
 ];
@@ -46,7 +44,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        // Cache essential files immediately
         const essentialFiles = [
           '/',
           '/index.html',
@@ -57,7 +54,6 @@ self.addEventListener('install', event => {
         return cache.addAll(essentialFiles)
           .then(() => {
             console.log('✅ Essential files cached');
-            // Start auto-caching game in background
             setTimeout(() => {
               autoCacheGameFiles();
             }, 1000);
@@ -72,7 +68,6 @@ self.addEventListener('activate', event => {
 
   event.waitUntil(
     Promise.all([
-      // Clean old caches
       caches.keys().then(cacheNames => {
         return Promise.all(
           cacheNames.map(cache => {
@@ -84,7 +79,6 @@ self.addEventListener('activate', event => {
         );
       }),
       self.clients.claim(),
-      // Auto-cache game after activation
       new Promise(resolve => {
         setTimeout(() => {
           if (isOnline) {
@@ -95,7 +89,6 @@ self.addEventListener('activate', event => {
       })
     ]).then(() => {
       console.log('✅ Combined Service Worker ready');
-      // Notify all clients
       self.clients.matchAll().then(clients => {
         clients.forEach(client => {
           client.postMessage({ 
@@ -108,47 +101,53 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ====== PUSH NOTIFICATION EVENT ======
-self.addEventListener('push', event => {
+// ====== PUSH NOTIFICATION EVENT - SIMPLIFIED FOR MAXIMUM COMPATIBILITY ======
+self.addEventListener('push', function(event) {
   console.log('📨 Push received:', event);
   
+  // Default values
+  let title = 'RelayTalk';
+  let body = 'New message';
+  let icon = '/relay.png';
   let data = {};
   
   if (event.data) {
     try {
-      data = event.data.json();
-      console.log('📨 Push data:', data);
+      const payload = event.data.json();
+      console.log('📨 Push data:', payload);
+      
+      title = payload.title || title;
+      body = payload.body || body;
+      icon = payload.icon || icon;
+      data = payload.data || {};
     } catch (e) {
-      data = {
-        title: 'RelayTalk',
-        body: event.data.text()
-      };
+      // If not JSON, use text
+      body = event.data.text() || body;
     }
   }
 
+  // Simple options that work on all browsers
   const options = {
-    body: data.body || 'New message',
-    icon: data.icon || '/relay.png',
-    badge: data.badge || '/favicon.ico',
-    vibrate: data.vibrate || [200, 100, 200],
-    data: data.data || {},
-    actions: data.actions || [
+    body: body,
+    icon: icon,
+    badge: '/favicon.ico',
+    vibrate: [200, 100, 200],
+    data: data,
+    actions: [
       { action: 'open', title: 'Open Chat' }
     ],
     requireInteraction: true,
-    silent: false
+    silent: false,
+    tag: 'relaytalk-' + Date.now()
   };
 
   event.waitUntil(
-    self.registration.showNotification(
-      data.title || 'RelayTalk',
-      options
-    )
+    self.registration.showNotification(title, options)
   );
 });
 
 // ====== NOTIFICATION CLICK EVENT ======
-self.addEventListener('notificationclick', event => {
+self.addEventListener('notificationclick', function(event) {
   console.log('📨 Notification clicked:', event);
   event.notification.close();
 
@@ -159,14 +158,12 @@ self.addEventListener('notificationclick', event => {
       type: 'window',
       includeUncontrolled: true
     }).then(clientList => {
-      // Check if there's already a window open
       for (let i = 0; i < clientList.length; i++) {
         let client = clientList[i];
         if (client.url.includes('relaytalk.github.io') && 'focus' in client) {
           return client.focus();
         }
       }
-      // If not, open a new window
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
