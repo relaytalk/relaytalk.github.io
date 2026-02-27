@@ -1,6 +1,6 @@
-// utils/supabase.js - ORIGINAL WORKING VERSION
-const supabaseUrl = 'https://blxtldgnssvasuinpyit.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw'
+// utils/supabase.js - UPDATED FOR call-app (MUMBAI REGION)
+const supabaseUrl = 'https://yrbkwfpksfvbesrjxwse.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabase = null;
 let initializationPromise = null;
@@ -11,7 +11,7 @@ async function initializeSupabase() {
 
     initializationPromise = new Promise(async (resolve, reject) => {
         try {
-            console.log('🔄 Loading Supabase client...');
+            console.log('🔄 Loading Supabase client for call-app (Mumbai)...');
 
             // Import from working CDN
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm');
@@ -27,7 +27,7 @@ async function initializeSupabase() {
             });
 
             window.supabase = supabase;
-            console.log('✅ Supabase client created');
+            console.log('✅ Supabase client created for call-app');
 
             // Verify connection
             const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -98,7 +98,7 @@ async function initializeSupabase() {
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         initializeSupabase().then(() => {
-            console.log('🎯 Supabase ready for use');
+            console.log('🎯 Supabase ready for use - Mumbai region');
         }).catch(console.error);
     }, 100);
 }
