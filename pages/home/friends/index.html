@@ -6,6 +6,10 @@
     <title>Friends · RelayTalk</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
     
+    <!-- DNS Prefetch for Cloudflare Worker -->
+    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
+    
     <!-- Styles -->
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="friends.css">
@@ -171,7 +175,6 @@
             transform: scale(1.1);
         }
 
-        /* For iOS-style bottom sheet on mobile */
         @media (max-width: 480px) {
             .incoming-call-notification {
                 top: auto;
