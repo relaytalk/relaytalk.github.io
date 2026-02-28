@@ -4,220 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Call History · RelayTalk</title>
-    <link rel="stylesheet" href="../../../call-app/styles/main.css">
+    
+    <!-- DNS Prefetch for Cloudflare Worker -->
+    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="history.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Additional styles for history page */
-        .nav-item {
-            position: relative;
-        }
-        
-        .badge {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: #ef4444;
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-            min-width: 16px;
-            height: 16px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            border: 1px solid white;
-        }
-        
-        .history-avatar {
-            width: 48px;
-            height: 48px;
-            background: #007acc;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 20px;
-            position: relative;
-            flex-shrink: 0;
-        }
-        
-        .history-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        
-        .history-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            transition: all 0.2s;
-        }
-        
-        .history-item:hover {
-            border-color: #007acc;
-        }
-        
-        .history-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #1e293b;
-        }
-        
-        .history-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #64748b;
-            flex-wrap: wrap;
-        }
-        
-        .history-status {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        
-        .status-active {
-            background: #e8f5e9;
-            color: #22c55e;
-        }
-        
-        .status-missed {
-            background: #fee2e2;
-            color: #ef4444;
-        }
-        
-        .status-rejected {
-            background: #fff7ed;
-            color: #f97316;
-        }
-        
-        .status-outgoing {
-            background: #e0f2fe;
-            color: #007acc;
-        }
-        
-        .filter-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            padding: 8px;
-            background: white;
-            border-radius: 30px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .filter-btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            background: none;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            color: #64748b;
-            transition: all 0.2s;
-        }
-        
-        .filter-btn.active {
-            background: #007acc;
-            color: white;
-        }
-        
-        .empty-history {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        
-        .empty-history i {
-            font-size: 48px;
-            color: #007acc;
-            margin-bottom: 16px;
-        }
-        
-        .history-date {
-            font-weight: 600;
-            margin: 20px 0 10px;
-            color: #64748b;
-            font-size: 14px;
-        }
-        
-        .call-btn-small {
-            width: 36px;
-            height: 36px;
-            background: #007acc;
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        
-        .call-btn-small:hover {
-            background: #005a9e;
-            transform: scale(1.05);
-        }
-        
-        .call-btn-small:active {
-            transform: scale(0.95);
-        }
-    </style>
 </head>
 <body>
-    <!-- Loading Screen -->
+    <!-- Loading Indicator -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
         <div>Loading history...</div>
     </div>
 
     <!-- Header -->
-    <header class="app-header">
+    <header class="history-header">
         <div class="header-content">
-            <h1 class="header-title">📋 Call History</h1>
-            <div class="header-actions">
-                <button class="header-btn" onclick="window.location.href='../index.html'">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-            </div>
+            <button class="back-btn" onclick="goToFriends()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="header-title">Call History</h1>
+            <button class="clear-btn" onclick="clearHistory()" style="visibility: hidden;">Clear</button>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main>
-        <div class="history-container" id="historyContent">
-            <div class="filter-bar">
-                <button class="filter-btn active" onclick="filterHistory('all')">All</button>
-                <button class="filter-btn" onclick="filterHistory('active')">Answered</button>
-                <button class="filter-btn" onclick="filterHistory('missed')">Missed</button>
-                <button class="filter-btn" onclick="filterHistory('outgoing')">Outgoing</button>
-            </div>
-            <div id="historyList"></div>
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <button class="filter-btn active" onclick="filterHistory('all')" id="filterAll">All</button>
+        <button class="filter-btn" onclick="filterHistory('missed')" id="filterMissed">Missed</button>
+    </div>
+
+    <!-- History List -->
+    <main class="history-list" id="historyList">
+        <!-- History items will be loaded here -->
+        <div class="empty-history" id="emptyHistory" style="display: none;">
+            <i class="fas fa-history" style="font-size: 48px; color: #94a3b8; margin-bottom: 16px;"></i>
+            <h3>No call history</h3>
+            <p>Your call history will appear here</p>
         </div>
     </main>
 
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
-        <a href="../../index.html" class="nav-item">
+        <a href="../../../home/index.html" class="nav-item">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
@@ -225,7 +58,7 @@
             <i class="fas fa-users"></i>
             <span>Friends</span>
         </a>
-        <a href="#" class="nav-item active" id="historyNavItem">
+        <a href="#" class="nav-item active">
             <i class="fas fa-history"></i>
             <span>History</span>
         </a>
@@ -235,11 +68,11 @@
         </a>
     </nav>
 
-    <!-- Audio element for ringtones (for call again functionality) -->
-    <audio id="outgoingRingtone" loop style="display: none;">
-        <source src="../../../assets/ringtones/ringing.mp3" type="audio/mpeg">
-    </audio>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Scripts -->
+    <script type="module" src="../../../../utils/supabase.js"></script>
     <script type="module" src="history.js"></script>
 </body>
 </html>
