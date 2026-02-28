@@ -1,5 +1,5 @@
 // utils/supabase.js - UPDATED FOR call-app (MUMBAI REGION)
-const supabaseUrl = 'https://yrbkwfpksfvbesrjxwse.supabase.co'
+const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev/'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabase = null;
