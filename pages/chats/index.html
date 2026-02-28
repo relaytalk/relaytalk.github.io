@@ -11,15 +11,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <!-- CSP -->
+    <!-- CSP - FIXED with Cloudflare Worker -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' https://*.supabase.co https://api.supabase.com https://*.supabase.in https://api.imgbb.com https://*.ibb.co https://i.ibb.co https://*.github.io https://github.com https://fonts.googleapis.com https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com https://cdnjs.cloudflare.com;
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://api.supabase.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://i.ibb.co https://ibb.co https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com https://cdnjs.cloudflare.com;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdn.onesignal.com https://onesignal.com https://cdnjs.cloudflare.com;
+        default-src 'self' https://*.supabase.co https://api.supabase.com https://*.supabase.in https://api.imgbb.com https://*.ibb.co https://i.ibb.co https://*.github.io https://github.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://relaytalk-proxy.lusterchat.workers.dev;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://api.supabase.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://i.ibb.co https://ibb.co https://cdnjs.cloudflare.com https://relaytalk-proxy.lusterchat.workers.dev;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: https://*.ibb.co https://i.ibb.co https://*.imgbb.com https:;
-        font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdn.onesignal.com https://cdnjs.cloudflare.com;
-        connect-src 'self' wss://*.supabase.co https://*.supabase.co https://api.supabase.com https://api.imgbb.com https://*.github.io https://i.ibb.co https://ibb.co https://onesignal.com https://*.onesignal.com wss://onesignal.com https://clientapi.onesignal.com https://sync.onesignal.com https://device.onesignal.com;
-        worker-src 'self' blob: https://cdn.onesignal.com https://onesignal.com;
+        font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+        connect-src 'self' wss://*.supabase.co https://*.supabase.co https://api.supabase.com https://api.imgbb.com https://*.github.io https://i.ibb.co https://ibb.co https://relaytalk-proxy.lusterchat.workers.dev;
+        worker-src 'self' blob:;
         media-src 'self' https://i.ibb.co https://*.ibb.co;
         object-src 'none';
         base-uri 'self';
@@ -29,9 +29,9 @@
 
     <!-- Preloads -->
     <link rel="preconnect" href="https://i.ibb.co" crossorigin>
-    <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
     <link rel="dns-prefetch" href="https://i.ibb.co">
-    <link rel="dns-prefetch" href="https://cdn.onesignal.com">
+    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
