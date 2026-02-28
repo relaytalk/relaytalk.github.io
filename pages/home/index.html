@@ -46,7 +46,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- FIXED CSP WITH ALL ONESIGNAL AND CLOUDFLARE DOMAINS -->
+    <!-- FIXED CSP WITH CLOUDFLARE WORKER (No OneSignal) -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 
         https://*.supabase.co 
@@ -58,10 +58,8 @@
         https://*.github.io 
         https://github.com
         https://fonts.googleapis.com
-        https://cdn.onesignal.com
-        https://onesignal.com
-        https://*.onesignal.com
-        https://cdnjs.cloudflare.com;
+        https://cdnjs.cloudflare.com
+        https://relaytalk-proxy.lusterchat.workers.dev;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' 
         https://*.supabase.co 
         https://api.supabase.com 
@@ -69,16 +67,12 @@
         https://fonts.googleapis.com
         https://i.ibb.co
         https://ibb.co
-        https://cdn.onesignal.com
-        https://onesignal.com
-        https://*.onesignal.com
-        https://cdnjs.cloudflare.com;
+        https://cdnjs.cloudflare.com
+        https://relaytalk-proxy.lusterchat.workers.dev;
         style-src 'self' 'unsafe-inline' 
         https://fonts.googleapis.com 
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
-        https://cdn.onesignal.com
-        https://onesignal.com
         https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: 
         https://*.ibb.co 
@@ -88,7 +82,6 @@
         font-src 'self' data: 
         https://fonts.gstatic.com 
         https://cdn.jsdelivr.net
-        https://cdn.onesignal.com
         https://cdnjs.cloudflare.com;
         connect-src 'self' 
         wss://*.supabase.co 
@@ -98,15 +91,8 @@
         https://*.github.io
         https://i.ibb.co
         https://ibb.co
-        https://onesignal.com
-        https://*.onesignal.com
-        wss://onesignal.com
-        https://clientapi.onesignal.com
-        https://sync.onesignal.com
-        https://device.onesignal.com;
-        worker-src 'self' blob: 
-        https://cdn.onesignal.com
-        https://onesignal.com;
+        https://relaytalk-proxy.lusterchat.workers.dev;
+        worker-src 'self' blob:;
         media-src 'self' 
         https://i.ibb.co
         https://*.ibb.co;
@@ -116,12 +102,9 @@
         frame-src 'none';
     ">
 
-    <!-- PRELOAD ONESIGNAL - CRITICAL FIX -->
-    <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin>
-    <link rel="preconnect" href="https://onesignal.com" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.onesignal.com">
-    <link rel="dns-prefetch" href="https://onesignal.com">
-    <link rel="preload" href="https://cdn.onesignal.com/sdks/OneSignalSDK.js" as="script">
+    <!-- DNS Prefetch for Cloudflare Worker -->
+    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
 
     <!-- ✅ CRITICAL FIX: ONLY redirect if NOT logged in -->
     <script>
@@ -150,9 +133,6 @@
             }
         })();
     </script>
-
-    <!-- OneSignal SDK - Load with high priority -->
-    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
 </head>
 <body>
     <!-- Toast Container -->
@@ -269,46 +249,5 @@
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
-
-    <!-- Wait for OneSignal and auto-prompt -->
-    <script>
-        function waitForOneSignal(callback, maxAttempts = 30) {
-            if (window.OneSignal) {
-                callback();
-                return;
-            }
-            
-            let attempts = 0;
-            const interval = setInterval(() => {
-                attempts++;
-                if (window.OneSignal) {
-                    clearInterval(interval);
-                    callback();
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(interval);
-                    console.log('❌ OneSignal failed to load');
-                }
-            }, 200);
-        }
-
-        waitForOneSignal(() => {
-            window.OneSignal.push(function() {
-                window.OneSignal.init({
-                    appId: "57235c48-d945-4cd6-9b7e-5e3823144539"
-                });
-                
-                // Auto-prompt if not decided
-                const notificationDecision = localStorage.getItem('notificationDecision');
-                if (!notificationDecision) {
-                    setTimeout(() => {
-                        if (window.Notification && Notification.permission === 'default') {
-                            Notification.requestPermission();
-                            localStorage.setItem('notificationDecision', 'requested');
-                        }
-                    }, 3000);
-                }
-            });
-        });
-    </script>
 </body>
 </html>
