@@ -1,5 +1,4 @@
-// friends.js - COMPLETE WITH FIXED URL AND MODERN NOTIFICATION
-
+// friends.js - OPTIMIZED VERSION WITH PRELOAD AND FASTER LOADING
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
 import { 
@@ -24,16 +23,49 @@ let oscillator = null;
 let gainNode = null;
 let ringtoneInterval = null;
 let missedCallCount = 0;
+let loadingSteps = [
+    'Connecting to server...',
+    'Loading your profile...',
+    'Finding your friends...',
+    'Setting up calls...',
+    'Almost ready...'
+];
+let currentStep = 0;
+
+// Update loading text
+function updateLoadingText(text) {
+    const loadingText = document.querySelector('.loading-text');
+    if (loadingText) {
+        loadingText.textContent = text;
+    }
+}
+
+// Cycle through loading messages
+function startLoadingAnimation() {
+    updateLoadingText(loadingSteps[0]);
+    
+    const interval = setInterval(() => {
+        currentStep = (currentStep + 1) % loadingSteps.length;
+        updateLoadingText(loadingSteps[currentStep]);
+    }, 2000);
+    
+    return interval;
+}
 
 // Initialize
 async function initFriendsPage() {
     console.log('🚀 Loading friends with call features...');
+    
+    // Start loading animation
+    const loadingInterval = startLoadingAnimation();
 
     try {
-        // Initialize MAIN Supabase
+        // Initialize MAIN Supabase (fast initialization)
+        updateLoadingText('Connecting to server...');
         mainSupabase = await initMainSupabase();
         
         // Initialize CALL-APP Supabase
+        updateLoadingText('Setting up your account...');
         callAppSupabase = await initCallAppSupabase();
 
         if (!mainSupabase || !mainSupabase.auth) {
@@ -41,6 +73,7 @@ async function initFriendsPage() {
         }
 
         // Get session
+        updateLoadingText('Verifying login...');
         const { data: { session }, error } = await mainSupabase.auth.getSession();
 
         if (error) throw error;
@@ -54,6 +87,7 @@ async function initFriendsPage() {
         console.log('✅ MAIN Auth user:', authUser.email);
 
         // Sync to CALL-APP database
+        updateLoadingText('Syncing your profile...');
         currentUser = await syncUserToDatabase(callAppSupabase, {
             id: authUser.id,
             email: authUser.email,
@@ -65,13 +99,15 @@ async function initFriendsPage() {
             throw new Error('Failed to sync user to call-app database');
         }
 
-        // Load friends
-        await loadFriends();
-
-        // Check for missed calls
-        await checkMissedCalls();
+        // Load friends (do this in parallel with other operations)
+        updateLoadingText('Finding your friends...');
+        await Promise.all([
+            loadFriends(),
+            checkMissedCalls()
+        ]);
 
         // Initialize call listener
+        updateLoadingText('Setting up calls...');
         if (!callListenerInitialized && currentUser && currentUser.id) {
             console.log('📞 Initializing call listener...');
             
@@ -110,12 +146,15 @@ async function initFriendsPage() {
             callListenerInitialized = true;
         }
 
-        // Status updates
-        setInterval(() => {
-            if (currentUser && currentUser.id && callAppSupabase) {
-                updateUserStatus(callAppSupabase, currentUser.id, 'online');
-            }
-        }, 30000);
+        // Status updates (set after everything loads)
+        updateLoadingText('Almost ready...');
+        setTimeout(() => {
+            setInterval(() => {
+                if (currentUser && currentUser.id && callAppSupabase) {
+                    updateUserStatus(callAppSupabase, currentUser.id, 'online');
+                }
+            }, 30000);
+        }, 1000);
 
         // Check missed calls periodically
         setInterval(() => {
@@ -123,11 +162,15 @@ async function initFriendsPage() {
         }, 10000);
 
         // Hide loading
-        const loader = document.getElementById('loadingIndicator');
-        if (loader) loader.classList.add('hidden');
+        setTimeout(() => {
+            clearInterval(loadingInterval);
+            const loader = document.getElementById('loadingIndicator');
+            if (loader) loader.classList.add('hidden');
+        }, 500);
 
     } catch (error) {
         console.error('❌ Init error:', error);
+        clearInterval(loadingInterval);
         showError('Failed to load friends: ' + error.message);
     }
 }
@@ -253,7 +296,7 @@ function renderFriendsList() {
             <div class="friend-item" data-friend-id="${friend.id}">
                 <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative;">
                     ${friend.avatar_url 
-                        ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                        ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" loading="lazy">`
                         : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
@@ -311,7 +354,7 @@ function showIncomingCallNotification(callData) {
         <div class="incoming-call-content">
             <div class="incoming-call-avatar">
                 ${caller.avatar_url 
-                    ? `<img src="${caller.avatar_url}" alt="${caller.username}">`
+                    ? `<img src="${caller.avatar_url}" alt="${caller.username}" loading="lazy">`
                     : caller.username.charAt(0).toUpperCase()
                 }
             </div>
@@ -623,7 +666,7 @@ window.searchUsers = async function() {
                 <div class="search-result-item">
                     <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
                         ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" loading="lazy">`
                             : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
                         }
                     </div>
@@ -709,5 +752,39 @@ window.logout = async () => {
     window.location.href = '../../../pages/login/index.html';
 };
 
+// Preload critical resources
+function preloadResources() {
+    // Preconnect to important domains
+    const preconnects = [
+        'https://relaytalk-proxy.lusterchat.workers.dev',
+        'https://cdnjs.cloudflare.com'
+    ];
+    
+    preconnects.forEach(domain => {
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = domain;
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+    });
+    
+    // Preload fonts
+    const fonts = [
+        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2',
+        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-regular-400.woff2'
+    ];
+    
+    fonts.forEach(font => {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'font';
+        link.href = font;
+        link.type = 'font/woff2';
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+    });
+}
+
 // Start
+preloadResources();
 document.addEventListener('DOMContentLoaded', initFriendsPage);
