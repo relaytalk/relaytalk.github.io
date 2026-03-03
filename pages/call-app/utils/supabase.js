@@ -1,30 +1,23 @@
-// pages/call-app/utils/supabase.js - NEW DATABASE for CallApp
+// pages/call-app/utils/supabase.js - FIXED TO USE WORKER
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.98.0'
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const SUPABASE_URL = 'https://yrbkwfpksfvbesrjxwse.supabase.co'
+// ✅ USE WORKER URL - NOT DIRECT MUMBAI!
+const SUPABASE_URL = 'https://relaytalk-proxy.lusterchat.workers.dev'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabaseInstance = null
 
 export async function initializeSupabase() {
-    if (supabaseInstance) {
-        console.log('✅ Using existing Supabase instance')
-        return supabaseInstance
-    }
+    if (supabaseInstance) return supabaseInstance
     
-    console.log('🔄 Initializing CallApp Supabase...')
+    console.log('🔄 Initializing CallApp Supabase with WORKER...')
     
     try {
         supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
-                persistSession: false, // Don't persist - we use old app's auth
-                autoRefreshToken: false
-            },
-            realtime: {
-                params: {
-                    eventsPerSecond: 10
-                }
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
             }
         })
         
@@ -34,17 +27,18 @@ export async function initializeSupabase() {
             .select('count', { count: 'exact', head: true })
         
         if (error) {
-            console.warn('⚠️ Supabase connection warning:', error.message)
+            console.warn('⚠️ Supabase connection warning:', error)
         } else {
-            console.log('✅ CallApp Supabase connected')
+            console.log('✅ CallApp Supabase connected via WORKER')
         }
         
         return supabaseInstance
-        
     } catch (error) {
-        console.error('❌ Failed to initialize Supabase:', error)
+        console.error('❌ Failed to initialize CallApp Supabase:', error)
         throw error
     }
 }
 
-export const supabase = supabaseInstance
+export function getSupabase() {
+    return supabaseInstance
+}
