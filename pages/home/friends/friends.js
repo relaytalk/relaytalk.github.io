@@ -1,6 +1,5 @@
-// friends.js - OPTIMIZED VERSION WITH PRELOAD AND FASTER LOADING
+// friends.js - COMPLETE FIXED VERSION WITH WORKER URL ONLY
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
-import { initializeSupabase as initCallAppSupabase } from '../../call-app/utils/supabase.js';
 import { 
     syncUserToDatabase, 
     getUserFriends,
@@ -11,7 +10,6 @@ import {
 import { initCallListener } from '../../call-app/utils/callListener.js';
 
 let mainSupabase = null;
-let callAppSupabase = null;
 let currentUser = null;
 let authUser = null;
 let allFriends = [];
@@ -60,14 +58,10 @@ async function initFriendsPage() {
     const loadingInterval = startLoadingAnimation();
 
     try {
-        // Initialize MAIN Supabase (fast initialization)
+        // Initialize MAIN Supabase (this uses WORKER URL)
         updateLoadingText('Connecting to server...');
         mainSupabase = await initMainSupabase();
         
-        // Initialize CALL-APP Supabase
-        updateLoadingText('Setting up your account...');
-        callAppSupabase = await initCallAppSupabase();
-
         if (!mainSupabase || !mainSupabase.auth) {
             throw new Error('Main Supabase not initialized');
         }
@@ -86,9 +80,9 @@ async function initFriendsPage() {
         authUser = session.user;
         console.log('✅ MAIN Auth user:', authUser.email);
 
-        // Sync to CALL-APP database
-        updateLoadingText('Syncing your profile...');
-        currentUser = await syncUserToDatabase(callAppSupabase, {
+        // ===== FIXED: Use mainSupabase for ALL database operations =====
+        // No separate callAppSupabase needed - they both point to same database through worker
+        currentUser = await syncUserToDatabase(mainSupabase, {
             id: authUser.id,
             email: authUser.email,
             username: authUser.user_metadata?.username || authUser.email.split('@')[0],
@@ -96,22 +90,22 @@ async function initFriendsPage() {
         });
 
         if (!currentUser || !currentUser.id) {
-            throw new Error('Failed to sync user to call-app database');
+            throw new Error('Failed to sync user to database');
         }
 
-        // Load friends (do this in parallel with other operations)
+        // Load friends
         updateLoadingText('Finding your friends...');
         await Promise.all([
             loadFriends(),
             checkMissedCalls()
         ]);
 
-        // Initialize call listener
+        // Initialize call listener (uses mainSupabase)
         updateLoadingText('Setting up calls...');
         if (!callListenerInitialized && currentUser && currentUser.id) {
             console.log('📞 Initializing call listener...');
             
-            initCallListener(callAppSupabase, currentUser, {
+            initCallListener(mainSupabase, currentUser, {
                 onIncomingCall: (callData) => {
                     console.log('📞🔥 INCOMING CALL:', callData);
                     
@@ -150,8 +144,8 @@ async function initFriendsPage() {
         updateLoadingText('Almost ready...');
         setTimeout(() => {
             setInterval(() => {
-                if (currentUser && currentUser.id && callAppSupabase) {
-                    updateUserStatus(callAppSupabase, currentUser.id, 'online');
+                if (currentUser && currentUser.id && mainSupabase) {
+                    updateUserStatus(mainSupabase, currentUser.id, 'online');
                 }
             }, 30000);
         }, 1000);
@@ -178,9 +172,9 @@ async function initFriendsPage() {
 // Check for missed calls
 async function checkMissedCalls() {
     try {
-        if (!callAppSupabase || !currentUser) return;
+        if (!mainSupabase || !currentUser) return;
 
-        const { data: calls, error } = await callAppSupabase
+        const { data: calls, error } = await mainSupabase
             .from('calls')
             .select('id')
             .eq('receiver_id', currentUser.id)
@@ -239,32 +233,6 @@ async function loadFriends() {
             .order('username');
 
         allFriends = profiles || [];
-        
-        // Get real-time status from CALL-APP DB
-        if (callAppSupabase && friendIds.length > 0) {
-            try {
-                const { data: callAppProfiles } = await callAppSupabase
-                    .from('profiles')
-                    .select('id, status, last_seen')
-                    .in('id', friendIds);
-                
-                if (callAppProfiles) {
-                    allFriends = allFriends.map(friend => {
-                        const callAppFriend = callAppProfiles.find(cf => cf.id === friend.id);
-                        if (callAppFriend) {
-                            return {
-                                ...friend,
-                                status: callAppFriend.status,
-                                last_seen: callAppFriend.last_seen
-                            };
-                        }
-                        return friend;
-                    });
-                }
-            } catch (e) {
-                console.log('Could not fetch CALL-APP status');
-            }
-        }
         
         filteredFriends = [...allFriends];
         renderFriendsList();
@@ -477,8 +445,8 @@ window.acceptCall = function() {
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
 
-    if (callAppSupabase && incomingCallData.callerId) {
-        callAppSupabase
+    if (mainSupabase && incomingCallData.callerId) {
+        mainSupabase
             .from('calls')
             .update({ 
                 status: 'missed',
@@ -511,9 +479,9 @@ window.rejectCall = async function(callId) {
 
     const callToReject = callId || incomingCallData?.callId;
     
-    if (callToReject && callAppSupabase) {
+    if (callToReject && mainSupabase) {
         try {
-            await callAppSupabase
+            await mainSupabase
                 .from('calls')
                 .update({ 
                     status: 'rejected',
