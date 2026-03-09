@@ -1,4 +1,4 @@
-/* friends.css - COMPLETE WITH CALL FUNCTIONALITY AND OPTIMIZATIONS */
+/* friends.css - COMPLETE WITH CALL FUNCTIONALITY AND OPTIMIZATIONS - ADD FRIENDS BUTTON REMOVED */
 
 * {
     margin: 0;
@@ -243,7 +243,7 @@ body {
     font-size: 1rem;
 }
 
-/* Empty State */
+/* Empty State - WITHOUT Add Friends Button */
 .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -264,29 +264,6 @@ body {
 .empty-state p {
     color: #64748b;
     margin-bottom: 20px;
-}
-
-.add-friends-btn {
-    background: #007acc;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.add-friends-btn:hover {
-    background: #005a9e;
-}
-
-.add-friends-btn:active {
-    transform: scale(0.97);
 }
 
 /* Bottom Nav */
@@ -329,7 +306,7 @@ body {
     color: #007acc;
 }
 
-/* Modals */
+/* Modals - Keep but won't be used (add friends removed) */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -405,7 +382,7 @@ body {
     padding: 20px;
 }
 
-/* Search Results */
+/* Search Results - Keep but won't be used */
 .search-input-container {
     position: relative;
     margin-bottom: 20px;
@@ -499,6 +476,7 @@ body {
     text-overflow: ellipsis;
 }
 
+/* Add friend button styles - kept but not used */
 .add-friend-btn {
     background: #007acc;
     color: white;
@@ -681,7 +659,7 @@ body {
     transform: scale(1.1);
 }
 
-/* Incoming Call Modal */
+/* Incoming Call Modal (fallback) */
 .incoming-call {
     text-align: center;
     padding: 24px;
@@ -978,10 +956,6 @@ body {
     }
     
     .call-btn:active {
-        transform: scale(0.95);
-    }
-    
-    .add-friend-btn:active {
         transform: scale(0.95);
     }
 }
