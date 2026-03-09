@@ -1,234 +1,167 @@
-// pages/call-app/utils/callListener.js - SAME AS BEFORE
+// ../../call-app/utils/callListener.js - UPDATED WITH TIMEOUT HANDLING
 
-let supabase = null
-let currentUser = null
-let callSubscription = null
-let audioPlayer = null
-let notificationShowing = false
+let supabase = null;
+let currentUser = null;
+let callChannel = null;
+let callListeners = {};
 
-export function initCallListener(supabaseClient, user) {
-    supabase = supabaseClient
-    currentUser = user
-    
-    console.log('📞 Initializing call listener for:', user.username)
-    
-    setupRingtone()
-    setupIncomingCallListener()
-    checkForExistingCalls()
-}
-
-function setupRingtone() {
-    try {
-        audioPlayer = new Audio()
-        audioPlayer.loop = true
-        audioPlayer.volume = 0.5
-        audioPlayer.src = 'data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PA=='
-    } catch (e) {
-        console.log('Ringtone setup failed:', e)
+/**
+ * Initialize call listener for incoming calls
+ * @param {Object} supabaseClient - Supabase client instance
+ * @param {Object} user - Current user object
+ * @param {Object} listeners - Event listeners
+ * @param {Function} listeners.onIncomingCall - Callback for incoming calls
+ */
+export function initCallListener(supabaseClient, user, listeners = {}) {
+    if (!supabaseClient || !user) {
+        console.error('❌ Cannot initialize call listener: missing supabase or user');
+        return;
     }
-}
 
-function playRingtone() {
-    if (audioPlayer) {
-        audioPlayer.play().catch(e => console.log('Audio play failed:', e))
+    // Store for later use
+    supabase = supabaseClient;
+    currentUser = user;
+    callListeners = listeners;
+
+    console.log('📞 Initializing call listener for user:', user.id);
+
+    // Clean up any existing channel
+    if (callChannel) {
+        supabase.removeChannel(callChannel);
     }
-}
 
-function stopRingtone() {
-    if (audioPlayer) {
-        audioPlayer.pause()
-        audioPlayer.currentTime = 0
-    }
-}
+    // Create a unique channel for this user to receive calls
+    callChannel = supabase.channel(`calls:user:${user.id}`, {
+        config: {
+            broadcast: { self: true },
+            presence: { key: 'call-status' }
+        }
+    });
 
-function setupIncomingCallListener() {
-    if (!supabase || !currentUser) return
-    
-    console.log('Setting up call listener for user:', currentUser.id)
-    
-    callSubscription = supabase
-        .channel(`calls:${currentUser.id}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'calls',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('📞 Incoming call detected!', payload.new)
+    // Listen for incoming calls
+    callChannel
+        .on('broadcast', { event: 'incoming-call' }, (payload) => {
+            console.log('📞🔥 Incoming call received:', payload);
             
-            if (payload.new.status === 'ringing') {
-                handleIncomingCall(payload.new)
+            const callData = payload.payload;
+            
+            // Validate call data
+            if (!callData || !callData.callId || !callData.callerId || !callData.room) {
+                console.error('❌ Invalid call data:', callData);
+                return;
+            }
+            
+            // Ensure the call is for this user
+            if (callData.calleeId !== user.id) {
+                console.log('⏭️ Call not for this user, ignoring');
+                return;
+            }
+            
+            // Update call in database to 'ringing' status
+            supabase
+                .from('calls')
+                .update({ 
+                    status: 'ringing',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', callData.callId)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('❌ Error updating call status:', error);
+                    } else {
+                        console.log('📞 Call status updated to ringing');
+                    }
+                });
+            
+            // Notify the UI
+            if (callListeners.onIncomingCall) {
+                callListeners.onIncomingCall(callData);
             }
         })
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'calls',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('Call updated:', payload.new.status)
+        .on('broadcast', { event: 'call-accepted' }, (payload) => {
+            console.log('📞 Call accepted:', payload);
+            // Handle call accepted (for the caller)
+        })
+        .on('broadcast', { event: 'call-rejected' }, (payload) => {
+            console.log('📞 Call rejected:', payload);
             
-            if (payload.new.status === 'cancelled' || payload.new.status === 'ended') {
-                hideIncomingCallNotification()
-                stopRingtone()
-            }
+            const callData = payload.payload;
+            
+            // Update call in database to 'rejected' status
+            supabase
+                .from('calls')
+                .update({ 
+                    status: 'rejected',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', callData.callId)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('❌ Error updating call status:', error);
+                    }
+                });
+        })
+        .on('broadcast', { event: 'call-ended' }, (payload) => {
+            console.log('📞 Call ended:', payload);
+            
+            const callData = payload.payload;
+            
+            // Update call in database to 'ended' status
+            supabase
+                .from('calls')
+                .update({ 
+                    status: 'ended',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', callData.callId)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('❌ Error updating call status:', error);
+                    }
+                });
         })
         .subscribe((status) => {
-            console.log('Call listener status:', status)
-        })
+            console.log('📞 Call listener subscription status:', status);
+        });
+
+    return callChannel;
 }
 
-async function checkForExistingCalls() {
-    try {
-        const { data: calls } = await supabase
-            .from('calls')
-            .select('*')
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'ringing')
-            .order('created_at', { ascending: false })
-            .limit(1)
-        
-        if (calls && calls.length > 0) {
-            console.log('Found existing ringing call')
-            handleIncomingCall(calls[0])
-        }
-    } catch (error) {
-        console.error('Error checking existing calls:', error)
+/**
+ * Send an incoming call notification to a user
+ * @param {string} userId - User ID to notify
+ * @param {Object} callData - Call data (callId, room, callerId, calleeId)
+ */
+export async function sendIncomingCall(userId, callData) {
+    if (!supabase) {
+        console.error('❌ Cannot send call: listener not initialized');
+        return false;
     }
+
+    const channel = supabase.channel(`calls:user:${userId}`);
+    
+    await channel.subscribe();
+    
+    channel.send({
+        type: 'broadcast',
+        event: 'incoming-call',
+        payload: callData
+    });
+    
+    // Clean up channel after sending
+    setTimeout(() => {
+        supabase.removeChannel(channel);
+    }, 1000);
+    
+    return true;
 }
 
-async function handleIncomingCall(call) {
-    if (window.location.pathname.includes('/call/')) {
-        return
-    }
-    
-    if (notificationShowing) return
-    
-    const caller = await getCallerInfo(call.caller_id)
-    
-    showIncomingCallNotification(call, caller)
-    playRingtone()
-    
-    sessionStorage.setItem('incomingCall', JSON.stringify({
-        id: call.id,
-        roomName: call.room_name,
-        callerId: call.caller_id,
-        callerName: caller?.username || 'Unknown'
-    }))
-}
-
-async function getCallerInfo(callerId) {
-    try {
-        const { data } = await supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', callerId)
-            .single()
-        
-        return data || { username: 'Unknown', avatar_url: null }
-    } catch (error) {
-        return { username: 'Unknown', avatar_url: null }
-    }
-}
-
-function showIncomingCallNotification(call, caller) {
-    hideIncomingCallNotification()
-    notificationShowing = true
-    
-    const notification = document.createElement('div')
-    notification.id = 'incomingCallNotification'
-    notification.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: #f5b342;
-        color: #333;
-        padding: 16px 20px;
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        animation: slideDown 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `
-    
-    const style = document.createElement('style')
-    style.textContent = `
-        @keyframes slideDown {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-    `
-    document.head.appendChild(style)
-    
-    const avatar = caller?.avatar_url 
-        ? `<img src="${caller.avatar_url}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid white;">`
-        : `<div style="width: 44px; height: 44px; border-radius: 50%; background: white; color: #f5b342; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold;">${caller?.username?.charAt(0).toUpperCase() || '?'}</div>`
-    
-    notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
-            ${avatar}
-            <div>
-                <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">${caller?.username || 'Incoming Call'}</div>
-                <div style="font-size: 13px; opacity: 0.8;">🔊 Incoming voice call...</div>
-            </div>
-        </div>
-        <div style="display: flex; gap: 12px;">
-            <button id="acceptCallBtn" style="background: white; border: none; color: #28a745; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; animation: pulse 1.5s infinite;">
-                <i class="fas fa-phone-alt"></i>
-            </button>
-            <button id="declineCallBtn" style="background: white; border: none; color: #dc3545; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-phone-slash"></i>
-            </button>
-        </div>
-    `
-    
-    document.body.prepend(notification)
-    
-    document.getElementById('acceptCallBtn').addEventListener('click', async () => {
-        stopRingtone()
-        hideIncomingCallNotification()
-        
-        await supabase
-            .from('calls')
-            .update({ status: 'active', answered_at: new Date().toISOString() })
-            .eq('id', call.id)
-        
-        window.location.href = `call/index.html?incoming=true&room=${call.room_name}&callerId=${call.caller_id}&callId=${call.id}`
-    })
-    
-    document.getElementById('declineCallBtn').addEventListener('click', async () => {
-        stopRingtone()
-        hideIncomingCallNotification()
-        
-        await supabase
-            .from('calls')
-            .update({ status: 'rejected', ended_at: new Date().toISOString() })
-            .eq('id', call.id)
-        
-        sessionStorage.removeItem('incomingCall')
-    })
-}
-
-function hideIncomingCallNotification() {
-    const existing = document.getElementById('incomingCallNotification')
-    if (existing) {
-        existing.remove()
-        notificationShowing = false
-    }
-}
-
+/**
+ * Clean up call listener
+ */
 export function cleanupCallListener() {
-    stopRingtone()
-    if (callSubscription) {
-        callSubscription.unsubscribe()
+    if (callChannel && supabase) {
+        supabase.removeChannel(callChannel);
+        callChannel = null;
     }
-    hideIncomingCallNotification()
 }
