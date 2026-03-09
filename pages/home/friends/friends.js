@@ -1,4 +1,4 @@
-// friends.js - COMPLETE FIXED VERSION WITH WORKER URL ONLY
+// friends.js - COMPLETE FIXED VERSION WITH PROPER CALL HANDLING
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import { 
     syncUserToDatabase, 
@@ -16,6 +16,8 @@ let allFriends = [];
 let filteredFriends = [];
 let callListenerInitialized = false;
 let incomingCallData = null;
+let incomingCallTimeout = null; // For auto-reject after 30s
+let outgoingCallTimeout = null; // For auto-cancel after 30s
 let audioContext = null;
 let oscillator = null;
 let gainNode = null;
@@ -80,8 +82,7 @@ async function initFriendsPage() {
         authUser = session.user;
         console.log('✅ MAIN Auth user:', authUser.email);
 
-        // ===== FIXED: Use mainSupabase for ALL database operations =====
-        // No separate callAppSupabase needed - they both point to same database through worker
+        // Sync user to database
         currentUser = await syncUserToDatabase(mainSupabase, {
             id: authUser.id,
             email: authUser.email,
@@ -126,10 +127,19 @@ async function initFriendsPage() {
                         if (existingNotification) {
                             existingNotification.remove();
                             stopRingtone();
+                            if (incomingCallTimeout) clearTimeout(incomingCallTimeout);
                         }
                         
                         incomingCallData = callData;
                         showIncomingCallNotification(callData);
+                        
+                        // Auto-reject after 30 seconds if not answered
+                        incomingCallTimeout = setTimeout(() => {
+                            console.log('⏰ Incoming call timed out after 30s');
+                            if (incomingCallData && incomingCallData.callId) {
+                                rejectCall(incomingCallData.callId, true); // true = timeout
+                            }
+                        }, 30000);
                         
                         // Check missed calls again after incoming call
                         setTimeout(() => checkMissedCalls(), 2000);
@@ -243,7 +253,7 @@ async function loadFriends() {
     }
 }
 
-// Render friends list
+// Render friends list - REMOVED ADD FRIENDS BUTTON
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -287,7 +297,7 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// START CALL - OPEN IN NEW TAB WITH CORRECT URL
+// START CALL - FIXED WITH TIMEOUT AND PROPER URL
 window.startCall = function(friendId, friendName) {
     const friend = allFriends.find(f => f.id === friendId);
     if (!friend || friend.status !== 'online') {
@@ -300,16 +310,30 @@ window.startCall = function(friendId, friendName) {
     // Play outgoing ringtone
     playOutgoingRingtone();
     
-    // CORRECT URL for outgoing calls
+    // Clear any existing timeout
+    if (outgoingCallTimeout) clearTimeout(outgoingCallTimeout);
+    
+    // Set timeout to auto-cancel after 30 seconds
+    outgoingCallTimeout = setTimeout(() => {
+        console.log('⏰ Outgoing call timed out after 30s');
+        stopRingtone();
+        showToast('info', 'Call timed out - no answer');
+        // Stay on friends page, don't redirect
+    }, 30000);
+    
+    // CORRECT URL for outgoing calls - points to call-app/call
     const callUrl = `../../call-app/call/index.html?friendId=${friendId}&friendName=${encodeURIComponent(friendName)}`;
     window.open(callUrl, '_blank');
 };
 
-// Show incoming call notification - MODERN STYLE
+// Show incoming call notification
 function showIncomingCallNotification(callData) {
     // Remove any existing notification
     const existing = document.getElementById('incomingCallNotification');
-    if (existing) existing.remove();
+    if (existing) {
+        existing.remove();
+        if (incomingCallTimeout) clearTimeout(incomingCallTimeout);
+    }
 
     const caller = allFriends.find(f => f.id === callData.callerId) || { username: 'Unknown Caller' };
     
@@ -334,10 +358,10 @@ function showIncomingCallNotification(callData) {
                 </div>
             </div>
             <div class="incoming-call-actions">
-                <button class="incoming-call-btn decline" onclick="rejectCall('${callData.callId}')">
+                <button class="incoming-call-btn decline" onclick="rejectCall('${callData.callId}', false, event)">
                     <i class="fas fa-phone-slash"></i>
                 </button>
-                <button class="incoming-call-btn accept" onclick="acceptCall()">
+                <button class="incoming-call-btn accept" onclick="acceptCall(event)">
                     <i class="fas fa-phone"></i>
                 </button>
             </div>
@@ -347,10 +371,12 @@ function showIncomingCallNotification(callData) {
     document.body.appendChild(notification);
     playIncomingRingtone();
 
-    // Auto-hide after 30 seconds
-    setTimeout(() => {
+    // Auto-reject after 30 seconds (already set in initCallListener, but ensure it's set)
+    if (incomingCallTimeout) clearTimeout(incomingCallTimeout);
+    incomingCallTimeout = setTimeout(() => {
+        console.log('⏰ Auto-rejecting call after 30s timeout');
         if (document.getElementById('incomingCallNotification')) {
-            rejectCall(callData.callId);
+            rejectCall(callData.callId, true); // true = timeout
         }
     }, 30000);
 }
@@ -388,6 +414,16 @@ function stopRingtone() {
     if (outgoingAudio) {
         outgoingAudio.pause();
         outgoingAudio.currentTime = 0;
+    }
+    
+    // Clear any timeouts
+    if (incomingCallTimeout) {
+        clearTimeout(incomingCallTimeout);
+        incomingCallTimeout = null;
+    }
+    if (outgoingCallTimeout) {
+        clearTimeout(outgoingCallTimeout);
+        outgoingCallTimeout = null;
     }
     
     if (ringtoneInterval) {
@@ -437,7 +473,9 @@ function playWebAudioRingtone() {
 }
 
 // Accept call - FIXED CORRECT URL
-window.acceptCall = function() {
+window.acceptCall = function(event) {
+    if (event) event.stopPropagation();
+    
     if (!incomingCallData) return;
     
     stopRingtone();
@@ -445,6 +483,13 @@ window.acceptCall = function() {
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
 
+    // Clear timeout
+    if (incomingCallTimeout) {
+        clearTimeout(incomingCallTimeout);
+        incomingCallTimeout = null;
+    }
+
+    // Mark any other pending calls from same caller as missed
     if (mainSupabase && incomingCallData.callerId) {
         mainSupabase
             .from('calls')
@@ -455,7 +500,7 @@ window.acceptCall = function() {
             })
             .eq('caller_id', incomingCallData.callerId)
             .eq('callee_id', currentUser.id)
-            .eq('status', 'pending')
+            .eq('status', 'ringing')
             .neq('id', incomingCallData.callId)
             .then(() => {
                 console.log('Cleaned up duplicate calls');
@@ -470,17 +515,27 @@ window.acceptCall = function() {
     window.open(url, '_blank');
 };
 
-// Reject call
-window.rejectCall = async function(callId) {
+// Reject call - FIXED TO REDIRECT TO FRIENDS PAGE
+window.rejectCall = async function(callId, isTimeout = false, event) {
+    if (event) event.stopPropagation();
+    
     stopRingtone();
     
     const notification = document.getElementById('incomingCallNotification');
     if (notification) notification.remove();
 
+    // Clear timeout
+    if (incomingCallTimeout) {
+        clearTimeout(incomingCallTimeout);
+        incomingCallTimeout = null;
+    }
+
     const callToReject = callId || incomingCallData?.callId;
+    const callerId = incomingCallData?.callerId;
     
     if (callToReject && mainSupabase) {
         try {
+            // Update call status to 'rejected'
             await mainSupabase
                 .from('calls')
                 .update({ 
@@ -489,7 +544,23 @@ window.rejectCall = async function(callId) {
                     seen: true
                 })
                 .eq('id', callToReject);
-            console.log('Call rejected');
+            
+            console.log(isTimeout ? 'Call timed out' : 'Call rejected');
+            
+            // If there was a caller and it's not a timeout, mark their call as missed
+            if (!isTimeout && callerId) {
+                await mainSupabase
+                    .from('calls')
+                    .update({ 
+                        status: 'missed',
+                        seen: true
+                    })
+                    .eq('caller_id', callerId)
+                    .eq('callee_id', currentUser.id)
+                    .eq('status', 'ringing')
+                    .neq('id', callToReject);
+            }
+            
             await checkMissedCalls();
             
         } catch (error) {
@@ -498,7 +569,20 @@ window.rejectCall = async function(callId) {
     }
     
     incomingCallData = null;
-    showToast('info', 'Call rejected');
+    
+    // Show appropriate message
+    if (isTimeout) {
+        showToast('info', 'Call timed out');
+    } else {
+        showToast('info', 'Call rejected');
+    }
+    
+    // STAY ON FRIENDS PAGE - don't redirect anywhere
+    // Just ensure we're on the friends page
+    const currentPath = window.location.pathname;
+    if (!currentPath.includes('friends')) {
+        window.location.href = '../friends/index.html';
+    }
 };
 
 // Format last seen
@@ -538,7 +622,7 @@ window.clearSearch = function() {
     renderFriendsList();
 };
 
-// Show empty state
+// Show empty state - REMOVED ADD FRIENDS BUTTON
 function showEmptyState() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -547,10 +631,7 @@ function showEmptyState() {
         <div class="empty-state">
             <div class="empty-icon">👥</div>
             <h3>No friends yet</h3>
-            <p>Add friends to start calling</p>
-            <button class="add-friends-btn" onclick="openSearch()">
-                <i class="fas fa-user-plus"></i> Add Friends
-            </button>
+            <p>Add friends from the home page to start calling</p>
         </div>
     `;
 }
@@ -581,114 +662,6 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
-// Search users
-window.searchUsers = async function() {
-    if (!mainSupabase || !authUser) return;
-
-    const input = document.getElementById('userSearchInput');
-    const container = document.getElementById('searchResults');
-    if (!input || !container) return;
-
-    const term = input.value.toLowerCase().trim();
-
-    if (!term || term.length < 2) {
-        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Type at least 2 characters</p></div>`;
-        return;
-    }
-
-    try {
-        const { data: friends } = await mainSupabase
-            .from('friends')
-            .select('friend_id')
-            .eq('user_id', authUser.id);
-
-        const friendIds = friends?.map(f => f.friend_id) || [];
-
-        const { data: pending } = await mainSupabase
-            .from('friend_requests')
-            .select('receiver_id')
-            .eq('sender_id', authUser.id)
-            .eq('status', 'pending');
-
-        const pendingIds = pending?.map(r => r.receiver_id) || [];
-
-        const { data: users } = await mainSupabase
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .neq('id', authUser.id)
-            .ilike('username', `%${term}%`)
-            .limit(20);
-
-        if (!users || users.length === 0) {
-            container.innerHTML = `<div class="empty-search"><i class="fas fa-user-slash"></i><p>No users found</p></div>`;
-            return;
-        }
-
-        let html = '';
-        users.forEach(user => {
-            const isFriend = friendIds.includes(user.id);
-            const isPending = pendingIds.includes(user.id);
-            const initial = user.username?.charAt(0).toUpperCase() || '?';
-
-            html += `
-                <div class="search-result-item">
-                    <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                        ${user.avatar_url 
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" loading="lazy">`
-                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
-                        }
-                    </div>
-                    <div class="search-result-info">
-                        <div class="search-result-name">${user.username}</div>
-                        <div class="search-result-username">@${user.username}</div>
-                    </div>
-                    ${isFriend 
-                        ? '<button class="add-friend-btn added" disabled>✓ Friends</button>'
-                        : isPending
-                        ? '<button class="add-friend-btn added" disabled>⏳ Sent</button>'
-                        : `<button class="add-friend-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">+ Add</button>`
-                    }
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-
-    } catch (error) {
-        console.error('Search error:', error);
-        container.innerHTML = `<div class="empty-search"><i class="fas fa-exclamation-triangle"></i><p>Error searching</p></div>`;
-    }
-};
-
-// Send friend request
-window.sendFriendRequest = async function(userId, username, btn) {
-    try {
-        btn.disabled = true;
-        btn.textContent = 'Sending...';
-
-        const { error } = await mainSupabase
-            .from('friend_requests')
-            .insert({
-                sender_id: authUser.id,
-                receiver_id: userId,
-                status: 'pending',
-                created_at: new Date().toISOString()
-            });
-
-        if (error) throw error;
-
-        btn.textContent = '✓ Sent';
-        btn.classList.add('added');
-        showToast('success', `Request sent to ${username}`);
-
-    } catch (error) {
-        console.error('Request error:', error);
-        btn.disabled = false;
-        btn.textContent = '+ Add';
-        showToast('error', 'Failed to send request');
-    }
-};
-
 // Toast
 function showToast(type, message) {
     const container = document.getElementById('toastContainer');
@@ -706,15 +679,15 @@ function showToast(type, message) {
 
 // Navigation
 window.goToHome = () => window.location.href = '../../home/index.html';
-window.openSearch = () => {
-    document.getElementById('searchModal').style.display = 'flex';
-    setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
-};
+
+// REMOVED openSearch function - no more add friends button
+
 window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
     document.getElementById('userSearchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
 };
+
 window.logout = async () => {
     if (mainSupabase) await mainSupabase.auth.signOut();
     window.location.href = '../../../pages/login/index.html';
