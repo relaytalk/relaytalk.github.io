@@ -1,4 +1,4 @@
-// auth/script.js - COMPLETE FIXED VERSION
+// auth/script.js - COMPLETE FIXED VERSION (NO DUPLICATE PROFILE ERROR)
 
 // Modal functions
 function showTerms() {
@@ -83,7 +83,7 @@ function validateConfirmPassword(password, confirmPassword) {
     return true;
 }
 
-// LINE 156 FIXED - Supabase initialization
+// Supabase initialization
 async function initAuthSupabase() {
     console.log('🔄 Initializing Supabase for auth page...');
     
@@ -112,7 +112,7 @@ async function initAuthSupabase() {
     }
 }
 
-// Handle form submission - FIXED
+// Handle form submission - FIXED: No manual profile insert (trigger handles it)
 async function handleSignup(event) {
     event.preventDefault();
 
@@ -149,11 +149,16 @@ async function handleSignup(event) {
         const internalEmail = `${username}@luster.test`;
         console.log('Creating account with email:', internalEmail);
 
-        // 1. Sign up
+        // 1. Sign up - THE TRIGGER WILL AUTOMATICALLY CREATE THE PROFILE
         const { data: authData, error: authError } = await window.supabase.auth.signUp({
             email: internalEmail,
             password: password,
-            options: { data: { username: username, full_name: username } }
+            options: { 
+                data: { 
+                    username: username, 
+                    full_name: username 
+                } 
+            }
         });
 
         if (authError) {
@@ -169,28 +174,14 @@ async function handleSignup(event) {
         }
 
         console.log('✅ Auth created, user ID:', authData.user?.id);
-        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // ⚠️ IMPORTANT: No manual profile insert needed!
+        // The database trigger "handle_new_user" automatically creates the profile
+        // Manual insert would cause duplicate key error
+        
+        console.log('✅ Profile will be auto-created by database trigger');
 
-        // 2. Create profile
-        const { error: profileError } = await window.supabase
-            .from('profiles')
-            .insert({
-                id: authData.user.id,
-                username: username,
-                full_name: username,
-                avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
-                status: 'online',
-                created_at: new Date().toISOString()
-            });
-
-        if (profileError) {
-            console.error('Profile error:', profileError);
-            throw profileError;
-        }
-
-        console.log('✅ Profile created for:', username);
-
-        // 3. Auto-login
+        // 2. Auto-login
         const { data: signInData, error: signInError } = await window.supabase.auth.signInWithPassword({
             email: internalEmail,
             password: password
@@ -215,7 +206,10 @@ async function handleSignup(event) {
             errorMessage = 'Password too weak. Try a stronger one.';
             showError('passwordError', errorMessage);
         } else {
-            alert('Error: ' + error.message);
+            // Don't show alert for 409 conflict (it's handled by the trigger)
+            if (!error.message.includes('duplicate key')) {
+                alert('Error: ' + error.message);
+            }
         }
         
         submitBtn.textContent = originalText;
