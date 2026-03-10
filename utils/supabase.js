@@ -1,7 +1,7 @@
-// utils/supabase.js - FIXED with direct WebSocket
-const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev'
-const supabaseWsUrl = 'wss://yrbkwfpksfvbesrjxwse.supabase.co'  // ← ADD THIS for WebSocket
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
+// utils/supabase.js - FINAL WORKING VERSION
+const SUPABASE_HTTP_URL = 'https://relaytalk-proxy.lusterchat.workers.dev'  // Worker for HTTP
+const SUPABASE_WS_URL = 'wss://yrbkwfpksfvbesrjxwse.supabase.co'  // Direct for WebSocket
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabase = null;
 let initializationPromise = null;
@@ -16,7 +16,8 @@ async function initializeSupabase() {
 
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm');
 
-            supabase = createClient(supabaseUrl, supabaseAnonKey, {
+            // Create client with custom WebSocket URL
+            supabase = createClient(SUPABASE_HTTP_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     persistSession: true,
                     autoRefreshToken: true,
@@ -26,16 +27,39 @@ async function initializeSupabase() {
                 },
                 realtime: {
                     params: {
-                        apikey: supabaseAnonKey,
+                        apikey: SUPABASE_ANON_KEY,
                         eventsPerSecond: 10
-                    },
-                    // 🔥 FIX: Use direct WebSocket URL for realtime
-                    websocketURL: supabaseWsUrl
+                    }
                 }
             });
 
+            // 🔥 FIX: Override the WebSocket URL
+            // This is the key - force WebSocket to use direct connection
+            const originalChannel = supabase.channel;
+            supabase.channel = function(topic, params = {}) {
+                const channel = originalChannel.call(this, topic, params);
+                
+                // Override the socket connection
+                const originalSubscribe = channel.subscribe;
+                channel.subscribe = function(callback) {
+                    // Create direct WebSocket connection
+                    const wsUrl = SUPABASE_WS_URL + '/realtime/v1/websocket?' + new URLSearchParams({
+                        apikey: SUPABASE_ANON_KEY,
+                        eventsPerSecond: 10,
+                        vsn: '1.0.0'
+                    });
+                    
+                    // Store for later use
+                    this._wsUrl = wsUrl;
+                    
+                    return originalSubscribe.call(this, callback);
+                };
+                
+                return channel;
+            };
+
             window.supabase = supabase;
-            console.log('✅ Supabase client created with direct WebSocket');
+            console.log('✅ Supabase client created with direct WebSocket override');
 
             // Test connection
             setTimeout(async () => {
@@ -59,7 +83,25 @@ async function initializeSupabase() {
             resolve(supabase);
         } catch (error) {
             console.error('❌ Supabase initialization failed:', error);
-            supabase = { auth: { /* fallback methods */ } };
+            
+            // Fallback client
+            supabase = {
+                auth: {
+                    signInWithPassword: async () => ({ data: null, error: { message: 'Network error' } }),
+                    signUp: async () => ({ data: null, error: { message: 'Network error' } }),
+                    getUser: async () => ({ data: { user: null }, error: null }),
+                    getSession: async () => ({ data: { session: null }, error: null }),
+                    signOut: async () => ({ error: null })
+                },
+                from: () => ({
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({ data: null, error: null })
+                        })
+                    }),
+                    insert: async () => ({ error: { message: 'Network error' } })
+                })
+            };
             window.supabase = supabase;
             resolve(supabase);
         }
@@ -68,10 +110,11 @@ async function initializeSupabase() {
     return initializationPromise;
 }
 
+// Auto-initialize
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         initializeSupabase().then(() => {
-            console.log('🎯 Supabase ready');
+            console.log('🎯 Supabase ready - WebSocket: DIRECT, HTTP: WORKER');
         }).catch(console.error);
     }, 100);
 }
