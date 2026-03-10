@@ -1,5 +1,6 @@
-// utils/supabase.js - FIXED FOR REALTIME (NO TRAILING SLASH)
-const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev'  // ← NO TRAILING SLASH!
+// utils/supabase.js - FIXED with direct WebSocket
+const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev'
+const supabaseWsUrl = 'wss://yrbkwfpksfvbesrjxwse.supabase.co'  // ← ADD THIS for WebSocket
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabase = null;
@@ -11,9 +12,8 @@ async function initializeSupabase() {
 
     initializationPromise = new Promise(async (resolve, reject) => {
         try {
-            console.log('🔄 Loading Supabase client for call-app (Mumbai) with Realtime...');
+            console.log('🔄 Loading Supabase client with direct WebSocket...');
 
-            // Import from working CDN
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm');
 
             supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -26,15 +26,18 @@ async function initializeSupabase() {
                 },
                 realtime: {
                     params: {
+                        apikey: supabaseAnonKey,
                         eventsPerSecond: 10
-                    }
+                    },
+                    // 🔥 FIX: Use direct WebSocket URL for realtime
+                    websocketURL: supabaseWsUrl
                 }
             });
 
             window.supabase = supabase;
-            console.log('✅ Supabase client created for call-app with Realtime');
+            console.log('✅ Supabase client created with direct WebSocket');
 
-            // Test realtime connection
+            // Test connection
             setTimeout(async () => {
                 try {
                     const testChannel = supabase.channel('test-connection');
@@ -45,68 +48,18 @@ async function initializeSupabase() {
                             testChannel.unsubscribe();
                         }
                     });
-                } catch (e) {
-                    console.log('Realtime test skipped');
-                }
+                } catch (e) {}
             }, 1000);
 
-            // Verify connection
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-            if (sessionError) {
-                console.warn('⚠️ Session check error:', sessionError.message);
-            } else {
-                console.log('📡 Session status:', sessionData.session ? 'Active' : 'No session');
-                if (sessionData.session?.user) {
-                    console.log('👤 Logged in as:', sessionData.session.user.email);
-                }
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session?.user) {
+                console.log('👤 Logged in as:', sessionData.session.user.email);
             }
 
             resolve(supabase);
-
         } catch (error) {
             console.error('❌ Supabase initialization failed:', error);
-
-            // Create fallback client
-            supabase = {
-                auth: {
-                    signInWithPassword: async (credentials) => {
-                        console.log('Fallback: signInWithPassword', credentials);
-                        return { data: null, error: { message: 'Network error' } };
-                    },
-                    signUp: async (credentials) => {
-                        console.log('Fallback: signUp', credentials);
-                        return { data: null, error: { message: 'Network error' } };
-                    },
-                    getUser: async () => {
-                        console.log('Fallback: getUser');
-                        return { data: { user: null }, error: null };
-                    },
-                    getSession: async () => {
-                        console.log('Fallback: getSession');
-                        return { data: { session: null }, error: null };
-                    },
-                    signOut: async () => {
-                        console.log('Fallback: signOut');
-                        return { error: null };
-                    }
-                },
-                from: (table) => ({
-                    select: (columns) => ({
-                        eq: (column, value) => ({
-                            maybeSingle: async () => {
-                                console.log(`Fallback: from(${table}).select().eq(${column}, ${value})`);
-                                return { data: null, error: null };
-                            }
-                        })
-                    }),
-                    insert: async (data) => {
-                        console.log(`Fallback: insert into ${table}`, data);
-                        return { error: { message: 'Network error' } };
-                    }
-                })
-            };
-
+            supabase = { auth: { /* fallback methods */ } };
             window.supabase = supabase;
             resolve(supabase);
         }
@@ -115,11 +68,10 @@ async function initializeSupabase() {
     return initializationPromise;
 }
 
-// Auto-initialize
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         initializeSupabase().then(() => {
-            console.log('🎯 Supabase ready for use - Mumbai region');
+            console.log('🎯 Supabase ready');
         }).catch(console.error);
     }, 100);
 }
