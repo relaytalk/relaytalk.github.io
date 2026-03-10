@@ -1,5 +1,5 @@
-// utils/supabase.js - UPDATED FOR call-app (MUMBAI REGION)
-const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev/'
+// utils/supabase.js - FIXED FOR REALTIME (NO TRAILING SLASH)
+const supabaseUrl = 'https://relaytalk-proxy.lusterchat.workers.dev'  // ← NO TRAILING SLASH!
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
 
 let supabase = null;
@@ -11,7 +11,7 @@ async function initializeSupabase() {
 
     initializationPromise = new Promise(async (resolve, reject) => {
         try {
-            console.log('🔄 Loading Supabase client for call-app (Mumbai)...');
+            console.log('🔄 Loading Supabase client for call-app (Mumbai) with Realtime...');
 
             // Import from working CDN
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm');
@@ -23,11 +23,32 @@ async function initializeSupabase() {
                     detectSessionInUrl: false,
                     storage: window.localStorage,
                     storageKey: 'supabase.auth.token'
+                },
+                realtime: {
+                    params: {
+                        eventsPerSecond: 10
+                    }
                 }
             });
 
             window.supabase = supabase;
-            console.log('✅ Supabase client created for call-app');
+            console.log('✅ Supabase client created for call-app with Realtime');
+
+            // Test realtime connection
+            setTimeout(async () => {
+                try {
+                    const testChannel = supabase.channel('test-connection');
+                    testChannel.subscribe((status) => {
+                        console.log('🔌 Realtime test connection status:', status);
+                        if (status === 'SUBSCRIBED') {
+                            console.log('✅ Realtime is WORKING!');
+                            testChannel.unsubscribe();
+                        }
+                    });
+                } catch (e) {
+                    console.log('Realtime test skipped');
+                }
+            }, 1000);
 
             // Verify connection
             const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
