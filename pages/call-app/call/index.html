@@ -71,327 +71,332 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
+    body, html {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
-        #dailyContainer {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background: #000;
-        }
+    #dailyContainer {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: #000;
+    }
 
-        /* Loading Screen */
-        .call-loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 1000;
-        }
+    /* Loading Screen */
+    .call-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 1000;
+    }
 
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #333;
-            border-top: 3px solid #f5b342;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid #333;
+        border-top: 3px solid #f5b342;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
 
-        #loadingText {
-            font-size: 16px;
-            color: #ccc;
-        }
+    #loadingText {
+        font-size: 16px;
+        color: #ccc;
+    }
 
-        /* Error Screen */
-        .error-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 2000;
-            padding: 20px;
-            text-align: center;
-        }
+    /* Error Screen */
+    .error-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 2000;
+        padding: 20px;
+        text-align: center;
+    }
 
-        .error-screen i {
-            font-size: 60px;
-            color: #dc3545;
-            margin-bottom: 20px;
-        }
+    .error-screen i {
+        font-size: 60px;
+        color: #dc3545;
+        margin-bottom: 20px;
+    }
 
-        .error-screen h3 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: white;
-        }
+    .error-screen h3 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: white;
+    }
 
-        #errorMessage {
-            color: #ccc;
-            margin: 10px 0 20px;
-            font-size: 16px;
-            max-width: 300px;
-        }
+    #errorMessage {
+        color: #ccc;
+        margin: 10px 0 20px;
+        font-size: 16px;
+        max-width: 300px;
+    }
 
-        .back-home-btn {
-            background: #f5b342;
-            color: #333;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            margin-top: 10px;
-        }
+    .back-home-btn {
+        background: #f5b342;
+        color: #333;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        margin-top: 10px;
+    }
 
-        .back-home-btn:active {
-            background: #e69a00;
-            transform: scale(0.98);
-        }
+    .back-home-btn:active {
+        background: #e69a00;
+        transform: scale(0.98);
+    }
 
-        .back-home-btn i {
-            font-size: 16px;
-            color: #333;
-            margin: 0;
-        }
+    .back-home-btn i {
+        font-size: 16px;
+        color: #333;
+        margin: 0;
+    }
 
-        /* Hang Up Button - Beautiful SVG + No Gradients */
+    /* Square Hang Up Button at Bottom Right - Icon Only */
+    .hang-up-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        background: #dc2626;
+        border: none;
+        border-radius: 12px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 9999;
+        box-shadow: 0 4px 6px rgba(220, 38, 38, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hang-up-btn:hover {
+        background: #b91c1c;
+        transform: scale(1.05);
+        box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.4), 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .hang-up-btn:active {
+        transform: scale(0.95);
+        background: #991b1b;
+    }
+
+    .hang-up-btn svg {
+        width: 28px;
+        height: 28px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.9;
+            transform: scale(1.1);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* Slide in animation */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .hang-up-btn {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    /* Incoming Call Screen */
+    .incoming-call-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1500;
+    }
+
+    .incoming-call-content {
+        text-align: center;
+        padding: 20px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .caller-avatar {
+        margin-bottom: 20px;
+    }
+
+    .caller-avatar i {
+        font-size: 100px;
+        color: #f5b342;
+    }
+
+    .caller-avatar img {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #f5b342;
+    }
+
+    .caller-info h2 {
+        font-size: 28px;
+        color: white;
+        margin-bottom: 10px;
+    }
+
+    .caller-info p {
+        color: #ccc;
+        font-size: 16px;
+        margin-bottom: 40px;
+    }
+
+    .call-actions {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+    }
+
+    .call-btn {
+        width: 70px;
+        height: 70px;
+        border: none;
+        border-radius: 50%;
+        font-size: 28px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .call-btn:active {
+        transform: scale(0.95);
+    }
+
+    .accept-btn {
+        background: #28a745;
+    }
+
+    .decline-btn {
+        background: #dc3545;
+    }
+
+    /* Ensure video is visible */
+    video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
         .hang-up-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #dc2626;
-            border: none;
-            border-radius: 60px;
-            padding: 16px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            cursor: pointer;
-            z-index: 9999;
-            box-shadow: 0 4px 6px rgba(220, 38, 38, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 52px;
+            height: 52px;
+            bottom: 16px;
+            right: 16px;
         }
-
-        .hang-up-btn:hover {
-            background: #b91c1c;
-            transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.4), 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-        }
-
-        .hang-up-btn:active {
-            transform: translateX(-50%) scale(0.95);
-            background: #991b1b;
-        }
-
+        
         .hang-up-btn svg {
             width: 24px;
             height: 24px;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-            animation: pulse 2s infinite;
-        }
-
-        .hang-up-btn span {
-            color: white;
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.9;
-                transform: scale(1.1);
-            }
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        /* Slide up animation for button */
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translate(-50%, 100%);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, 0);
-            }
-        }
-
-        .hang-up-btn {
-            animation: slideUp 0.3s ease-out;
-        }
-
-        /* Incoming Call Screen */
-        .incoming-call-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1500;
-        }
-
-        .incoming-call-content {
-            text-align: center;
-            padding: 20px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .caller-avatar {
-            margin-bottom: 20px;
         }
 
         .caller-avatar i {
-            font-size: 100px;
-            color: #f5b342;
-        }
-
-        .caller-avatar img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #f5b342;
+            font-size: 80px;
         }
 
         .caller-info h2 {
-            font-size: 28px;
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .caller-info p {
-            color: #ccc;
-            font-size: 16px;
-            margin-bottom: 40px;
-        }
-
-        .call-actions {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
+            font-size: 24px;
         }
 
         .call-btn {
-            width: 70px;
-            height: 70px;
-            border: none;
-            border-radius: 50%;
-            font-size: 28px;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
         }
+    }
 
-        .call-btn:active {
-            transform: scale(0.95);
+    /* Extra small devices */
+    @media (max-width: 360px) {
+        .hang-up-btn {
+            width: 48px;
+            height: 48px;
+            bottom: 12px;
+            right: 12px;
         }
-
-        .accept-btn {
-            background: #28a745;
+        
+        .hang-up-btn svg {
+            width: 22px;
+            height: 22px;
         }
-
-        .decline-btn {
-            background: #dc3545;
-        }
-
-        /* Ensure video is visible */
-        video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .hang-up-btn {
-                padding: 14px 28px;
-                bottom: 20px;
-            }
-            
-            .hang-up-btn svg {
-                width: 20px;
-                height: 20px;
-            }
-            
-            .hang-up-btn span {
-                font-size: 16px;
-            }
-
-            .caller-avatar i {
-                font-size: 80px;
-            }
-
-            .caller-info h2 {
-                font-size: 24px;
-            }
-
-            .call-btn {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 <body>
     <!-- Loading Screen -->
