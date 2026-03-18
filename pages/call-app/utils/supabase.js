@@ -1,5 +1,5 @@
 // pages/call-app/utils/supabase.js - FIXED TO USE WORKER
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.98.0'
+import { createClient } from './supabase-local.js'
 
 // ✅ USE WORKER URL - NOT DIRECT MUMBAI!
 const SUPABASE_URL = 'https://relaytalk-proxy.lusterchat.workers.dev'
