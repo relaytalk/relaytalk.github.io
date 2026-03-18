@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Call · CallApp</title>
 
-    <!-- Content Security Policy - FIXED FOR WEBSOCKET -->
+    <!-- Content Security Policy - FIXED FOR JITSI -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 
         https://*.supabase.co 
@@ -62,7 +62,7 @@
         object-src 'none';
         base-uri 'self';
         form-action 'self';
-        frame-src 'self' https://*.8x8.vc;
+        frame-src 'self' https://8x8.vc https://*.8x8.vc;
     ">
 
     <!-- Jitsi External API -->
@@ -70,10 +70,6 @@
 
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Preconnect for WebSocket -->
-    <link rel="preconnect" href="wss://relaytalk-proxy.lusterchat.workers.dev">
-    <link rel="preconnect" href="wss://*.supabase.co">
 
     <style>
         * {
@@ -198,6 +194,84 @@
             margin: 0;
         }
 
+        /* Hang Up Button - Beautiful SVG + No Gradients */
+        .hang-up-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #dc2626;
+            border: none;
+            border-radius: 60px;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(220, 38, 38, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hang-up-btn:hover {
+            background: #b91c1c;
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.4), 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .hang-up-btn:active {
+            transform: translateX(-50%) scale(0.95);
+            background: #991b1b;
+        }
+
+        .hang-up-btn svg {
+            width: 24px;
+            height: 24px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            animation: pulse 2s infinite;
+        }
+
+        .hang-up-btn span {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.9;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Slide up animation for button */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 100%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        .hang-up-btn {
+            animation: slideUp 0.3s ease-out;
+        }
+
         /* Incoming Call Screen */
         .incoming-call-screen {
             position: fixed;
@@ -280,11 +354,6 @@
             background: #dc3545;
         }
 
-        /* Hide any Jitsi elements that might interfere */
-        .new-toolbox, .toolbox, .watermark {
-            z-index: 100 !important;
-        }
-
         /* Ensure video is visible */
         video {
             width: 100% !important;
@@ -294,6 +363,20 @@
 
         /* Responsive */
         @media (max-width: 480px) {
+            .hang-up-btn {
+                padding: 14px 28px;
+                bottom: 20px;
+            }
+            
+            .hang-up-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .hang-up-btn span {
+                font-size: 16px;
+            }
+
             .caller-avatar i {
                 font-size: 80px;
             }
@@ -341,6 +424,8 @@
     <!-- Active Call Screen - Jitsi container -->
     <div id="dailyContainer"></div>
 
+    <!-- Hang Up Button will be inserted here by JavaScript -->
+
     <!-- Error Screen -->
     <div class="error-screen" id="errorScreen" style="display: none;">
         <i class="fas fa-exclamation-circle"></i>
@@ -351,7 +436,7 @@
         </button>
     </div>
 
-    <!-- Call Ended Screen (temporary) -->
+    <!-- Call Ended Screen -->
     <div class="incoming-call-screen" id="callEndedScreen" style="display: none;">
         <div class="incoming-call-content">
             <div class="caller-avatar">
