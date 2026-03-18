@@ -4,20 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Call · CallApp</title>
-    
+
+    <!-- Content Security Policy - FIXED FOR WEBSOCKET -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self' 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://api.imgbb.com 
+        https://*.github.io 
+        https://github.com
+        https://fonts.googleapis.com
+        https://cdnjs.cloudflare.com
+        https://8x8.vc
+        https://*.8x8.vc
+        https://relaytalk-proxy.lusterchat.workers.dev
+        wss://*.supabase.co
+        wss://relaytalk-proxy.lusterchat.workers.dev;
+        
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://cdn.jsdelivr.net
+        https://fonts.googleapis.com
+        https://cdnjs.cloudflare.com
+        https://8x8.vc
+        https://*.8x8.vc
+        https://relaytalk-proxy.lusterchat.workers.dev;
+        
+        style-src 'self' 'unsafe-inline' 
+        https://fonts.googleapis.com 
+        https://cdn.jsdelivr.net
+        https://fonts.gstatic.com
+        https://cdnjs.cloudflare.com;
+        
+        img-src 'self' data: blob: 
+        https://*.8x8.vc 
+        https:;
+        
+        font-src 'self' data: 
+        https://fonts.gstatic.com 
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+        
+        connect-src 'self' 
+        wss://*.supabase.co 
+        https://*.supabase.co 
+        https://api.supabase.com 
+        https://api.imgbb.com 
+        https://*.github.io
+        https://*.8x8.vc
+        wss://*.8x8.vc
+        https://relaytalk-proxy.lusterchat.workers.dev
+        wss://relaytalk-proxy.lusterchat.workers.dev;
+        
+        worker-src 'self' blob:;
+        media-src 'self' blob:;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-src 'self' https://*.8x8.vc;
+    ">
+
     <!-- Jitsi External API -->
     <script src='https://8x8.vc/external_api.js' async></script>
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
+    <!-- Preconnect for WebSocket -->
+    <link rel="preconnect" href="wss://relaytalk-proxy.lusterchat.workers.dev">
+    <link rel="preconnect" href="wss://*.supabase.co">
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body, html {
             width: 100%;
             height: 100%;
@@ -25,7 +89,7 @@
             background: #000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        
+
         #dailyContainer {
             width: 100%;
             height: 100%;
@@ -34,7 +98,7 @@
             left: 0;
             background: #000;
         }
-        
+
         /* Loading Screen */
         .call-loading {
             position: fixed;
@@ -50,7 +114,7 @@
             color: white;
             z-index: 1000;
         }
-        
+
         .loading-spinner {
             width: 50px;
             height: 50px;
@@ -60,16 +124,16 @@
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
         #loadingText {
             font-size: 16px;
             color: #ccc;
         }
-        
+
         /* Error Screen */
         .error-screen {
             position: fixed;
@@ -87,26 +151,26 @@
             padding: 20px;
             text-align: center;
         }
-        
+
         .error-screen i {
             font-size: 60px;
             color: #dc3545;
             margin-bottom: 20px;
         }
-        
+
         .error-screen h3 {
             font-size: 24px;
             margin-bottom: 10px;
             color: white;
         }
-        
+
         #errorMessage {
             color: #ccc;
             margin: 10px 0 20px;
             font-size: 16px;
             max-width: 300px;
         }
-        
+
         .back-home-btn {
             background: #f5b342;
             color: #333;
@@ -122,18 +186,18 @@
             transition: all 0.2s;
             margin-top: 10px;
         }
-        
+
         .back-home-btn:active {
             background: #e69a00;
             transform: scale(0.98);
         }
-        
+
         .back-home-btn i {
             font-size: 16px;
             color: #333;
             margin: 0;
         }
-        
+
         /* Incoming Call Screen */
         .incoming-call-screen {
             position: fixed;
@@ -147,23 +211,23 @@
             justify-content: center;
             z-index: 1500;
         }
-        
+
         .incoming-call-content {
             text-align: center;
             padding: 20px;
             width: 100%;
             max-width: 400px;
         }
-        
+
         .caller-avatar {
             margin-bottom: 20px;
         }
-        
+
         .caller-avatar i {
             font-size: 100px;
             color: #f5b342;
         }
-        
+
         .caller-avatar img {
             width: 100px;
             height: 100px;
@@ -171,25 +235,25 @@
             object-fit: cover;
             border: 3px solid #f5b342;
         }
-        
+
         .caller-info h2 {
             font-size: 28px;
             color: white;
             margin-bottom: 10px;
         }
-        
+
         .caller-info p {
             color: #ccc;
             font-size: 16px;
             margin-bottom: 40px;
         }
-        
+
         .call-actions {
             display: flex;
             justify-content: center;
             gap: 30px;
         }
-        
+
         .call-btn {
             width: 70px;
             height: 70px;
@@ -203,41 +267,41 @@
             justify-content: center;
             transition: all 0.2s;
         }
-        
+
         .call-btn:active {
             transform: scale(0.95);
         }
-        
+
         .accept-btn {
             background: #28a745;
         }
-        
+
         .decline-btn {
             background: #dc3545;
         }
-        
+
         /* Hide any Jitsi elements that might interfere */
         .new-toolbox, .toolbox, .watermark {
             z-index: 100 !important;
         }
-        
+
         /* Ensure video is visible */
         video {
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
         }
-        
+
         /* Responsive */
         @media (max-width: 480px) {
             .caller-avatar i {
                 font-size: 80px;
             }
-            
+
             .caller-info h2 {
                 font-size: 24px;
             }
-            
+
             .call-btn {
                 width: 60px;
                 height: 60px;
@@ -304,17 +368,17 @@
     </div>
 
     <script type="module" src="call.js"></script>
-    
+
     <!-- Fallback for non-module browsers -->
     <script>
         window.goBack = function() {
             window.location.href = '/pages/call-app/index.html';
         };
-        
+
         window.acceptCall = function() {
             document.getElementById('incomingCallScreen').style.display = 'none';
         };
-        
+
         window.declineCall = function() {
             window.location.href = '/pages/call-app/index.html';
         };
