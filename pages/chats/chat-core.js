@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 🔥 Update chat header WITH avatar (ONLY HERE - NOT IN MESSAGES)
         const chatUserAvatar = document.getElementById('chatUserAvatar');
         const friendInitial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
-        
+
         if (friend.avatar_url) {
             chatUserAvatar.innerHTML = `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
         } else {
@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup real-time and listeners
         setupRealtime(friendId);
         setupTypingListener();
+        setupTypingReceiver(friendId);
         setupTypingIndicator();
         updateInputListener();
 
@@ -228,7 +229,7 @@ function setupTypingIndicator() {
             <span id="typingText">${chatFriend?.username || 'Friend'} is typing...</span>
         `;
         indicator.style.display = 'none';
-        
+
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
             messagesContainer.appendChild(indicator);
@@ -290,7 +291,7 @@ function setupTypingIndicator() {
 function showTypingIndicator(show) {
     const indicator = document.getElementById('typingIndicator');
     if (!indicator) return;
-    
+
     if (show) {
         indicator.style.display = 'flex';
         setTimeout(() => {
@@ -341,12 +342,12 @@ async function sendMessage() {
         `;
         sendBtn.disabled = true;
 
-        // FIX: Added chat_id to messageData
+        // 🔥 FIX: Set chat_id to receiver_id (the friend's ID)
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
             content: text,
-            chat_id: chatFriend.id, // ← THIS FIXES THE CHAT_ID ERROR
+            chat_id: chatFriend.id,
             created_at: new Date().toISOString()
         };
 
@@ -365,6 +366,16 @@ async function sendMessage() {
         if (error) throw error;
 
         console.log('✅ Message sent:', data.id);
+        
+        // Add to UI immediately for better UX
+        if (data) {
+            if (!currentMessages.some(msg => msg.id === data.id)) {
+                currentMessages.push(data);
+                window.currentMessages = currentMessages;
+            }
+            addMessageToUI(data, false);
+        }
+        
         playSentSound();
         input.value = '';
         autoResize(input);
@@ -545,9 +556,9 @@ function addMessageToUI(message, isFromRealtime = false) {
     if (typingIndicator) {
         typingIndicator.remove();
     }
-    
+
     container.insertAdjacentHTML('beforeend', messageHTML);
-    
+
     // Add typing indicator back
     setupTypingIndicator();
 
@@ -584,51 +595,72 @@ function addMessageToUI(message, isFromRealtime = false) {
 }
 
 // ====================
-// REALTIME FUNCTIONS
+// REALTIME FUNCTIONS - FIXED
 // ====================
 
 function setupRealtime(friendId) {
     console.log('🔧 Setting up realtime for friend:', friendId);
-
+    
+    // Create a unique channel name using both user IDs (ascending order for consistency)
+    const userIds = [currentUser.id, friendId].sort();
+    const channelName = `chat:${userIds[0]}:${userIds[1]}`;
+    
+    console.log('📡 Creating channel:', channelName);
+    
+    // Remove existing channels
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
-        window.chatChannel = null;
+        chatChannel = null;
     }
     if (statusChannel) {
         supabase.removeChannel(statusChannel);
-        window.statusChannel = null;
+        statusChannel = null;
     }
     if (typingChannel) {
         supabase.removeChannel(typingChannel);
+        typingChannel = null;
     }
-
-    // Main chat channel
-    chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
+    
+    // 🔥 KEY FIX: Realtime channel with proper filter on chat_id
+    chatChannel = supabase.channel(channelName)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
-            table: 'direct_messages'
+            table: 'direct_messages',
+            filter: `chat_id=eq.${friendId}`
         }, (payload) => {
             console.log('📨 Realtime INSERT detected:', payload.new);
             const newMsg = payload.new;
-            const isOurMessage = 
+            
+            // Verify this message belongs to our conversation
+            const isOurConversation = 
                 (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
-
-            if (isOurMessage) {
+            
+            if (isOurConversation) {
+                // Check if message already exists in UI
                 const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
                 if (!existingMessage) {
                     console.log('✅ Adding new message to UI (from realtime)');
+                    // Update currentMessages array
+                    if (!currentMessages.some(msg => msg.id === newMsg.id)) {
+                        currentMessages.push(newMsg);
+                        window.currentMessages = currentMessages;
+                    }
                     addMessageToUI(newMsg, true);
-                } else {
-                    console.log('🔄 Message already in UI, skipping:', newMsg.id);
                 }
             }
         })
-        .subscribe();
-
+        .subscribe((status) => {
+            console.log('📡 Channel status:', status);
+            if (status === 'CHANNEL_ERROR') {
+                console.error('❌ Channel error, attempting to reconnect...');
+                setTimeout(() => setupRealtime(friendId), 3000);
+            }
+        });
+    
     window.chatChannel = chatChannel;
-
+    
     // Status channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
@@ -639,38 +671,40 @@ function setupRealtime(friendId) {
         }, (payload) => {
             console.log('🔄 Friend status updated:', payload.new.status);
             if (payload.new.id === friendId) {
-                chatFriend.status = payload.new.status;
-                window.chatFriend = chatFriend;
-                updateFriendStatus(payload.new.status);
-
-                // 🔥 Update avatar if it changed (header only)
-                if (payload.new.avatar_url && payload.new.avatar_url !== chatFriend.avatar_url) {
-                    chatFriend.avatar_url = payload.new.avatar_url;
+                if (chatFriend) {
+                    chatFriend.status = payload.new.status;
                     window.chatFriend = chatFriend;
-                    
-                    // Update header avatar only
-                    const chatUserAvatar = document.getElementById('chatUserAvatar');
-                    if (chatUserAvatar) {
-                        chatUserAvatar.innerHTML = `<img src="${payload.new.avatar_url}" alt="${chatFriend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                    updateFriendStatus(payload.new.status);
+                }
+                
+                // Update avatar if changed
+                if (payload.new.avatar_url && chatFriend && payload.new.avatar_url !== chatFriend.avatar_url) {
+                    if (chatFriend) {
+                        chatFriend.avatar_url = payload.new.avatar_url;
+                        window.chatFriend = chatFriend;
+                        const chatUserAvatar = document.getElementById('chatUserAvatar');
+                        if (chatUserAvatar) {
+                            chatUserAvatar.innerHTML = `<img src="${payload.new.avatar_url}" alt="${chatFriend?.username || 'User'}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                        }
                     }
                 }
-
+                
                 if (payload.new.status === 'online') {
-                    showToast(`${chatFriend.username} is now online`, '🟢', 1500);
+                    showToast(`${chatFriend?.username || 'Friend'} is now online`, '🟢', 1500);
                 } else {
-                    showToast(`${chatFriend.username} is now offline`, '⚫', 1500);
+                    showToast(`${chatFriend?.username || 'Friend'} is now offline`, '⚫', 1500);
                 }
             }
         })
         .subscribe();
-
+    
     window.statusChannel = statusChannel;
-
-    console.log('✅ Realtime active');
+    
+    console.log('✅ Realtime active with filter on chat_id =', friendId);
 }
 
 // ====================
-// TYPING FUNCTIONS
+// TYPING FUNCTIONS - FIXED
 // ====================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
@@ -705,10 +739,13 @@ function handleTyping() {
 
 async function sendTypingStatus(isTyping) {
     if (!chatFriend || !currentUser) return;
-
+    
     try {
-        // Use broadcast for typing status (more efficient than database)
-        const channel = supabase.channel(`typing:${currentUser.id}:${chatFriend.id}`);
+        const userIds = [currentUser.id, chatFriend.id].sort();
+        const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
+        const channel = supabase.channel(typingChannelName);
+        
+        await channel.subscribe();
         
         await channel.send({
             type: 'broadcast',
@@ -719,47 +756,57 @@ async function sendTypingStatus(isTyping) {
                 username: currentUser.email?.split('@')[0] || 'Someone'
             }
         });
-
-        // Clean up channel after sending
+        
+        // Keep channel for a while for future typing events
         setTimeout(() => {
             supabase.removeChannel(channel);
-        }, 1000);
+        }, 5000);
     } catch (error) {
         console.log('Typing status error:', error);
     }
 }
 
-// Listen for friend's typing status
 function setupTypingReceiver(friendId) {
     if (typingChannel) {
         supabase.removeChannel(typingChannel);
+        typingChannel = null;
     }
-
-    typingChannel = supabase.channel(`typing:${friendId}:${currentUser.id}`)
+    
+    // Use a consistent channel naming for typing
+    const userIds = [currentUser.id, friendId].sort();
+    const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
+    
+    typingChannel = supabase.channel(typingChannelName)
         .on('broadcast', { event: 'typing' }, (payload) => {
-            console.log('✏️ Friend typing status:', payload);
+            console.log('✏️ Friend typing status:', payload.payload);
             
-            if (payload.payload.isTyping) {
-                showTypingIndicator(true);
-                
-                if (friendTypingTimeout) {
-                    clearTimeout(friendTypingTimeout);
-                }
-                
-                friendTypingTimeout = setTimeout(() => {
+            if (payload.payload && payload.payload.userId === friendId) {
+                if (payload.payload.isTyping) {
+                    const typingText = document.getElementById('typingText');
+                    if (typingText && chatFriend) {
+                        typingText.textContent = `${chatFriend.username} is typing...`;
+                    }
+                    showTypingIndicator(true);
+                    
+                    if (friendTypingTimeout) {
+                        clearTimeout(friendTypingTimeout);
+                    }
+                    
+                    friendTypingTimeout = setTimeout(() => {
+                        showTypingIndicator(false);
+                        friendTypingTimeout = null;
+                    }, 3000);
+                } else {
+                    if (friendTypingTimeout) {
+                        clearTimeout(friendTypingTimeout);
+                        friendTypingTimeout = null;
+                    }
                     showTypingIndicator(false);
-                    friendTypingTimeout = null;
-                }, 3000);
-            } else {
-                if (friendTypingTimeout) {
-                    clearTimeout(friendTypingTimeout);
-                    friendTypingTimeout = null;
                 }
-                showTypingIndicator(false);
             }
         })
         .subscribe();
-
+    
     window.typingChannel = typingChannel;
 }
 
