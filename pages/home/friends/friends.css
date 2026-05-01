@@ -1,4 +1,4 @@
-/* friends.css - ULTRA SIMPLE */
+/* friends.css - CALLS PAGE FOR VERCEL (FULLY OPTIMIZED) */
 
 * {
     margin: 0;
@@ -93,6 +93,7 @@ body {
     border-radius: 25px;
     font-size: 0.95rem;
     background: #f5f7fa;
+    transition: border-color 0.2s, background 0.2s;
 }
 
 .search-input:focus {
@@ -111,16 +112,18 @@ body {
     color: #999;
     cursor: pointer;
     padding: 5px;
+    display: none;
 }
 
-/* Friends List */
+/* Friends/Calls List */
 .friends-list {
     max-width: 600px;
     margin: 0 auto;
     padding: 20px;
+    padding-bottom: 80px;
 }
 
-/* Friend Item - ONLY THIS MATTERS */
+/* Contact Item */
 .friend-item {
     display: flex;
     align-items: center;
@@ -131,12 +134,13 @@ body {
     margin-bottom: 10px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     border: 1px solid #f0f0f0;
-    cursor: pointer;
     transition: all 0.1s;
+    will-change: transform;
 }
 
 .friend-item:active {
     background: #f5f7fa;
+    transform: scale(0.99);
 }
 
 .friend-avatar {
@@ -151,47 +155,95 @@ body {
     font-weight: 600;
     color: white;
     flex-shrink: 0;
+    position: relative;
+    will-change: transform;
+    contain: layout;
 }
 
-.friend-info {
+.friend-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.friend-info-clean {
     flex: 1;
     min-width: 0;
+    cursor: pointer;
 }
 
-.friend-name {
+.friend-name-status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.friend-name-clean {
     font-size: 1.1rem;
     font-weight: 600;
     color: #1e293b;
-    margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.friend-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.friend-status-clean {
     font-size: 0.85rem;
     color: #64748b;
 }
 
-.status-dot {
-    width: 8px;
-    height: 8px;
+.status-indicator-clean {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    display: inline-block;
+    border: 2px solid white;
+    transition: background 0.2s;
 }
 
-.status-online {
-    background: #22c55e;
+.status-indicator-clean.online {
+    background: #28a745 !important;
 }
 
-.status-offline {
-    background: #94a3b8;
+.status-indicator-clean.offline {
+    background: #888888 !important;
 }
 
-/* Empty State */
+/* Call Button */
+.call-btn {
+    background: #007acc;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: transform 0.2s, background 0.2s;
+    flex-shrink: 0;
+    will-change: transform;
+}
+
+.call-btn:hover {
+    background: #005a9e;
+    transform: scale(1.05);
+}
+
+.call-btn:active {
+    transform: scale(0.95);
+}
+
+.call-btn i {
+    font-size: 1rem;
+}
+
+/* Empty State - CALLS PAGE */
 .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -214,20 +266,6 @@ body {
     margin-bottom: 20px;
 }
 
-.add-friends-btn {
-    background: #007acc;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
 /* Bottom Nav */
 .bottom-nav {
     position: fixed;
@@ -241,6 +279,7 @@ body {
     padding: 10px 0;
     max-width: 600px;
     margin: 0 auto;
+    z-index: 100;
 }
 
 .nav-item {
@@ -251,6 +290,8 @@ body {
     color: #94a3b8;
     font-size: 0.8rem;
     gap: 4px;
+    transition: color 0.2s;
+    padding: 5px;
 }
 
 .nav-item i {
@@ -261,7 +302,11 @@ body {
     color: #007acc;
 }
 
-/* Modals */
+.nav-item:hover {
+    color: #007acc;
+}
+
+/* Modals - Keep but won't be used (add friends removed) */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -273,6 +318,8 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 16px;
+    backdrop-filter: blur(3px);
 }
 
 .modal-content {
@@ -282,6 +329,18 @@ body {
     max-width: 500px;
     max-height: 80vh;
     overflow-y: auto;
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .modal-header {
@@ -300,19 +359,30 @@ body {
     gap: 8px;
 }
 
+.modal-header h2 i {
+    color: #007acc;
+}
+
 .modal-close {
     background: none;
     border: none;
     font-size: 1.5rem;
     color: #64748b;
     cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.modal-close:hover {
+    background: #f1f5f9;
 }
 
 .modal-body {
     padding: 20px;
 }
 
-/* Search Results */
+/* Search Results - Keep but won't be used */
 .search-input-container {
     position: relative;
     margin-bottom: 20px;
@@ -332,6 +402,17 @@ body {
     border: 1px solid #ddd;
     border-radius: 25px;
     font-size: 0.95rem;
+    transition: border-color 0.2s;
+}
+
+.search-input-container input:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+.search-results {
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .search-result-item {
@@ -340,35 +421,62 @@ body {
     gap: 12px;
     padding: 12px;
     border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s;
+}
+
+.search-result-item:hover {
+    background: #f8fafc;
 }
 
 .search-result-avatar {
     width: 45px;
     height: 45px;
-    background: #e2e8f0;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    color: #475569;
+    color: white;
+    flex-shrink: 0;
+}
+
+.search-result-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.search-result-avatar span {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
 }
 
 .search-result-info {
     flex: 1;
+    min-width: 0;
 }
 
 .search-result-name {
     font-weight: 600;
     color: #1e293b;
     margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .search-result-username {
     font-size: 0.8rem;
     color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* Add friend button styles - kept but not used */
 .add-friend-btn {
     background: #007acc;
     color: white;
@@ -377,14 +485,299 @@ body {
     border-radius: 20px;
     font-size: 0.8rem;
     cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    flex-shrink: 0;
+}
+
+.add-friend-btn:hover {
+    background: #005a9e;
+}
+
+.add-friend-btn:active {
+    transform: scale(0.95);
 }
 
 .add-friend-btn.added {
     background: #e2e8f0;
     color: #64748b;
+    cursor: not-allowed;
 }
 
-/* Toast */
+.empty-search {
+    text-align: center;
+    padding: 30px;
+    color: #94a3b8;
+}
+
+.empty-search i {
+    font-size: 2rem;
+    color: #cbd5e1;
+    margin-bottom: 10px;
+}
+
+/* ========== CALL FUNCTIONALITY STYLES ========== */
+
+/* Incoming Call Notification (Top Banner) */
+.incoming-call-notification {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 16px;
+    z-index: 10000;
+    animation: slideDown 0.3s ease-out;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    will-change: transform;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.incoming-call-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.incoming-call-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #007acc, #00b4d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,122,204,0.3);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.incoming-call-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.incoming-call-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.incoming-call-name {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.incoming-call-status {
+    font-size: 14px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pulsing-dot {
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.incoming-call-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.incoming-call-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.incoming-call-btn.accept {
+    background: #22c55e;
+    color: white;
+    box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+}
+
+.incoming-call-btn.accept:hover {
+    background: #16a34a;
+    transform: scale(1.1);
+}
+
+.incoming-call-btn.decline {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+}
+
+.incoming-call-btn.decline:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+/* Incoming Call Modal (fallback) */
+.incoming-call {
+    text-align: center;
+    padding: 24px;
+}
+
+.incoming-call-header {
+    margin-bottom: 24px;
+}
+
+.incoming-call-header h2 {
+    margin: 12px 0 0;
+    color: #1e293b;
+    font-size: 1.5rem;
+}
+
+.incoming-call-header i {
+    font-size: 48px;
+    color: #007acc;
+    animation: ring 1s infinite;
+}
+
+.caller-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+}
+
+.caller-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 24px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.caller-avatar span {
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.caller-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.caller-details {
+    flex: 1;
+    text-align: left;
+}
+
+.caller-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.call-status {
+    color: #007acc;
+    font-size: 14px;
+}
+
+.call-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.call-action-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.call-action-btn.accept {
+    background: #22c55e;
+    color: white;
+}
+
+.call-action-btn.accept:hover {
+    background: #16a34a;
+}
+
+.call-action-btn.decline {
+    background: #ef4444;
+    color: white;
+}
+
+.call-action-btn.decline:hover {
+    background: #dc2626;
+}
+
+.call-action-btn i {
+    font-size: 1rem;
+}
+
+/* Toast Container and Toasts */
 .toast-container {
     position: fixed;
     top: 20px;
@@ -393,6 +786,7 @@ body {
     z-index: 9999;
     width: 90%;
     max-width: 400px;
+    pointer-events: none;
 }
 
 .toast {
@@ -405,50 +799,189 @@ body {
     gap: 12px;
     margin-bottom: 10px;
     border-left: 4px solid #007acc;
+    animation: slideInToast 0.3s ease;
+    pointer-events: auto;
 }
 
-/* Loading */
+@keyframes slideInToast {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.toast.success {
+    border-left-color: #22c55e;
+}
+
+.toast.error {
+    border-left-color: #ef4444;
+}
+
+.toast i {
+    font-size: 1.2rem;
+}
+
+.toast span {
+    flex: 1;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+/* Loading Indicator with animated messages */
 .loading-indicator {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: white;
+    background: linear-gradient(135deg, #f8fafc, #ffffff);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    transition: opacity 0.3s ease;
+}
+
+.loading-indicator.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #e2e8f0;
-    border-top: 3px solid #007acc;
+    width: 50px;
+    height: 50px;
+    border: 4px solid #e2e8f0;
+    border-top: 4px solid #007acc;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 
-/* Responsive */
+.loading-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.loading-subtext {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+/* Responsive Design */
 @media (max-width: 640px) {
     .friends-list {
         padding: 15px;
     }
-    
+
     .friend-avatar {
         width: 50px;
         height: 50px;
         font-size: 1.2rem;
     }
-    
-    .friend-name {
+
+    .friend-name-clean {
         font-size: 1rem;
+    }
+
+    .call-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .call-btn i {
+        font-size: 0.9rem;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+
+    .incoming-call-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    .incoming-call-name {
+        font-size: 16px;
+    }
+
+    .incoming-call-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+
+    .caller-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .caller-name {
+        font-size: 16px;
+    }
+
+    .call-action-btn {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .loading-text {
+        font-size: 1rem;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Touch Optimizations */
+@media (hover: none) {
+    .friend-item:active {
+        background: #f5f7fa;
+    }
+
+    .call-btn:active {
+        transform: scale(0.95);
+    }
+}
+
+/* Performance Optimizations */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .bottom-nav,
+    .search-container,
+    .header-actions,
+    .call-btn,
+    .modal-overlay,
+    .incoming-call-notification {
+        display: none !important;
+    }
+
+    .friend-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }
