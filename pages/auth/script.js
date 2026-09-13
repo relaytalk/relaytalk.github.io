@@ -1,4 +1,4 @@
-// auth/script.js - COMPLETE FIXED VERSION
+// auth/script.js - COMPLETE FIXED VERSION (Upsert profile, no duplicate error)
 
 // Modal functions
 function showTerms() {
@@ -83,16 +83,14 @@ function validateConfirmPassword(password, confirmPassword) {
     return true;
 }
 
-// LINE 156 FIXED - Supabase initialization
+// Supabase initialization
 async function initAuthSupabase() {
     console.log('🔄 Initializing Supabase for auth page...');
     
     try {
-        // Load from relative path
         const modulePath = '../../utils/supabase.js';
         await import(modulePath);
         
-        // Wait for window.supabase to be available
         let attempts = 0;
         while (!window.supabase && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -112,7 +110,7 @@ async function initAuthSupabase() {
     }
 }
 
-// Handle form submission - FIXED
+// Handle form submission - FIXED with upsert
 async function handleSignup(event) {
     event.preventDefault();
 
@@ -171,24 +169,33 @@ async function handleSignup(event) {
         console.log('✅ Auth created, user ID:', authData.user?.id);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // 2. Create profile
+        // 2. Create/update profile (tolerant of duplicate — SQL trigger may have already done it)
         const { error: profileError } = await window.supabase
             .from('profiles')
-            .insert({
+            .upsert({
                 id: authData.user.id,
                 username: username,
                 full_name: username,
                 avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
                 status: 'online',
                 created_at: new Date().toISOString()
-            });
+            }, { onConflict: 'id' });
 
         if (profileError) {
-            console.error('Profile error:', profileError);
-            throw profileError;
-        }
+            // If username is taken by someone else, show that error
+            if (profileError.message && profileError.message.includes('profiles_username_key')) {
+                console.error('Username taken:', profileError);
+                showError('usernameError', 'Username already taken');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
 
-        console.log('✅ Profile created for:', username);
+            // Otherwise log but don't block — profile likely already exists from trigger
+            console.warn('Profile upsert warning (non-fatal):', profileError.message);
+        } else {
+            console.log('✅ Profile created/updated for:', username);
+        }
 
         // 3. Auto-login
         const { data: signInData, error: signInError } = await window.supabase.auth.signInWithPassword({
@@ -206,16 +213,14 @@ async function handleSignup(event) {
 
     } catch (error) {
         console.error('Signup error:', error);
-        let errorMessage = 'Something went wrong. Please try again.';
         
         if (error.message.includes('already registered') || error.message.includes('already exists')) {
-            errorMessage = 'Username already taken. Please choose another.';
-            showError('usernameError', errorMessage);
+            showError('usernameError', 'Username already taken. Please choose another.');
         } else if (error.message.includes('password')) {
-            errorMessage = 'Password too weak. Try a stronger one.';
-            showError('passwordError', errorMessage);
+            showError('passwordError', 'Password too weak. Try a stronger one.');
         } else {
-            alert('Error: ' + error.message);
+            showError('usernameError', 'Something went wrong. Please try again.');
+            console.error('Signup error:', error);
         }
         
         submitBtn.textContent = originalText;
@@ -229,7 +234,7 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
     successContainer.style.display = 'block';
 
     const message = autoLoggedIn 
-        ? `Welcome to Luster, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
+        ? `Welcome to RelayTalk, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
         : `Account created, <strong style="color: white;">${username}</strong>!<br>Please log in with your credentials.`;
 
     successContainer.innerHTML = `
@@ -265,7 +270,7 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
 }
 
 async function initAuthPage() {
-    console.log('✨ Luster Create Account Page Initialized');
+    console.log('✨ RelayTalk Create Account Page Initialized');
     
     const connected = await initAuthSupabase();
     if (!connected) {
