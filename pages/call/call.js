@@ -1,4 +1,6 @@
-// /call/call.js - COMPLETE DEBUG VERSION
+// pages/call/call.js
+// Uses the new Mumbai project via ./utils/supabase.js
+// (which now re-exports the main app's Supabase client)
 
 import { initializeSupabase } from './utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from './utils/userSync.js'
@@ -14,6 +16,9 @@ let callTabClosed = false
 const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'
 const JAAS_DOMAIN = '8x8.vc'
 
+// ============================================================
+// INIT
+// ============================================================
 async function initCall() {
     console.log('📞 Initializing call...')
 
@@ -38,33 +43,31 @@ async function initCall() {
         const callerId = params.get('callerId')
         const callId = params.get('callId')
 
-        console.log('📞 Call params:', { 
-            friendId, 
-            friendName, 
-            incoming, 
-            roomName, 
-            callerId, 
+        console.log('📞 Call params:', {
+            friendId,
+            friendName,
+            incoming,
+            roomName,
+            callerId,
             callId,
             currentUserId: currentUser.id
         })
 
         if (incoming === 'true' && roomName && callerId && callId) {
-            // For incoming calls, first update the call status
             console.log('📞 Handling incoming call...')
             currentCall = { id: callId, room_name: roomName }
-            
-            // Update call status to active
+
             const { error } = await supabase
                 .from('calls')
                 .update({ status: 'active', answered_at: new Date().toISOString() })
                 .eq('id', callId)
-            
+
             if (error) {
                 console.log('❌ Error updating call status:', error)
             } else {
                 console.log('✅ Call status updated to active')
             }
-            
+
             await joinCall(roomName)
         } else if (friendId) {
             console.log('📞 Starting outgoing call to:', friendId, friendName)
@@ -79,6 +82,9 @@ async function initCall() {
     }
 }
 
+// ============================================================
+// ROOM CREATION
+// ============================================================
 async function createCallRoom() {
     try {
         const uniqueRoomName = `RelayTalk-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
@@ -98,6 +104,9 @@ async function createCallRoom() {
     }
 }
 
+// ============================================================
+// OUTGOING CALL
+// ============================================================
 async function startOutgoingCall(friendId, friendName) {
     try {
         document.getElementById('loadingText').textContent = `Calling ${friendName}...`
@@ -130,8 +139,8 @@ async function startOutgoingCall(friendId, friendName) {
 
         console.log('4️⃣ ✅ Call inserted successfully!')
         console.log('4️⃣ ✅ Call object:', call)
-        
-        // DEBUG: Verify the call was inserted correctly
+
+        // Verify call exists in DB
         console.log('🔍 Verifying call in database...')
         setTimeout(async () => {
             const { data: verifyCall, error: verifyError } = await supabase
@@ -139,7 +148,7 @@ async function startOutgoingCall(friendId, friendName) {
                 .select('*')
                 .eq('id', call.id)
                 .single()
-            
+
             if (verifyError) {
                 console.log('❌ Verification failed:', verifyError)
             } else {
@@ -150,8 +159,7 @@ async function startOutgoingCall(friendId, friendName) {
                     receiver: verifyCall.receiver_id,
                     created: verifyCall.created_at
                 })
-                
-                // Check if receiver matches
+
                 if (verifyCall.receiver_id === friendId) {
                     console.log('✅ Receiver ID matches:', friendId)
                 } else {
@@ -170,6 +178,9 @@ async function startOutgoingCall(friendId, friendName) {
     }
 }
 
+// ============================================================
+// LISTEN FOR CALL STATUS CHANGES
+// ============================================================
 function setupCallListener(callId) {
     console.log('5️⃣ Setting up call listener for ID:', callId)
 
@@ -196,6 +207,9 @@ function setupCallListener(callId) {
         })
 }
 
+// ============================================================
+// JOIN JITSI ROOM
+// ============================================================
 async function joinCall(roomName) {
     try {
         console.log('6️⃣ Joining Jitsi call room:', roomName)
@@ -214,7 +228,6 @@ async function joinCall(roomName) {
         iframe.style.border = 'none'
         iframe.style.background = '#000'
 
-        // Jitsi config
         const config = {
             configOverwrite: {
                 prejoinPageEnabled: false,
@@ -249,7 +262,7 @@ async function joinCall(roomName) {
         container.appendChild(iframe)
         jitsiIframe = iframe
 
-        // Listen for Jitsi events
+        // Jitsi hangup listener
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'video-conference-left') {
                 console.log('📞 User left conference')
@@ -257,7 +270,6 @@ async function joinCall(roomName) {
             }
         })
 
-        // Hide loading after delay
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none'
         }, 3000)
@@ -270,50 +282,49 @@ async function joinCall(roomName) {
     }
 }
 
-// End call and close tab
+// ============================================================
+// END CALL
+// ============================================================
 async function endCallAndClose() {
-    if (callTabClosed) return;
-    callTabClosed = true;
-    
+    if (callTabClosed) return
+    callTabClosed = true
+
     console.log('Ending call and closing tab...')
     if (currentCall) {
         const { error } = await supabase
             .from('calls')
             .update({ status: 'ended', ended_at: new Date().toISOString() })
             .eq('id', currentCall.id)
-        
+
         if (error) {
             console.log('❌ Error updating call status:', error)
         } else {
             console.log('✅ Call status updated to ended')
         }
     }
-    
+
     showCallEndedAndClose()
 }
 
-// Show ended screen then close
 function showCallEndedAndClose() {
-    // Hide all screens
     document.getElementById('loadingScreen').style.display = 'none'
     document.getElementById('errorScreen').style.display = 'none'
     document.getElementById('incomingCallScreen').style.display = 'none'
-    
-    // Show ended screen
+
     document.getElementById('callEndedScreen').style.display = 'flex'
-    
-    // Auto close after 3 seconds
+
     setTimeout(() => {
         console.log('🔚 Closing tab...')
         window.close()
-        // Fallback
         setTimeout(() => {
             window.location.href = '../home/'
         }, 100)
     }, 3000)
 }
 
-// Handle Jitsi's hangup button
+// ============================================================
+// CANCEL CALL
+// ============================================================
 window.endCall = endCallAndClose
 
 window.cancelCall = async function() {
@@ -327,6 +338,9 @@ window.cancelCall = async function() {
     window.close()
 }
 
+// ============================================================
+// ERROR HANDLING
+// ============================================================
 function showError(message) {
     console.log('❌ Error:', message)
     document.getElementById('loadingScreen').style.display = 'none'
@@ -334,6 +348,8 @@ function showError(message) {
     document.getElementById('errorMessage').textContent = message
 }
 
-// Initialize
+// ============================================================
+// START
+// ============================================================
 console.log('🚀 Call page starting...')
 initCall()
