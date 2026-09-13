@@ -1,50 +1,28 @@
-// call/utils/supabase.js - CallApp Supabase for RelayTalk
+// pages/call/utils/supabase.js
+// Now reuses the main app's Supabase client (new Mumbai project)
+// Old Call project (yrbkwfpksfvbesrjxwse) is no longer used.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const SUPABASE_URL = 'https://yrbkwfpksfvbesrjxwse.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
+import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js'
 
 let supabaseInstance = null
 
 export async function initializeSupabase() {
     if (supabaseInstance) {
-        console.log('✅ Using existing Supabase instance')
+        console.log('✅ Call page: using existing main Supabase instance')
         return supabaseInstance
     }
 
-    console.log('🔄 Initializing Call Supabase...')
+    console.log('📞 Call page: initializing main app Supabase (new Mumbai project)')
 
     try {
-        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: false, // Don't persist - we use main app's auth
-                autoRefreshToken: false
-            },
-            realtime: {
-                params: {
-                    eventsPerSecond: 10
-                }
-            }
-        })
-
-        // Test connection
-        const { error } = await supabaseInstance
-            .from('profiles')
-            .select('count', { count: 'exact', head: true })
-
-        if (error) {
-            console.warn('⚠️ Supabase connection warning:', error.message)
-        } else {
-            console.log('✅ Call Supabase connected')
-        }
-
+        supabaseInstance = await initMainSupabase()
+        console.log('✅ Call page: Supabase ready (new Mumbai project)')
         return supabaseInstance
-
     } catch (error) {
-        console.error('❌ Failed to initialize Supabase:', error)
+        console.error('❌ Call page: failed to initialize Supabase:', error)
         throw error
     }
 }
 
-export const supabase = supabaseInstance
+// Re-export so `import { supabase } from './supabase.js'` still works
+export { supabase } from '../../../utils/supabase.js'
