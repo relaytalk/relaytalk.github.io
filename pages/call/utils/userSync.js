@@ -1,21 +1,10 @@
-// call/utils/userSync.js - Get user from RelayTalk
+// pages/call/utils/userSync.js
+// Uses the NEW Mumbai project via the main app's Supabase client.
+// Old Japan project (blxtldgnssvasuinpyit) is no longer used.
 
-// Configuration for main RelayTalk Supabase
-const MAIN_SUPABASE_URL = 'https://blxtldgnssvasuinpyit.supabase.co'
-const MAIN_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw'
-
-let mainSupabase = null
-
-// Initialize main Supabase client
-async function getMainSupabase() {
-    if (mainSupabase) return mainSupabase
-
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-    mainSupabase = createClient(MAIN_SUPABASE_URL, MAIN_SUPABASE_ANON_KEY)
-    return mainSupabase
-}
-
-// Get user from main RelayTalk's localStorage
+// ============================================================
+// GET USER FROM MAIN APP'S LOCALSTORAGE
+// ============================================================
 export function getRelayTalkUser() {
     try {
         const possibleKeys = [
@@ -59,8 +48,8 @@ export function getRelayTalkUser() {
         return {
             id: user.id,
             email: user.email || '',
-            username: user.user_metadata?.username || 
-                     user.email?.split('@')[0] || 
+            username: user.user_metadata?.username ||
+                     user.email?.split('@')[0] ||
                      'User',
             avatar_url: user.user_metadata?.avatar_url || null
         }
@@ -71,10 +60,12 @@ export function getRelayTalkUser() {
     }
 }
 
-// Sync user to Call database
+// ============================================================
+// SYNC USER TO MAIN DB (new Mumbai project)
+// ============================================================
 export async function syncUserToDatabase(supabase, user) {
     try {
-        console.log('🔄 Syncing user to Call DB:', user.email)
+        console.log('🔄 Syncing user to main DB:', user.email)
 
         const { data: existing, error: checkError } = await supabase
             .from('profiles')
@@ -87,26 +78,25 @@ export async function syncUserToDatabase(supabase, user) {
         if (existing) {
             const { data: updated, error: updateError } = await supabase
                 .from('profiles')
-                .update({ 
+                .update({
                     status: 'online',
-                    last_seen: new Date().toISOString(),
-                    username: existing.username || user.username,
-                    email: user.email,
-                    avatar_url: user.avatar_url || existing.avatar_url
+                    last_seen: new Date().toISOString()
                 })
                 .eq('id', user.id)
                 .select()
                 .single()
 
             if (updateError) throw updateError
-            console.log('✅ User updated in Call DB')
+            console.log('✅ User status updated in main DB')
             return updated || existing
         }
 
+        // Profile missing — create it as a fallback
+        // (normally the main app's signup flow + SQL trigger create it)
         const newUser = {
             id: user.id,
             username: user.username,
-            email: user.email,
+            full_name: user.username,
             avatar_url: user.avatar_url,
             status: 'online',
             last_seen: new Date().toISOString(),
@@ -121,7 +111,7 @@ export async function syncUserToDatabase(supabase, user) {
 
         if (insertError) throw insertError
 
-        console.log('✅ User created in Call DB')
+        console.log('✅ User profile created in main DB')
         return created
 
     } catch (error) {
@@ -130,7 +120,9 @@ export async function syncUserToDatabase(supabase, user) {
     }
 }
 
-// Get caller info
+// ============================================================
+// GET CALLER INFO
+// ============================================================
 export async function getCallerInfo(supabase, callerId) {
     try {
         const { data } = await supabase
@@ -145,12 +137,14 @@ export async function getCallerInfo(supabase, callerId) {
     }
 }
 
-// Update user status
+// ============================================================
+// UPDATE USER STATUS
+// ============================================================
 export async function updateUserStatus(supabase, userId, status) {
     try {
         await supabase
             .from('profiles')
-            .update({ 
+            .update({
                 status: status,
                 last_seen: new Date().toISOString()
             })
