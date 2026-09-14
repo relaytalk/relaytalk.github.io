@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // 🔥 Load friend data WITH avatar_url
+        // Load friend data WITH avatar_url
         const { data: friend, error: friendError } = await supabase
             .from('profiles')
             .select('*')
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatFriend = friend;
         window.chatFriend = friend;
 
-        // 🔥 Update chat header WITH avatar (ONLY HERE - NOT IN MESSAGES)
+        // Update chat header WITH avatar
         const chatUserAvatar = document.getElementById('chatUserAvatar');
         const friendInitial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
 
@@ -215,7 +215,6 @@ function setupBackButtonPrevention() {
 // TYPING INDICATOR SETUP
 // ====================
 function setupTypingIndicator() {
-    // Add typing indicator element if it doesn't exist
     if (!document.getElementById('typingIndicator')) {
         const indicator = document.createElement('div');
         indicator.id = 'typingIndicator';
@@ -236,7 +235,6 @@ function setupTypingIndicator() {
         }
     }
 
-    // Add CSS for typing indicator if not present
     if (!document.querySelector('#typing-indicator-style')) {
         const style = document.createElement('style');
         style.id = 'typing-indicator-style';
@@ -342,7 +340,7 @@ async function sendMessage() {
         `;
         sendBtn.disabled = true;
 
-        // 🔥 FIX: Set chat_id to receiver_id (the friend's ID)
+        // chat_id = friend's ID (used for realtime filter)
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
@@ -366,8 +364,8 @@ async function sendMessage() {
         if (error) throw error;
 
         console.log('✅ Message sent:', data.id);
-        
-        // Add to UI immediately for better UX
+
+        // Add to UI immediately
         if (data) {
             if (!currentMessages.some(msg => msg.id === data.id)) {
                 currentMessages.push(data);
@@ -375,7 +373,7 @@ async function sendMessage() {
             }
             addMessageToUI(data, false);
         }
-        
+
         playSentSound();
         input.value = '';
         autoResize(input);
@@ -441,7 +439,6 @@ async function loadOldMessages(friendId) {
     }
 }
 
-// 🔥 RESTORED: Original showMessages WITHOUT message avatars
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -478,7 +475,6 @@ function showMessages(messages) {
         const color = msg.color || null;
         const colorAttr = color ? `data-color="${color}"` : '';
 
-        // 🔥 ORIGINAL: No avatars in messages
         if (msg.image_url) {
             if (typeof window.createImageMessageHTML === 'function') {
                 html += window.createImageMessageHTML(msg, isSent, colorAttr, time);
@@ -503,7 +499,6 @@ function showMessages(messages) {
     html += `<div class="typing-indicator-placeholder"></div>`;
     container.innerHTML = html;
 
-    // Add typing indicator back
     setupTypingIndicator();
 
     setTimeout(() => {
@@ -511,7 +506,6 @@ function showMessages(messages) {
     }, 50);
 }
 
-// 🔥 RESTORED: Original addMessageToUI WITHOUT message avatars
 function addMessageToUI(message, isFromRealtime = false) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
@@ -559,7 +553,6 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     container.insertAdjacentHTML('beforeend', messageHTML);
 
-    // Add typing indicator back
     setupTypingIndicator();
 
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
@@ -595,19 +588,17 @@ function addMessageToUI(message, isFromRealtime = false) {
 }
 
 // ====================
-// REALTIME FUNCTIONS - FIXED
+// REALTIME FUNCTIONS - FIXED (no filter, client-side check)
 // ====================
 
 function setupRealtime(friendId) {
     console.log('🔧 Setting up realtime for friend:', friendId);
-    
-    // Create a unique channel name using both user IDs (ascending order for consistency)
+
     const userIds = [currentUser.id, friendId].sort();
     const channelName = `chat:${userIds[0]}:${userIds[1]}`;
-    
+
     console.log('📡 Creating channel:', channelName);
-    
-    // Remove existing channels
+
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
         chatChannel = null;
@@ -620,36 +611,39 @@ function setupRealtime(friendId) {
         supabase.removeChannel(typingChannel);
         typingChannel = null;
     }
-    
-    // 🔥 KEY FIX: Realtime channel with proper filter on chat_id
+
+    // 🔥 KEY FIX: No filter on `chat_id`. Receive every INSERT into
+    // direct_messages, then filter client-side. This catches BOTH
+    // directions reliably — the old chat_id filter only matched one way.
     chatChannel = supabase.channel(channelName)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
-            table: 'direct_messages',
-            filter: `chat_id=eq.${friendId}`
+            table: 'direct_messages'
         }, (payload) => {
-            console.log('📨 Realtime INSERT detected:', payload.new);
             const newMsg = payload.new;
-            
-            // Verify this message belongs to our conversation
-            const isOurConversation = 
+            console.log('📨 Realtime INSERT detected:', newMsg);
+
+            // Only handle messages in THIS conversation
+            const isOurConversation =
                 (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
-            
-            if (isOurConversation) {
-                // Check if message already exists in UI
-                const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
-                if (!existingMessage) {
-                    console.log('✅ Adding new message to UI (from realtime)');
-                    // Update currentMessages array
-                    if (!currentMessages.some(msg => msg.id === newMsg.id)) {
-                        currentMessages.push(newMsg);
-                        window.currentMessages = currentMessages;
-                    }
-                    addMessageToUI(newMsg, true);
-                }
+
+            if (!isOurConversation) {
+                return;
             }
+
+            // Skip if already rendered
+            if (document.querySelector(`[data-message-id="${newMsg.id}"]`)) {
+                return;
+            }
+
+            console.log('✅ Adding new message to UI (from realtime)');
+            if (!currentMessages.some(msg => msg.id === newMsg.id)) {
+                currentMessages.push(newMsg);
+                window.currentMessages = currentMessages;
+            }
+            addMessageToUI(newMsg, true);
         })
         .subscribe((status) => {
             console.log('📡 Channel status:', status);
@@ -658,10 +652,10 @@ function setupRealtime(friendId) {
                 setTimeout(() => setupRealtime(friendId), 3000);
             }
         });
-    
+
     window.chatChannel = chatChannel;
-    
-    // Status channel
+
+    // Status channel — unchanged
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -676,8 +670,7 @@ function setupRealtime(friendId) {
                     window.chatFriend = chatFriend;
                     updateFriendStatus(payload.new.status);
                 }
-                
-                // Update avatar if changed
+
                 if (payload.new.avatar_url && chatFriend && payload.new.avatar_url !== chatFriend.avatar_url) {
                     if (chatFriend) {
                         chatFriend.avatar_url = payload.new.avatar_url;
@@ -688,7 +681,7 @@ function setupRealtime(friendId) {
                         }
                     }
                 }
-                
+
                 if (payload.new.status === 'online') {
                     showToast(`${chatFriend?.username || 'Friend'} is now online`, '🟢', 1500);
                 } else {
@@ -697,14 +690,14 @@ function setupRealtime(friendId) {
             }
         })
         .subscribe();
-    
+
     window.statusChannel = statusChannel;
-    
-    console.log('✅ Realtime active with filter on chat_id =', friendId);
+
+    console.log('✅ Realtime active (no filter, client-side conversation check)');
 }
 
 // ====================
-// TYPING FUNCTIONS - FIXED
+// TYPING FUNCTIONS
 // ====================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
@@ -739,25 +732,24 @@ function handleTyping() {
 
 async function sendTypingStatus(isTyping) {
     if (!chatFriend || !currentUser) return;
-    
+
     try {
         const userIds = [currentUser.id, chatFriend.id].sort();
         const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
         const channel = supabase.channel(typingChannelName);
-        
+
         await channel.subscribe();
-        
+
         await channel.send({
             type: 'broadcast',
             event: 'typing',
-            payload: { 
-                userId: currentUser.id, 
+            payload: {
+                userId: currentUser.id,
                 isTyping: isTyping,
                 username: currentUser.email?.split('@')[0] || 'Someone'
             }
         });
-        
-        // Keep channel for a while for future typing events
+
         setTimeout(() => {
             supabase.removeChannel(channel);
         }, 5000);
@@ -771,15 +763,14 @@ function setupTypingReceiver(friendId) {
         supabase.removeChannel(typingChannel);
         typingChannel = null;
     }
-    
-    // Use a consistent channel naming for typing
+
     const userIds = [currentUser.id, friendId].sort();
     const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
-    
+
     typingChannel = supabase.channel(typingChannelName)
         .on('broadcast', { event: 'typing' }, (payload) => {
             console.log('✏️ Friend typing status:', payload.payload);
-            
+
             if (payload.payload && payload.payload.userId === friendId) {
                 if (payload.payload.isTyping) {
                     const typingText = document.getElementById('typingText');
@@ -787,11 +778,11 @@ function setupTypingReceiver(friendId) {
                         typingText.textContent = `${chatFriend.username} is typing...`;
                     }
                     showTypingIndicator(true);
-                    
+
                     if (friendTypingTimeout) {
                         clearTimeout(friendTypingTimeout);
                     }
-                    
+
                     friendTypingTimeout = setTimeout(() => {
                         showTypingIndicator(false);
                         friendTypingTimeout = null;
@@ -806,7 +797,7 @@ function setupTypingReceiver(friendId) {
             }
         })
         .subscribe();
-    
+
     window.typingChannel = typingChannel;
 }
 
@@ -887,8 +878,6 @@ function goBack() {
 // ====================
 // USER INFO MODAL
 // ====================
-
-// 🔥 User info modal WITH avatar
 function showUserInfo() {
     if (!chatFriend) {
         showToast('User information not available', '⚠️', 1500);
@@ -902,7 +891,7 @@ function showUserInfo() {
 
     content.innerHTML = `
         <div class="user-info-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative; overflow: hidden;">
-            ${chatFriend.avatar_url 
+            ${chatFriend.avatar_url
                 ? `<img src="${chatFriend.avatar_url}" alt="${chatFriend.username}" style="width:100%; height:100%; object-fit:cover;">`
                 : `<span style="color:white; font-size: 2rem; font-weight: 600;">${initial}</span>`
             }
