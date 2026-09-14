@@ -2,22 +2,12 @@
 // Universal incoming-call listener + outgoing-call launcher.
 // Import once per page with:
 //   <script type="module" src="/utils/callHub.js"></script>
-//
-// Provides:
-//   window.startCall(friendId, friendName)  -> opens call-app in new tab
-//   window.callHubReady                    -> true once initialized
 
 import { initializeSupabase } from './supabase.js'
 
-// ============================================================
-// CONFIG
-// ============================================================
 const CALL_APP_PATH = '/pages/call-app/call/index.html'
 const MISSED_CALL_POLL_MS = 15000
 
-// ============================================================
-// STATE
-// ============================================================
 let supabase = null
 let currentUser = null
 let callChannel = null
@@ -39,7 +29,6 @@ async function initCallHub() {
     console.log('📞 [callHub] Initializing...')
 
     try {
-        // Wait for main supabase client
         supabase = await initializeSupabase()
 
         if (!supabase || !supabase.auth) {
@@ -63,14 +52,13 @@ async function initCallHub() {
         startMissedCallPolling()
 
         window.callHubReady = true
-
     } catch (error) {
         console.error('📞 [callHub] Init error:', error)
     }
 }
 
 // ============================================================
-// RINGTONE — Web Audio (no external file needed)
+// RINGTONE
 // ============================================================
 function setupRingtone() {
     try {
@@ -88,7 +76,7 @@ function setupRingtone() {
                     const osc = ctx.createOscillator()
                     const gain = ctx.createGain()
                     osc.type = 'sine'
-                    osc.frequency.value = 587.33  // D5
+                    osc.frequency.value = 587.33
                     gain.gain.setValueAtTime(0.0001, ctx.currentTime)
                     gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.05)
                     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4)
@@ -144,7 +132,7 @@ function setupCallChannel() {
                 filter: `callee_id=eq.${currentUser.id}`
             },
             (payload) => {
-                console.log('📞 [callHub] New call:', payload.new)
+                console.log('📞 [callHub] New call INSERT:', payload.new)
                 if (payload.new.status === 'ringing') {
                     handleIncomingCall(payload.new)
                 }
@@ -171,7 +159,6 @@ function setupCallChannel() {
         )
         .subscribe((status) => {
             console.log('📞 [callHub] Channel status:', status)
-
             if (status === 'SUBSCRIBED') {
                 reconnectAttempts = 0
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -180,8 +167,6 @@ function setupCallChannel() {
                     const delay = Math.min(2000 * reconnectAttempts, 15000)
                     console.log(`📞 [callHub] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`)
                     setTimeout(setupCallChannel, delay)
-                } else {
-                    console.error('📞 [callHub] Max reconnect attempts reached')
                 }
             }
         })
@@ -195,15 +180,10 @@ async function handleIncomingCall(callRow) {
     if (callRow.callee_id !== currentUser.id) return
     if (callRow.status !== 'ringing') return
 
-    // Don't show banner on the call-app page itself
-    if (window.location.pathname.includes('/call-app/call/')) {
-        return
-    }
+    if (window.location.pathname.includes('/call-app/call/')) return
 
-    // Don't show if banner already showing for same call
     if (bannerVisible && incomingCallData?.callId === callRow.id) return
 
-    // Fetch caller profile
     const caller = await getCallerProfile(callRow.caller_id)
 
     incomingCallData = {
@@ -217,10 +197,11 @@ async function handleIncomingCall(callRow) {
     showBanner(incomingCallData)
     playRingtone()
 
-    // Auto-miss after 30s
     incomingCallTimeout = setTimeout(() => {
         console.log('📞 [callHub] Call timed out')
-        markAsMissed(incomingCallData.callId)
+        if (incomingCallData?.callId) {
+            markAsMissed(incomingCallData.callId)
+        }
         dismissBanner()
     }, 30000)
 }
@@ -263,13 +244,13 @@ function showBanner(call) {
             </div>
         </div>
         <div class="callHub-actions">
-            <button class="callHub-btn callHub-decline" id="callHubDecline" aria-label="Decline">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="white">
+            <button type="button" class="callHub-btn callHub-decline" data-action="decline" aria-label="Decline">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
                 </svg>
             </button>
-            <button class="callHub-btn callHub-accept" id="callHubAccept" aria-label="Accept">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="white">
+            <button type="button" class="callHub-btn callHub-accept" data-action="accept" aria-label="Accept">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                 </svg>
             </button>
@@ -279,8 +260,28 @@ function showBanner(call) {
     document.body.appendChild(banner)
     injectBannerStyles()
 
-    document.getElementById('callHubDecline').onclick = () => rejectIncoming()
-    document.getElementById('callHubAccept').onclick = () => acceptIncoming()
+    // Attach handlers via event delegation on the banner itself —
+    // avoids "element not found" issues and works with touch + click.
+    const btnContainer = banner.querySelector('.callHub-actions')
+
+    const onPress = (e) => {
+        const target = e.target.closest('button[data-action]')
+        if (!target) return
+        e.preventDefault()
+        e.stopPropagation()
+
+        const action = target.getAttribute('data-action')
+        console.log('📞 [callHub] Button pressed:', action)
+
+        if (action === 'accept') {
+            acceptIncoming()
+        } else if (action === 'decline') {
+            rejectIncoming()
+        }
+    }
+
+    btnContainer.addEventListener('click', onPress)
+    btnContainer.addEventListener('touchend', onPress, { passive: false })
 }
 
 function dismissBanner() {
@@ -303,13 +304,17 @@ function dismissBanner() {
 // ACCEPT / REJECT
 // ============================================================
 async function acceptIncoming() {
-    if (!incomingCallData) return
+    console.log('📞 [callHub] acceptIncoming called. incomingCallData =', incomingCallData)
+
+    if (!incomingCallData) {
+        console.warn('📞 [callHub] No incoming call data — ignoring accept')
+        return
+    }
 
     const data = incomingCallData
     dismissBanner()
 
     try {
-        // Mark active
         await supabase
             .from('calls')
             .update({
@@ -317,6 +322,7 @@ async function acceptIncoming() {
                 answered_at: new Date().toISOString()
             })
             .eq('id', data.callId)
+        console.log('📞 [callHub] Marked call active')
     } catch (e) {
         console.warn('📞 [callHub] Failed to mark active:', e)
     }
@@ -327,7 +333,12 @@ async function acceptIncoming() {
 }
 
 async function rejectIncoming() {
-    if (!incomingCallData) return
+    console.log('📞 [callHub] rejectIncoming called. incomingCallData =', incomingCallData)
+
+    if (!incomingCallData) {
+        console.warn('📞 [callHub] No incoming call data — ignoring reject')
+        return
+    }
 
     const data = incomingCallData
     dismissBanner()
@@ -341,6 +352,7 @@ async function rejectIncoming() {
                 seen: true
             })
             .eq('id', data.callId)
+        console.log('📞 [callHub] Marked call rejected')
     } catch (e) {
         console.warn('📞 [callHub] Failed to mark rejected:', e)
     }
@@ -360,7 +372,7 @@ async function markAsMissed(callId) {
 }
 
 // ============================================================
-// OUTGOING CALL — available on every page
+// OUTGOING CALL
 // ============================================================
 window.startCall = function (friendId, friendName) {
     if (!friendId) return
@@ -369,18 +381,16 @@ window.startCall = function (friendId, friendName) {
 
     const url = `${CALL_APP_PATH}?friendId=${friendId}&friendName=${encodeURIComponent(friendName || '')}`
 
-    // Prefer popup so user stays on the current page
     const popup = window.open(url, '_blank', 'width=500,height=700')
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        // Popup blocked — fallback to same-tab navigation
         console.warn('📞 [callHub] Popup blocked, navigating in same tab')
         window.location.href = url
     }
 }
 
 // ============================================================
-// MISSED CALL BADGE (optional, for pages with a badge element)
+// MISSED CALLS
 // ============================================================
 async function checkMissedCalls() {
     if (!supabase || !currentUser) return
@@ -401,9 +411,7 @@ async function checkMissedCalls() {
                 badge.style.display = 'none'
             }
         }
-    } catch (e) {
-        // ignore
-    }
+    } catch (e) {}
 }
 
 function startMissedCallPolling() {
@@ -439,13 +447,15 @@ function injectBannerStyles() {
             border-radius: 18px;
             padding: 14px 16px;
             box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-            z-index: 99998;
+            z-index: 2147483647 !important;
             display: flex;
             align-items: center;
             gap: 12px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: opacity 0.18s ease, transform 0.18s ease;
             animation: callHubSlideDown 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+            pointer-events: auto !important;
+            user-select: none;
         }
 
         @keyframes callHubSlideDown {
@@ -516,6 +526,9 @@ function injectBannerStyles() {
             display: flex;
             gap: 8px;
             flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+            pointer-events: auto !important;
         }
 
         .callHub-btn {
@@ -529,6 +542,11 @@ function injectBannerStyles() {
             cursor: pointer;
             transition: transform 0.15s ease, background 0.2s ease;
             box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            pointer-events: auto !important;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            z-index: 10;
         }
 
         .callHub-btn:hover { transform: scale(1.06); }
@@ -545,6 +563,11 @@ function injectBannerStyles() {
             0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
             70%  { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
             100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+
+        /* SVG inside buttons should never intercept clicks */
+        .callHub-btn svg {
+            pointer-events: none !important;
         }
     `
     document.head.appendChild(style)
@@ -564,7 +587,7 @@ window.addEventListener('beforeunload', () => {
 })
 
 // ============================================================
-// AUTO-START when DOM is ready
+// AUTO-START
 // ============================================================
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCallHub)
