@@ -1,37 +1,20 @@
-// pages/call-app/utils/supabase.js - NEW MUMBAI PROJECT
-import { createClient } from './supabase-local.js'
+// pages/call-app/utils/supabase.js
+// Reuses the MAIN app's authenticated Supabase client.
+// This ensures the call page writes to the same DB with the
+// same auth session (so anything still using RLS keeps working).
 
-// ✅ Direct connection to new Mumbai project
-const SUPABASE_URL = 'https://kponqaktavkrchebmiwr.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtwb25xYWt0YXZrcmNoZWJtaXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyOTUzMTMsImV4cCI6MjEwNDg3MTMxM30.nkoiFez4G3-CzKvatQ9xZL4FpnZa9Qixcr64Sh8ytDE'
+import { initializeSupabase as initMainSupabase, supabase as mainSupabase } from '../../../utils/supabase.js'
 
 let supabaseInstance = null
 
 export async function initializeSupabase() {
     if (supabaseInstance) return supabaseInstance
 
-    console.log('🔄 Initializing CallApp Supabase (new Mumbai project)...')
+    console.log('🔄 CallApp: reusing main authenticated Supabase client...')
 
     try {
-        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-                detectSessionInUrl: false
-            }
-        })
-
-        // Test connection
-        const { error } = await supabaseInstance
-            .from('profiles')
-            .select('count', { count: 'exact', head: true })
-
-        if (error) {
-            console.warn('⚠️ Supabase connection warning:', error)
-        } else {
-            console.log('✅ CallApp Supabase connected (new Mumbai project)')
-        }
-
+        supabaseInstance = await initMainSupabase()
+        console.log('✅ CallApp Supabase ready (authenticated, new Mumbai)')
         return supabaseInstance
     } catch (error) {
         console.error('❌ Failed to initialize CallApp Supabase:', error)
@@ -40,5 +23,5 @@ export async function initializeSupabase() {
 }
 
 export function getSupabase() {
-    return supabaseInstance
+    return supabaseInstance || mainSupabase
 }
