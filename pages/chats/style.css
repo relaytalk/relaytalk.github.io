@@ -131,7 +131,7 @@ textarea,
 }
 
 /* ==================== */
-/* CHAT HEADER - FIXED WITH HORIZONTAL SCROLL */
+/* CHAT HEADER */
 /* ==================== */
 
 .chat-header {
@@ -182,7 +182,7 @@ textarea,
     align-items: center;
     gap: 12px;
     flex: 1;
-    min-width: 0; /* Important for text overflow */
+    min-width: 0;
     overflow: hidden;
 }
 
@@ -210,7 +210,7 @@ textarea,
 }
 
 .chat-user-details {
-    min-width: 0; /* Important for text overflow */
+    min-width: 0;
     overflow: hidden;
     flex: 1;
 }
@@ -269,15 +269,16 @@ textarea,
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    align-items: center;
 }
 
 /* ==================== */
-/* NOTIFICATION BUTTON */
+/* CALL BUTTON (same style as friends page) */
 /* ==================== */
-.notification-toggle-btn {
-    background: #ffffff !important;
-    border: 1px solid var(--border-light) !important;
-    color: var(--primary-color) !important;
+.call-btn {
+    background: #007acc !important;
+    color: white !important;
+    border: none !important;
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
@@ -286,110 +287,37 @@ textarea,
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    position: relative !important;
-    box-shadow: var(--shadow-sm) !important;
-    animation: fadeIn 0.3s ease !important;
-    touch-action: manipulation !important;
-    pointer-events: auto !important;
-    z-index: 1000 !important;
+    transition: transform 0.2s, background 0.2s;
     flex-shrink: 0;
+    will-change: transform;
+    box-shadow: var(--shadow-sm);
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
 }
 
-.notification-toggle-btn:hover {
-    background: #ffffff !important;
-    transform: scale(1.05) !important;
-    box-shadow: var(--shadow-md) !important;
+.call-btn:hover {
+    background: #005a9e !important;
+    transform: scale(1.05);
 }
 
-.notification-toggle-btn i {
-    font-size: 1.2rem !important;
+.call-btn:active {
+    transform: scale(0.95);
 }
 
-.notification-toggle-btn.has-permission {
-    background: #28a745 !important;
-    border-color: #28a745 !important;
-    color: white !important;
+.call-btn i {
+    font-size: 1.05rem;
+    color: white;
 }
 
-.notification-toggle-btn.has-permission i {
-    color: white !important;
-}
-
-.notification-toggle-btn.denied {
-    background: rgba(220, 53, 69, 0.1) !important;
-    border-color: rgba(220, 53, 69, 0.3) !important;
-    color: #dc3545 !important;
-}
-
-.notification-badge-small {
-    position: absolute !important;
-    top: -2px !important;
-    right: -2px !important;
-    background: #dc3545 !important;
-    color: white !important;
-    font-size: 0.7rem !important;
-    min-width: 18px !important;
-    height: 18px !important;
-    border-radius: 10px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 4px !important;
-    border: 2px solid white !important;
-    font-weight: bold !important;
-    animation: pulse 2s infinite !important;
-}
-
-.notification-tooltip {
-    position: absolute !important;
-    top: 60px !important;
-    right: 80px !important;
-    background: #ffffff !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    border: 1px solid var(--border-light) !important;
-    border-radius: 12px !important;
-    padding: 12px 16px !important;
-    min-width: 220px !important;
-    max-width: 280px !important;
-    box-shadow: var(--shadow-md) !important;
-    z-index: 2000 !important;
-    animation: slideDown 0.2s ease !important;
-    color: var(--text-primary) !important;
-    font-size: 0.9rem !important;
-}
-
-.notification-tooltip::before {
-    content: '' !important;
-    position: absolute !important;
-    top: -6px !important;
-    right: 15px !important;
-    width: 12px !important;
-    height: 12px !important;
-    background: #ffffff !important;
-    border-left: 1px solid var(--border-light) !important;
-    border-top: 1px solid var(--border-light) !important;
-    transform: rotate(45deg) !important;
-}
-
-.notification-tooltip p {
-    margin: 5px 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-
-.notification-tooltip i {
-    width: 20px !important;
-    color: var(--primary-color) !important;
-}
-
-/* ==================== */
-/* SETTINGS BUTTON - REMOVED COMPLETELY */
-/* ==================== */
-.chat-action-btn {
-    display: none !important;
+@media (max-width: 768px) {
+    .call-btn {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+    }
+    .call-btn i {
+        font-size: 1rem;
+    }
 }
 
 /* ==================== */
@@ -1567,7 +1495,7 @@ textarea,
         min-width: 40px !important;
     }
     
-    .notification-toggle-btn {
+    .call-btn {
         width: 40px !important;
         height: 40px !important;
         min-width: 40px !important;
