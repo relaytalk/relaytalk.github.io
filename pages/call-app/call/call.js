@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - Return-to-previous-page version
+// /pages/call-app/call/call.js - NEW MUMBAI PROJECT (return-to-page)
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
@@ -17,15 +17,16 @@ const CALL_TABS_KEY = 'call_app_active_tabs'
 const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'
 const JAAS_DOMAIN = '8x8.vc'
 
-// 🔥 Where to send the user after a call ends.
-// Priority: (1) returnTo param, (2) sessionStorage, (3) friends page fallback.
+const DEFAULT_RETURN = '/pages/home/friends/index.html'
+
+// ============================================================
+// RETURN URL RESOLUTION
+// ============================================================
 function getReturnUrl() {
     try {
         const params = new URLSearchParams(window.location.search)
         const fromQuery = params.get('returnTo')
-
         if (fromQuery) {
-            // decodeURIComponent was already applied by URLSearchParams
             console.log('📞 [call] Return URL from query:', fromQuery)
             return fromQuery
         }
@@ -39,10 +40,13 @@ function getReturnUrl() {
         console.warn('📞 [call] Could not resolve return URL:', e)
     }
 
-    console.log('📞 [call] Return URL fallback: /pages/home/friends/index.html')
-    return '/pages/home/friends/index.html'
+    console.log('📞 [call] Return URL fallback:', DEFAULT_RETURN)
+    return DEFAULT_RETURN
 }
 
+// ============================================================
+// TAB MANAGEMENT
+// ============================================================
 function registerTab() {
     try {
         const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}')
@@ -77,14 +81,14 @@ function unregisterTab() {
     }
 }
 
+// ============================================================
+// INIT
+// ============================================================
 async function initCall() {
     console.log('📞 Initializing call...')
 
-    // 🔥 Snapshot the return URL immediately — this is what we'll use everywhere
     const returnUrl = getReturnUrl()
     console.log('📞 [call] Using return URL:', returnUrl)
-
-    // Make it globally available to all handlers
     window.__callReturnUrl = returnUrl
 
     if (!registerTab()) return
@@ -121,7 +125,6 @@ async function initCall() {
         } else {
             showError('No call information provided')
         }
-
     } catch (error) {
         console.error('❌ Init error:', error)
         showError('Failed to initialize call')
@@ -142,10 +145,13 @@ function handleStorageEvent(e) {
     }
 }
 
-function handleBeforeUnload(event) {
+function handleBeforeUnload() {
     unregisterTab()
 }
 
+// ============================================================
+// ROOM CREATION
+// ============================================================
 async function createCallRoom() {
     try {
         const uniqueRoomName = `CallApp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
@@ -164,6 +170,9 @@ async function createCallRoom() {
     }
 }
 
+// ============================================================
+// OUTGOING CALL
+// ============================================================
 async function startOutgoingCall(friendId, friendName) {
     try {
         document.getElementById('loadingText').textContent = `Calling ${friendName}...`
@@ -207,6 +216,9 @@ async function startOutgoingCall(friendId, friendName) {
     }
 }
 
+// ============================================================
+// INCOMING CALL
+// ============================================================
 async function handleIncomingCall(roomName, callerId, callId) {
     try {
         console.log('📞 Handling incoming call:', { roomName, callerId, callId })
@@ -226,6 +238,9 @@ async function handleIncomingCall(roomName, callerId, callId) {
     }
 }
 
+// ============================================================
+// CALL STATUS LISTENER
+// ============================================================
 function setupCallListener(callId) {
     console.log('5️⃣ Setting up call listener for ID:', callId)
 
@@ -241,9 +256,7 @@ function setupCallListener(callId) {
 
             if (payload.new.status === 'active') {
                 const loadingText = document.getElementById('loadingText')
-                if (loadingText) {
-                    loadingText.textContent = 'Connecting...'
-                }
+                if (loadingText) loadingText.textContent = 'Connecting...'
                 joinCall(payload.new.room_name)
             } else if (payload.new.status === 'rejected') {
                 showCallEnded('Call was rejected')
@@ -258,6 +271,9 @@ function setupCallListener(callId) {
         })
 }
 
+// ============================================================
+// JOIN JITSI
+// ============================================================
 async function joinCall(roomName) {
     try {
         console.log('6️⃣ Joining Jitsi call room:', roomName)
@@ -375,6 +391,9 @@ async function joinCall(roomName) {
     }
 }
 
+// ============================================================
+// HANG UP BUTTON
+// ============================================================
 function addHangButton() {
     const existingBtn = document.getElementById('hangUpBtn')
     if (existingBtn) existingBtn.remove()
@@ -429,6 +448,9 @@ window.endCall = async function(silent = false) {
     window.location.href = returnUrl
 }
 
+// ============================================================
+// CONTROLS
+// ============================================================
 window.toggleVideo = function() {
     const btn = document.getElementById('videoBtn')
     isVideoOn = !isVideoOn
@@ -445,10 +467,7 @@ window.toggleVideo = function() {
 
     if (jitsiIframe) {
         try {
-            jitsiIframe.contentWindow.postMessage({
-                type: 'setVideoMuted',
-                muted: !isVideoOn
-            }, '*')
+            jitsiIframe.contentWindow.postMessage({ type: 'setVideoMuted', muted: !isVideoOn }, '*')
         } catch(e) {}
     }
 }
@@ -462,10 +481,7 @@ window.toggleMute = function() {
 
     if (jitsiIframe) {
         try {
-            jitsiIframe.contentWindow.postMessage({
-                type: 'muteAudio',
-                muted: btn.classList.contains('muted')
-            }, '*')
+            jitsiIframe.contentWindow.postMessage({ type: 'muteAudio', muted: btn.classList.contains('muted') }, '*')
         } catch(e) {}
     }
 }
@@ -496,6 +512,9 @@ window.cancelCall = async function() {
 window.acceptCall = function() {}
 window.declineCall = function() {}
 
+// ============================================================
+// ENDED / ERROR
+// ============================================================
 function showCallEnded(message) {
     document.getElementById('loadingScreen').style.display = 'flex'
     document.getElementById('loadingText').textContent = message
