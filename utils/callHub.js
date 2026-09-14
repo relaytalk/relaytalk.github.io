@@ -1,12 +1,14 @@
 // utils/callHub.js
 // Universal incoming-call listener + outgoing-call launcher.
-// Import once per page with:
-//   <script type="module" src="/utils/callHub.js"></script>
+// Provides:
+//   window.startCall(friendId, friendName)
+//   window.callHubReady
 
 import { initializeSupabase } from './supabase.js'
 
 const CALL_APP_PATH = '/pages/call-app/call/index.html'
 const MISSED_CALL_POLL_MS = 15000
+const DEFAULT_RETURN = '/pages/home/friends/index.html'
 
 let supabase = null
 let currentUser = null
@@ -21,6 +23,26 @@ let reconnectAttempts = 0
 const MAX_RECONNECT_ATTEMPTS = 6
 
 window.callHubReady = false
+
+// ============================================================
+// RETURN-URL HELPER
+// ============================================================
+function getCurrentPageUrl() {
+    try {
+        const path = window.location.pathname + window.location.search
+        return path || DEFAULT_RETURN
+    } catch (e) {
+        return DEFAULT_RETURN
+    }
+}
+
+function rememberReturnUrl() {
+    const url = getCurrentPageUrl()
+    try {
+        sessionStorage.setItem('callReturnTo', url)
+    } catch (e) {}
+    return url
+}
 
 // ============================================================
 // INIT
@@ -151,7 +173,6 @@ function setupCallChannel() {
                 console.log('📞 [callHub] Call updated:', status)
 
                 if (status === 'cancelled' || status === 'ended' || status === 'missed') {
-                    // Only dismiss if the banner is still showing this exact call
                     const bannerEl = document.getElementById('callHubBanner')
                     if (bannerEl && bannerEl.dataset.callId === String(payload.new.id)) {
                         dismissBanner()
@@ -175,7 +196,7 @@ function setupCallChannel() {
 }
 
 // ============================================================
-// INCOMING CALL HANDLING
+// INCOMING CALL
 // ============================================================
 async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
@@ -184,7 +205,6 @@ async function handleIncomingCall(callRow) {
 
     if (window.location.pathname.includes('/call-app/call/')) return
 
-    // If banner already showing for this exact call, skip
     const existingBanner = document.getElementById('callHubBanner')
     if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) {
         console.log('📞 [callHub] Banner already showing for this call')
@@ -231,7 +251,6 @@ async function getCallerProfile(callerId) {
 // BANNER UI
 // ============================================================
 function showBanner(call) {
-    // Remove any existing banner
     const old = document.getElementById('callHubBanner')
     if (old) old.remove()
 
@@ -242,9 +261,6 @@ function showBanner(call) {
     const banner = document.createElement('div')
     banner.id = 'callHubBanner'
 
-    // 🔥 STORE CALL DATA ON THE BANNER ELEMENT
-    // Even if module-level `incomingCallData` gets cleared by a
-    // timeout or another handler, the banner still knows its call.
     banner.dataset.callId = String(call.callId)
     banner.dataset.callerId = call.callerId
     banner.dataset.room = call.room
@@ -291,7 +307,6 @@ function showBanner(call) {
         const action = target.getAttribute('data-action')
         console.log('📞 [callHub] Button pressed:', action)
 
-        // 🔥 READ CALL DATA FROM THE BANNER ELEMENT
         const bannerEl = document.getElementById('callHubBanner')
         if (!bannerEl) {
             console.warn('📞 [callHub] Banner already gone')
@@ -340,7 +355,7 @@ function dismissBanner() {
 }
 
 // ============================================================
-// ACCEPT / REJECT  (take callData as argument)
+// ACCEPT / REJECT
 // ============================================================
 async function acceptIncoming(callData) {
     console.log('📞 [callHub] acceptIncoming called with:', callData)
@@ -350,7 +365,10 @@ async function acceptIncoming(callData) {
         return
     }
 
-    // Dismiss banner manually (don't call dismissBanner, which nulls things)
+    // Remember where we are so call page can return here
+    const returnTo = rememberReturnUrl()
+    console.log('📞 [callHub] Return URL saved:', returnTo)
+
     bannerVisible = false
     stopRingtone()
     if (incomingCallTimeout) {
@@ -366,7 +384,8 @@ async function acceptIncoming(callData) {
             .from('calls')
             .update({
                 status: 'active',
-                answered_at: new Date().toISOString()
+                answered_at: new Date().toISOString(),
+                seen: true
             })
             .eq('id', callData.callId)
         console.log('📞 [callHub] Marked call active')
@@ -374,7 +393,7 @@ async function acceptIncoming(callData) {
         console.warn('📞 [callHub] Failed to mark active:', e)
     }
 
-    const url = `${CALL_APP_PATH}?incoming=true&room=${encodeURIComponent(callData.room)}&callerId=${callData.callerId}&callId=${callData.callId}`
+    const url = `${CALL_APP_PATH}?incoming=true&room=${encodeURIComponent(callData.room)}&callerId=${callData.callerId}&callId=${callData.callId}&returnTo=${encodeURIComponent(returnTo)}`
     console.log('📞 [callHub] Opening call page:', url)
     window.location.href = url
 }
@@ -434,7 +453,10 @@ window.startCall = function (friendId, friendName) {
 
     console.log(`📞 [callHub] Starting call to ${friendName || friendId}`)
 
-    const url = `${CALL_APP_PATH}?friendId=${friendId}&friendName=${encodeURIComponent(friendName || '')}`
+    const returnTo = rememberReturnUrl()
+    console.log('📞 [callHub] Return URL saved:', returnTo)
+
+    const url = `${CALL_APP_PATH}?friendId=${friendId}&friendName=${encodeURIComponent(friendName || '')}&returnTo=${encodeURIComponent(returnTo)}`
 
     const popup = window.open(url, '_blank', 'width=500,height=700')
 
@@ -445,7 +467,7 @@ window.startCall = function (friendId, friendName) {
 }
 
 // ============================================================
-// MISSED CALLS
+// MISSED CALLS BADGE
 // ============================================================
 async function checkMissedCalls() {
     if (!supabase || !currentUser) return
