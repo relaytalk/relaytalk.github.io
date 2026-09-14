@@ -1,4 +1,4 @@
-// utils/supabase.js - NEW MUMBAI PROJECT (Push-Notifications branch)
+// utils/supabase.js - NEW MUMBAI PROJECT
 const SUPABASE_URL = 'https://kponqaktavkrchebmiwr.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtwb25xYWt0YXZrcmNoZWJtaXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyOTUzMTMsImV4cCI6MjEwNDg3MTMxM30.nkoiFez4G3-CzKvatQ9xZL4FpnZa9Qixcr64Sh8ytDE'
 
@@ -34,7 +34,7 @@ async function initializeSupabase() {
             window.supabase = supabase;
             console.log('✅ Supabase client created (direct Mumbai connection)');
 
-            // Test connection
+            // Test realtime connection
             setTimeout(async () => {
                 try {
                     const testChannel = supabase.channel('test-connection');
@@ -57,7 +57,6 @@ async function initializeSupabase() {
         } catch (error) {
             console.error('❌ Supabase initialization failed:', error);
 
-            // Fallback client
             supabase = {
                 auth: {
                     signInWithPassword: async () => ({ data: null, error: { message: 'Network error' } }),
