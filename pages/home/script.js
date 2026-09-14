@@ -1,19 +1,17 @@
-// home/script.js - COMPLETE WITH CALL HISTORY IN NOTIFICATIONS
+// home/script.js - COMPLETE WITH REALTIME FRIENDS
 
 import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
 // ============================================
-// IMMEDIATE REDIRECT CHECK - ONLY IF NOT LOGGED IN
+// IMMEDIATE REDIRECT CHECK
 // ============================================
 (function() {
     try {
         let hasSession = false;
-
         const localToken = localStorage.getItem('supabase.auth.token');
         const sessionToken = sessionStorage.getItem('supabase.auth.token');
-
         hasSession = !!(localToken || sessionToken);
 
         if (!hasSession) {
@@ -37,7 +35,7 @@ console.log("✨ Relay Home Page Loaded");
 })();
 
 // ============================================
-// TOAST NOTIFICATION SYSTEM
+// TOAST SYSTEM
 // ============================================
 class ToastNotification {
     constructor() {
@@ -92,29 +90,16 @@ class ToastNotification {
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         }
-
         return toast;
     }
 
-    success(title, message = '', duration = 5000) {
-        return this.show({ title, message, type: 'success', duration });
-    }
-
-    error(title, message = '', duration = 7000) {
-        return this.show({ title, message, type: 'error', duration });
-    }
-
-    warning(title, message = '', duration = 6000) {
-        return this.show({ title, message, type: 'warning', duration });
-    }
-
-    info(title, message = '', duration = 4000) {
-        return this.show({ title, message, type: 'info', duration });
-    }
+    success(title, message = '', duration = 5000) { return this.show({ title, message, type: 'success', duration }); }
+    error(title, message = '', duration = 7000) { return this.show({ title, message, type: 'error', duration }); }
+    warning(title, message = '', duration = 6000) { return this.show({ title, message, type: 'warning', duration }); }
+    info(title, message = '', duration = 4000) { return this.show({ title, message, type: 'info', duration }); }
 }
 
 const toast = new ToastNotification();
-
 window.showToast = toast.show.bind(toast);
 window.showSuccess = toast.success.bind(toast);
 window.showError = toast.error.bind(toast);
@@ -122,18 +107,18 @@ window.showWarning = toast.warning.bind(toast);
 window.showInfo = toast.info.bind(toast);
 
 // ============================================
-// GLOBAL VARIABLES
+// GLOBALS
 // ============================================
 let currentUser = null;
 let currentProfile = null;
-let currentNotifTab = 'main'; // 'main' or 'calls'
+let currentNotifTab = 'main';
+let friendsRealtimeChannel = null;
 
 // ============================================
-// SUPABASE WAIT FUNCTION
+// SUPABASE WAIT
 // ============================================
 async function waitForSupabase() {
     console.log('⏳ Waiting for Supabase...');
-
     if (window.supabase) {
         console.log('✅ Supabase already loaded');
         return true;
@@ -141,20 +126,12 @@ async function waitForSupabase() {
 
     try {
         await import('../../utils/supabase.js');
-
         let attempts = 0;
         while (!window.supabase && attempts < 25) {
             await new Promise(resolve => setTimeout(resolve, 200));
             attempts++;
         }
-
-        if (window.supabase) {
-            console.log('✅ Supabase loaded successfully after', attempts, 'attempts');
-            return true;
-        } else {
-            console.error('❌ Supabase failed to load after waiting');
-            return false;
-        }
+        return !!window.supabase;
     } catch (error) {
         console.error('❌ Error loading Supabase:', error);
         return false;
@@ -162,16 +139,14 @@ async function waitForSupabase() {
 }
 
 // ============================================
-// INITIALIZE HOME PAGE
+// INIT
 // ============================================
 async function initHomePage() {
     console.log('🏠 Initializing home page...');
 
     try {
         const { success, user } = await auth.getCurrentUser();
-
         if (!success || !user) {
-            console.log('⚠️ Auth check failed, but session exists - continuing anyway');
             try {
                 const sessionStr = localStorage.getItem('supabase.auth.token');
                 if (sessionStr) {
@@ -181,21 +156,17 @@ async function initHomePage() {
                         email: session?.user?.email,
                         user_metadata: session?.user?.user_metadata || {}
                     };
-                    console.log('✅ Recovered user from localStorage');
                 }
             } catch (e) {}
 
             if (!currentUser) {
-                console.log('❌ No user data available - redirecting');
                 window.location.replace('/');
                 return;
             }
         } else {
             currentUser = user;
-            console.log('✅ User authenticated:', currentUser.email);
         }
     } catch (error) {
-        console.error('Auth check failed:', error);
         try {
             const sessionStr = localStorage.getItem('supabase.auth.token');
             if (sessionStr) {
@@ -205,7 +176,6 @@ async function initHomePage() {
                     email: session?.user?.email,
                     user_metadata: session?.user?.user_metadata || {}
                 };
-                console.log('✅ Recovered user from localStorage after error');
             } else {
                 window.location.replace('/');
                 return;
@@ -222,7 +192,7 @@ async function initHomePage() {
     try {
         const supabaseReady = await waitForSupabase();
         if (!supabaseReady) {
-            toast.error("Connection Error", "Cannot connect to server. Please check your internet.");
+            toast.error("Connection Error", "Cannot connect to server.");
             if (loadingIndicator) loadingIndicator.style.display = 'none';
             return;
         }
@@ -236,6 +206,9 @@ async function initHomePage() {
         await updateCallsTabBadge();
         setupEventListeners();
 
+        // 🔥 Set up realtime friends listener
+        setupFriendsRealtime();
+
         console.log('✅ Home page initialized successfully');
 
         setTimeout(() => {
@@ -245,11 +218,74 @@ async function initHomePage() {
         }, 800);
 
     } catch (error) {
-        console.error('❌ Home page initialization failed:', error);
-
+        console.error('❌ Init failed:', error);
         if (loadingIndicator) loadingIndicator.style.display = 'none';
-        toast.error("Initialization Error", "Failed to load page. Please refresh.");
+        toast.error("Initialization Error", "Failed to load page.");
     }
+}
+
+// ============================================
+// REALTIME FRIENDS LISTENER
+// ============================================
+function setupFriendsRealtime() {
+    if (!currentUser || !window.supabase) return;
+
+    if (friendsRealtimeChannel) {
+        window.supabase.removeChannel(friendsRealtimeChannel);
+        friendsRealtimeChannel = null;
+    }
+
+    console.log('📡 Setting up realtime friends for user:', currentUser.id);
+
+    friendsRealtimeChannel = window.supabase
+        .channel(`home-friends:${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'friends',
+            filter: `user_id=eq.${currentUser.id}`
+        }, (payload) => {
+            console.log('🟢 Realtime: new friend added!');
+            loadFriends();
+            toast.info("New Friend!", "Someone just accepted your friend request");
+        })
+        .on('postgres_changes', {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'friends',
+            filter: `user_id=eq.${currentUser.id}`
+        }, () => {
+            console.log('🔴 Realtime: friend removed');
+            loadFriends();
+        })
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'friend_requests',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            updateNotificationsBadge();
+            updateCallsTabBadge();
+        })
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'calls',
+            filter: `callee_id=eq.${currentUser.id}`
+        }, () => {
+            updateCallsTabBadge();
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calls',
+            filter: `callee_id=eq.${currentUser.id}`
+        }, () => {
+            updateCallsTabBadge();
+        })
+        .subscribe((status) => {
+            console.log('📡 Realtime friends status:', status);
+        });
 }
 
 // ============================================
@@ -259,107 +295,65 @@ async function loadUserProfile() {
     try {
         if (!currentUser || !window.supabase) {
             currentProfile = {
-                username: currentUser?.user_metadata?.username ||
-                         currentUser?.email?.split('@')[0] || 'User',
-                full_name: currentUser?.user_metadata?.full_name || 'User'
+                username: currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'User'
             };
             return;
         }
 
-        console.log('Loading profile for user:', currentUser.id);
-
-        const { data: profile, error } = await window.supabase
+        const { data: profile } = await window.supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .maybeSingle();
 
-        if (error) {
-            console.error('Profile load error:', error.message);
-            throw error;
-        }
-
         if (profile) {
             currentProfile = profile;
-            console.log('✅ Profile loaded:', profile.username);
         } else {
             currentProfile = {
-                username: currentUser.user_metadata?.username ||
-                         currentUser.email?.split('@')[0] || 'User',
-                full_name: currentUser.user_metadata?.full_name || 'User'
+                username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User'
             };
-            console.log('⚠️ No profile found, using default:', currentProfile.username);
         }
     } catch (error) {
-        console.error('❌ Error loading profile:', error);
         currentProfile = {
-            username: currentUser?.user_metadata?.username ||
-                     currentUser?.email?.split('@')[0] || 'User',
-            full_name: currentUser?.user_metadata?.full_name || 'User'
+            username: currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'User'
         };
     }
 }
 
-// ============================================
-// UPDATE WELCOME MESSAGE
-// ============================================
 function updateWelcomeMessage() {
     if (!currentProfile) return;
-
-    const welcomeElement = document.getElementById('welcomeTitle');
-    if (welcomeElement) {
-        welcomeElement.textContent = `Welcome, ${currentProfile.username}!`;
-        console.log('Updated welcome message for:', currentProfile.username);
-    }
+    const el = document.getElementById('welcomeTitle');
+    if (el) el.textContent = `Welcome, ${currentProfile.username}!`;
 }
 
 // ============================================
-// LOAD FRIENDS LIST
+// LOAD FRIENDS
 // ============================================
 async function loadFriends() {
     if (!currentUser || !window.supabase) {
-        console.log('Cannot load friends: No user or Supabase');
         showEmptyFriends();
         return;
     }
 
     const container = document.getElementById('friendsList');
-    if (!container) {
-        console.error('Friends list container not found!');
-        return;
-    }
+    if (!container) return;
 
     try {
-        console.log('Loading friends for user:', currentUser.id);
         const { data: friends, error } = await window.supabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', currentUser.id);
 
-        if (error) {
-            console.error('Friends load error:', error.message);
-            showEmptyFriends();
-            return;
-        }
-
-        console.log('Found', friends?.length || 0, 'friends');
-
-        if (!friends || friends.length === 0) {
+        if (error || !friends || friends.length === 0) {
             showEmptyFriends();
             return;
         }
 
         const friendIds = friends.map(f => f.friend_id);
-        const { data: profiles, error: profilesError } = await window.supabase
+        const { data: profiles } = await window.supabase
             .from('profiles')
             .select('id, username, avatar_url, status, last_seen')
             .in('id', friendIds);
-
-        if (profilesError) {
-            console.error('Profiles load error:', profilesError);
-            showEmptyFriends();
-            return;
-        }
 
         let html = '';
         let onlineCount = 0;
@@ -368,7 +362,6 @@ async function loadFriends() {
             profiles.forEach(profile => {
                 const isOnline = profile.status === 'online';
                 if (isOnline) onlineCount++;
-
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
                 const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
@@ -399,24 +392,16 @@ async function loadFriends() {
         container.innerHTML = html;
 
         const onlineCounter = document.getElementById('onlineCounter');
-        if (onlineCounter) {
-            onlineCounter.textContent = `${onlineCount} Online`;
-        }
+        if (onlineCounter) onlineCounter.textContent = `${onlineCount} Online`;
 
-        console.log('✅ Friends list updated');
     } catch (error) {
-        console.error('❌ Error loading friends:', error);
         showEmptyFriends();
     }
 }
 
-// ============================================
-// SHOW EMPTY FRIENDS STATE
-// ============================================
 function showEmptyFriends() {
     const container = document.getElementById('friendsList');
     if (!container) return;
-
     container.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">👥</div>
@@ -427,47 +412,31 @@ function showEmptyFriends() {
             </button>
         </div>
     `;
-
     const onlineCounter = document.getElementById('onlineCounter');
     if (onlineCounter) onlineCounter.textContent = '0 Online';
 }
 
-// ============================================
-// GET TIME AGO STRING
-// ============================================
 function getTimeAgo(date) {
     const now = new Date();
     const past = new Date(date);
     const diffMs = now - past;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return 'yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ============================================
-// OPEN CHAT
-// ============================================
 async function openChat(friendId, friendUsername = 'Friend') {
-    console.log("Opening chat with:", friendId, friendUsername);
-    const loadingToast = toast.info("Opening Chat", `Connecting with ${friendUsername}...`);
-
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
         username: friendUsername
     }));
-
-    setTimeout(() => {
-        if (loadingToast && loadingToast.parentNode) loadingToast.remove();
-    }, 500);
-
     window.location.href = `../chats/index.html?friendId=${friendId}`;
 }
 
@@ -477,11 +446,7 @@ async function openChat(friendId, friendUsername = 'Friend') {
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     const searchInput = document.getElementById('searchInput');
-
-    if (!container) {
-        console.error('Search results container not found!');
-        return;
-    }
+    if (!container) return;
 
     try {
         if (!currentUser || !window.supabase) {
@@ -489,21 +454,13 @@ async function loadSearchResults() {
             return;
         }
 
-        console.log('Loading all users for search...');
-
         const { data: allUsers, error } = await window.supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url')
             .neq('id', currentUser.id)
             .limit(50);
 
-        if (error) {
-            console.error('Search error:', error);
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error loading users</p></div>`;
-            return;
-        }
-
-        if (!allUsers || allUsers.length === 0) {
+        if (error || !allUsers || allUsers.length === 0) {
             container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No other users found</p></div>`;
             return;
         }
@@ -517,20 +474,16 @@ async function loadSearchResults() {
                     await displaySearchResults(allUsers);
                     return;
                 }
-
-                const filteredUsers = allUsers.filter(user =>
-                    user.username.toLowerCase().includes(searchTerm) ||
-                    (user.full_name && user.full_name.toLowerCase().includes(searchTerm))
+                const filtered = allUsers.filter(u =>
+                    u.username.toLowerCase().includes(searchTerm) ||
+                    (u.full_name && u.full_name.toLowerCase().includes(searchTerm))
                 );
-                await displaySearchResults(filteredUsers);
+                await displaySearchResults(filtered);
             };
-
             searchInput.focus();
         }
     } catch (error) {
-        console.error('❌ Error in search:', error);
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Search failed</p></div>`;
-        toast.error("Search Error", "Could not load users");
     }
 }
 
@@ -594,38 +547,13 @@ async function displaySearchResults(users) {
     }
 }
 
-// ============================================
-// SEND FRIEND REQUEST
-// ============================================
 async function sendFriendRequest(toUserId, toUsername, button) {
-    if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot send request");
-        return;
-    }
-
     if (button) {
         button.textContent = 'Sending...';
         button.disabled = true;
     }
 
     try {
-        const { data: existingRequest } = await window.supabase
-            .from('friend_requests')
-            .select('id')
-            .eq('sender_id', currentUser.id)
-            .eq('receiver_id', toUserId)
-            .eq('status', 'pending')
-            .maybeSingle();
-
-        if (existingRequest) {
-            toast.info("Already Sent", `You've already sent a friend request to ${toUsername}`);
-            if (button) {
-                button.textContent = '✓ Sent';
-                setTimeout(() => button.disabled = false, 1000);
-            }
-            return;
-        }
-
         const { error } = await window.supabase
             .from('friend_requests')
             .insert({
@@ -635,19 +563,10 @@ async function sendFriendRequest(toUserId, toUsername, button) {
                 created_at: new Date().toISOString()
             });
 
-        if (error) {
-            console.error("Error sending request:", error);
-            toast.error("Request Failed", "Could not send friend request");
-            if (button) {
-                button.textContent = 'Add Friend';
-                button.disabled = false;
-            }
-            return;
-        }
+        if (error) throw error;
 
         await loadSearchResults();
         await updateNotificationsBadge();
-
         toast.success("Request Sent", `Your request has been sent to ${toUsername}!`);
 
         if (button) {
@@ -656,7 +575,6 @@ async function sendFriendRequest(toUserId, toUsername, button) {
             button.classList.add('sent');
         }
     } catch (error) {
-        console.error("❌ Friend request error:", error);
         toast.error("Request Failed", "Please check your connection");
         if (button) {
             button.textContent = 'Add Friend';
@@ -666,15 +584,11 @@ async function sendFriendRequest(toUserId, toUsername, button) {
 }
 
 // ============================================
-// LOAD NOTIFICATIONS (Main tab - friend requests)
+// NOTIFICATIONS
 // ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
-
-    if (!container) {
-        console.error("Notifications container not found!");
-        return;
-    }
+    if (!container) return;
 
     try {
         if (!currentUser || !window.supabase) {
@@ -689,13 +603,7 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error("Notifications error:", error.message);
-            showEmptyNotifications(container);
-            return;
-        }
-
-        if (!notifications || notifications.length === 0) {
+        if (error || !notifications || notifications.length === 0) {
             showEmptyNotifications(container);
             return;
         }
@@ -707,9 +615,7 @@ async function loadNotifications() {
             .in('id', senderIds);
 
         const profileMap = {};
-        if (profiles) {
-            profiles.forEach(p => profileMap[p.id] = p);
-        }
+        if (profiles) profiles.forEach(p => profileMap[p.id] = p);
 
         let html = '';
         notifications.forEach(notification => {
@@ -740,7 +646,6 @@ async function loadNotifications() {
 
         container.innerHTML = html;
     } catch (error) {
-        console.error("❌ Error loading notifications:", error);
         showEmptyNotifications(container);
     }
 }
@@ -755,22 +660,17 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// LOAD CALL HISTORY (Calls tab)
+// CALL HISTORY
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
-    if (!container) {
-        console.error("Call history container not found!");
-        return;
-    }
+    if (!container) return;
 
     try {
         if (!currentUser || !window.supabase) {
             container.innerHTML = `<div class="empty-state"><div class="empty-icon">📞</div><p>Cannot load call history</p></div>`;
             return;
         }
-
-        console.log('📞 Loading call history for user:', currentUser.id);
 
         const { data: calls, error } = await window.supabase
             .from('calls')
@@ -779,13 +679,7 @@ async function loadCallHistory() {
             .order('created_at', { ascending: false })
             .limit(50);
 
-        if (error) {
-            console.error("Call history error:", error.message);
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
-            return;
-        }
-
-        if (!calls || calls.length === 0) {
+        if (error || !calls || calls.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">📞</div>
@@ -796,7 +690,6 @@ async function loadCallHistory() {
             return;
         }
 
-        // Gather user IDs to fetch profiles
         const userIds = new Set();
         calls.forEach(call => {
             if (call.caller_id !== currentUser.id) userIds.add(call.caller_id);
@@ -810,10 +703,7 @@ async function loadCallHistory() {
                 .from('profiles')
                 .select('id, username, avatar_url')
                 .in('id', [...userIds]);
-
-            if (profiles) {
-                profiles.forEach(p => profileMap[p.id] = p);
-            }
+            if (profiles) profiles.forEach(p => profileMap[p.id] = p);
         }
 
         let html = '';
@@ -852,11 +742,7 @@ async function loadCallHistory() {
                 statusIcon = 'fa-phone-slash';
             }
 
-            const time = new Date(call.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
+            const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
 
             html += `
@@ -886,13 +772,12 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
     } catch (error) {
-        console.error("❌ Error loading call history:", error);
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
     }
 }
 
 // ============================================
-// NOTIFICATION TAB SWITCHER
+// TAB SWITCHER
 // ============================================
 window.switchNotifTab = function(tab) {
     currentNotifTab = tab;
@@ -919,16 +804,9 @@ window.switchNotifTab = function(tab) {
 };
 
 // ============================================
-// ACCEPT FRIEND REQUEST
+// ACCEPT / DECLINE
 // ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
-    console.log("Accepting request:", requestId, "from:", senderId);
-
-    if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot accept request");
-        return;
-    }
-
     if (button) {
         button.textContent = '...';
         button.disabled = true;
@@ -942,21 +820,17 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
 
         if (updateError) throw updateError;
 
-        await window.supabase
-            .from('friends')
-            .insert({
-                user_id: currentUser.id,
-                friend_id: senderId,
-                created_at: new Date().toISOString()
-            });
+        await window.supabase.from('friends').insert({
+            user_id: currentUser.id,
+            friend_id: senderId,
+            created_at: new Date().toISOString()
+        });
 
-        await window.supabase
-            .from('friends')
-            .insert({
-                user_id: senderId,
-                friend_id: currentUser.id,
-                created_at: new Date().toISOString()
-            });
+        await window.supabase.from('friends').insert({
+            user_id: senderId,
+            friend_id: currentUser.id,
+            created_at: new Date().toISOString()
+        });
 
         await loadNotifications();
         await loadFriends();
@@ -969,9 +843,7 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             button.style.background = 'rgba(40, 167, 69, 0.3)';
         }
     } catch (error) {
-        console.error("❌ Error accepting friend request:", error);
         toast.error("Connection Failed", "Could not accept friend request");
-
         if (button) {
             button.textContent = '✓';
             button.disabled = false;
@@ -979,15 +851,7 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
     }
 }
 
-// ============================================
-// DECLINE FRIEND REQUEST
-// ============================================
 async function declineFriendRequest(requestId, button = null) {
-    if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot decline request");
-        return;
-    }
-
     if (button) {
         button.textContent = '...';
         button.disabled = true;
@@ -1011,9 +875,6 @@ async function declineFriendRequest(requestId, button = null) {
             button.style.background = 'rgba(220, 53, 69, 0.3)';
         }
     } catch (error) {
-        console.error("❌ Error declining friend request:", error);
-        toast.error("Action Failed", "Could not decline friend request");
-
         if (button) {
             button.textContent = '✗';
             button.disabled = false;
@@ -1022,7 +883,7 @@ async function declineFriendRequest(requestId, button = null) {
 }
 
 // ============================================
-// UPDATE NOTIFICATIONS BADGE (Main - friend requests)
+// BADGES
 // ============================================
 async function updateNotificationsBadge() {
     try {
@@ -1031,21 +892,15 @@ async function updateNotificationsBadge() {
             return;
         }
 
-        const { data: notifications, error } = await window.supabase
+        const { data: notifications } = await window.supabase
             .from('friend_requests')
             .select('id')
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
-        if (error) {
-            hideNotificationBadge();
-            return;
-        }
-
         const unreadCount = notifications?.length || 0;
         updateBadgeDisplay(unreadCount);
 
-        // Also update Main tab badge
         const mainTabBadge = document.getElementById('mainTabBadge');
         if (mainTabBadge) {
             if (unreadCount > 0) {
@@ -1056,14 +911,10 @@ async function updateNotificationsBadge() {
             }
         }
     } catch (error) {
-        console.error('❌ Error loading notifications:', error);
         hideNotificationBadge();
     }
 }
 
-// ============================================
-// UPDATE CALLS TAB BADGE (unseen missed calls)
-// ============================================
 async function updateCallsTabBadge() {
     try {
         if (!currentUser || !window.supabase) return;
@@ -1085,8 +936,7 @@ async function updateCallsTabBadge() {
             }
         }
 
-        // Also update the main bottom-nav badge
-        // Combined count: friend requests + unseen calls
+        // Combined bottom-nav badge
         const notifBadge = document.getElementById('notificationBadge');
         if (notifBadge) {
             const { data: fr } = await window.supabase
@@ -1103,26 +953,15 @@ async function updateCallsTabBadge() {
                 notifBadge.style.display = 'none';
             }
         }
-    } catch (e) {
-        // silent
-    }
+    } catch (e) {}
 }
 
 function updateBadgeDisplay(count) {
     const badge = document.getElementById('notificationBadge');
-    if (badge) {
-        if (count > 0) {
-            badge.textContent = count > 9 ? '9+' : count;
-            badge.style.display = 'block';
-
-            if (count === 1) {
-                setTimeout(() => {
-                    toast.info("New Notification", "You have a new friend request");
-                }, 1000);
-            }
-        } else {
-            // Don't hide yet - calls badge may still show. Handled by updateCallsTabBadge.
-        }
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.style.display = 'block';
     }
 }
 
@@ -1132,67 +971,38 @@ function hideNotificationBadge() {
 }
 
 // ============================================
-// SETUP EVENT LISTENERS
+// SETUP / NAV
 // ============================================
 function setupEventListeners() {
-    console.log("Setting up event listeners...");
-
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
-                const loadingToast = toast.info("Logging Out", "Please wait...");
                 await auth.signOut();
                 localStorage.clear();
                 sessionStorage.clear();
-
-                if (loadingToast && loadingToast.parentNode) loadingToast.remove();
-                toast.success("Logged Out", "See you soon! 👋");
-
-                setTimeout(() => window.location.href = '/', 1000);
+                window.location.href = '/';
             } catch (error) {
-                console.error("Error logging out:", error);
                 toast.error("Logout Failed", "Please try again");
             }
         });
     }
-
-    console.log("✅ Event listeners setup complete");
 }
 
-// ============================================
-// LOGOUT
-// ============================================
 window.logout = async function() {
     try {
-        const loadingToast = toast.info("Logging Out", "Please wait...");
-
-        if (window.supabase) {
-            await window.supabase.auth.signOut();
-        }
-
+        if (window.supabase) await window.supabase.auth.signOut();
         localStorage.clear();
         sessionStorage.clear();
-
         document.cookie.split(";").forEach(function(c) {
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
-
-        if (loadingToast && loadingToast.parentNode) loadingToast.remove();
-        toast.success("Logged Out", "See you soon! 👋");
-
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 1000);
+        window.location.href = '/';
     } catch (error) {
-        console.error("Error logging out:", error);
-        toast.error("Logout Failed", "Please try again");
+        window.location.href = '/';
     }
 };
 
-// ============================================
-// NAVIGATION
-// ============================================
 function goToHome() {
     window.location.href = '/pages/home/index.html';
 }
@@ -1205,37 +1015,24 @@ function viewFriendsPage() {
     window.location.href = 'friends/index.html';
 }
 
-// ============================================
-// GLOBAL FUNCTIONS FOR HTML
-// ============================================
 window.openSearch = function() {
-    console.log("Opening search modal");
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
         loadSearchResults();
-    } else {
-        console.error("Search modal not found!");
-        toast.error("Search Unavailable", "The search feature is currently unavailable");
     }
 };
 
 window.openNotifications = function() {
-    console.log("Opening notifications modal");
     const modal = document.getElementById('notificationsModal');
     if (modal) {
         modal.style.display = 'flex';
-        // Reset to main tab by default
         switchNotifTab('main');
         updateCallsTabBadge();
-    } else {
-        console.error("Notifications modal not found!");
-        toast.error("Notifications Unavailable", "Unable to load notifications");
     }
 };
 
 window.closeModal = function() {
-    console.log("Closing modal");
     const searchModal = document.getElementById('searchModal');
     const notificationsModal = document.getElementById('notificationsModal');
     if (searchModal) searchModal.style.display = 'none';
@@ -1251,7 +1048,10 @@ window.openSettings = openSettings;
 window.viewFriendsPage = viewFriendsPage;
 window.logout = window.logout;
 
-// ============================================
-// INITIALIZE
-// ============================================
+window.addEventListener('beforeunload', () => {
+    if (friendsRealtimeChannel && window.supabase) {
+        window.supabase.removeChannel(friendsRealtimeChannel);
+    }
+});
+
 document.addEventListener('DOMContentLoaded', initHomePage);
