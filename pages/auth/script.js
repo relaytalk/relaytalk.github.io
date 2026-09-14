@@ -25,26 +25,46 @@ document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') closeModal();
 });
 
+// Password toggle — uses inline SVGs (no emojis)
 function togglePassword() {
     const passwordInput = document.getElementById('password');
     const toggleBtn = document.querySelector('.password-toggle');
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        toggleBtn.textContent = '🙈';
+    if (!passwordInput || !toggleBtn) return;
+
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+
+    if (isHidden) {
+        // Eye-off icon (password now visible)
+        toggleBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+        `;
     } else {
-        passwordInput.type = 'password';
-        toggleBtn.textContent = '👁️';
+        // Eye icon (password now hidden)
+        toggleBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        `;
     }
 }
 
 function showError(elementId, message) {
     const errorEl = document.getElementById(elementId);
+    if (!errorEl) return;
     errorEl.textContent = message;
     errorEl.style.display = 'block';
 }
 
 function hideError(elementId) {
     const errorEl = document.getElementById(elementId);
+    if (!errorEl) return;
     errorEl.style.display = 'none';
 }
 
@@ -86,19 +106,17 @@ function validateConfirmPassword(password, confirmPassword) {
 // Supabase initialization
 async function initAuthSupabase() {
     console.log('🔄 Initializing Supabase for auth page...');
-    
+
     try {
-        // Load from relative path
         const modulePath = '../../utils/supabase.js';
         await import(modulePath);
-        
-        // Wait for window.supabase to be available
+
         let attempts = 0;
         while (!window.supabase && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (window.supabase) {
             console.log('✅ Supabase ready for auth page');
             return true;
@@ -112,7 +130,7 @@ async function initAuthSupabase() {
     }
 }
 
-// Handle form submission - FIXED: No manual profile insert (trigger handles it)
+// Handle form submission — profile is auto-created by the SQL trigger
 async function handleSignup(event) {
     event.preventDefault();
 
@@ -136,7 +154,6 @@ async function handleSignup(event) {
     submitBtn.disabled = true;
 
     try {
-        // Initialize Supabase first
         const supabaseReady = await initAuthSupabase();
         if (!supabaseReady) {
             throw new Error('Cannot connect to server');
@@ -149,15 +166,15 @@ async function handleSignup(event) {
         const internalEmail = `${username}@luster.test`;
         console.log('Creating account with email:', internalEmail);
 
-        // 1. Sign up - THE TRIGGER WILL AUTOMATICALLY CREATE THE PROFILE
+        // 1. Sign up — the SQL trigger creates the profile automatically
         const { data: authData, error: authError } = await window.supabase.auth.signUp({
             email: internalEmail,
             password: password,
-            options: { 
-                data: { 
-                    username: username, 
-                    full_name: username 
-                } 
+            options: {
+                data: {
+                    username: username,
+                    full_name: username
+                }
             }
         });
 
@@ -174,11 +191,6 @@ async function handleSignup(event) {
         }
 
         console.log('✅ Auth created, user ID:', authData.user?.id);
-        
-        // ⚠️ IMPORTANT: No manual profile insert needed!
-        // The database trigger "handle_new_user" automatically creates the profile
-        // Manual insert would cause duplicate key error
-        
         console.log('✅ Profile will be auto-created by database trigger');
 
         // 2. Auto-login
@@ -198,7 +210,7 @@ async function handleSignup(event) {
     } catch (error) {
         console.error('Signup error:', error);
         let errorMessage = 'Something went wrong. Please try again.';
-        
+
         if (error.message.includes('already registered') || error.message.includes('already exists')) {
             errorMessage = 'Username already taken. Please choose another.';
             showError('usernameError', errorMessage);
@@ -206,12 +218,11 @@ async function handleSignup(event) {
             errorMessage = 'Password too weak. Try a stronger one.';
             showError('passwordError', errorMessage);
         } else {
-            // Don't show alert for 409 conflict (it's handled by the trigger)
             if (!error.message.includes('duplicate key')) {
                 alert('Error: ' + error.message);
             }
         }
-        
+
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     }
@@ -222,8 +233,8 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
     const successContainer = document.getElementById('successContainer');
     successContainer.style.display = 'block';
 
-    const message = autoLoggedIn 
-        ? `Welcome to Luster, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
+    const message = autoLoggedIn
+        ? `Welcome to RelayTalk, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
         : `Account created, <strong style="color: white;">${username}</strong>!<br>Please log in with your credentials.`;
 
     successContainer.innerHTML = `
@@ -259,14 +270,14 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
 }
 
 async function initAuthPage() {
-    console.log('✨ Luster Create Account Page Initialized');
-    
+    console.log('✨ RelayTalk Create Account Page Initialized');
+
     const connected = await initAuthSupabase();
     if (!connected) {
         alert('Cannot connect to server. Please try again later.');
         return;
     }
-    
+
     if (window.supabase) {
         const { data } = await window.supabase.auth.getSession();
         if (data.session) {
@@ -277,15 +288,15 @@ async function initAuthPage() {
             return;
         }
     }
-    
+
     document.getElementById('username').addEventListener('input', function() {
         validateUsername(this.value);
     });
-    
+
     document.getElementById('password').addEventListener('input', function() {
         validatePassword(this.value);
     });
-    
+
     document.getElementById('confirmPassword').addEventListener('input', function() {
         const password = document.getElementById('password').value;
         validateConfirmPassword(password, this.value);
