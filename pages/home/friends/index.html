@@ -6,96 +6,70 @@
     <title>Friends · RelayTalk</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
 
-    <!-- ============================================
-         CONTENT SECURITY POLICY - FIXED FOR WEBSOCKETS
-         ============================================ -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.github.io 
+        default-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.github.io
         https://github.com
         https://fonts.googleapis.com
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-        https://*.supabase.co 
-        https://api.supabase.com 
+        https://cdnjs.cloudflare.com;
+
+        script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://kponqaktavkrchebmiwr.supabase.co
         https://cdn.jsdelivr.net
         https://fonts.googleapis.com
         https://i.ibb.co
-        https://ibb.co
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        
-        style-src 'self' 'unsafe-inline' 
-        https://fonts.googleapis.com 
+        https://cdnjs.cloudflare.com;
+
+        style-src 'self' 'unsafe-inline'
+        https://fonts.googleapis.com
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        
-        img-src 'self' data: blob: 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.imgbb.com 
-        https:;
-        
-        font-src 'self' data: 
-        https://fonts.gstatic.com 
-        https://cdn.jsdelivr.net
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        
-        connect-src 'self' 
-        wss://*.supabase.co 
-        wss://*.supabase.co/realtime/v1 
-        wss://*.supabase.co/websocket 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
-        https://*.github.io
+        https://cdnjs.cloudflare.com;
+
+        img-src 'self' data: blob:
+        https://*.ibb.co
         https://i.ibb.co
-        https://ibb.co
-        https://relaytalk-proxy.lusterchat.workers.dev
-        wss://relaytalk-proxy.lusterchat.workers.dev
+        https://*.imgbb.com
+        https:;
+
+        font-src 'self' data:
+        https://fonts.gstatic.com
         https://cdn.jsdelivr.net
         https://cdnjs.cloudflare.com;
-        
+
+        connect-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        wss://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.github.io
+        https://i.ibb.co
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
         worker-src 'self' blob:;
-        media-src 'self' https://i.ibb.co https://*.ibb.co https://relaytalk.github.io/assets/ringtones/;
+        media-src 'self' https://i.ibb.co https://*.ibb.co;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
         frame-src 'none';
     ">
 
-    <!-- DNS Prefetch for better WebSocket connections -->
-    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
-    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://kdvhtdjkjllzbbadmrpy.supabase.co" crossorigin>
-    <link rel="dns-prefetch" href="https://kdvhtdjkjllzbbadmrpy.supabase.co">
-    <link rel="preconnect" href="wss://kdvhtdjkjllzbbadmrpy.supabase.co" crossorigin>
-    <link rel="dns-prefetch" href="wss://kdvhtdjkjllzbbadmrpy.supabase.co">
-
-    <!-- Preload critical styles -->
     <link rel="preload" href="friends.css" as="style">
     <link rel="preload" href="../style.css" as="style">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
 
-    <!-- Styles -->
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="friends.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Add status indicator styles for connection status -->
     <style>
+        /* Connection status */
         .connection-status {
             position: fixed;
             top: 60px;
@@ -121,42 +95,25 @@
             border-color: rgba(0, 255, 0, 0.3);
         }
 
-        .connection-status.connecting {
-            background: rgba(255, 165, 0, 0.2);
-            border-color: rgba(255, 165, 0, 0.3);
-        }
-
         .connection-status.error {
             background: rgba(255, 0, 0, 0.2);
             border-color: rgba(255, 0, 0, 0.3);
         }
 
-        .status-dot {
+        .status-dot-indicator {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             display: inline-block;
         }
 
-        .status-dot.connected {
+        .status-dot-indicator.connected {
             background: #00ff00;
             box-shadow: 0 0 10px #00ff00;
-            animation: pulse 2s infinite;
         }
 
-        .status-dot.connecting {
-            background: #ffaa00;
-            animation: pulse 1s infinite;
-        }
-
-        .status-dot.error {
+        .status-dot-indicator.error {
             background: #ff0000;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
         }
 
         @keyframes slideIn {
@@ -164,231 +121,182 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        .incoming-call-notification {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 350px;
-            background: rgba(20, 20, 30, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 2000;
-            animation: slideDown 0.3s ease;
+        /* ============================================ */
+        /* NOTIFICATIONS MODAL - TWO TABS               */
+        /* ============================================ */
+        .notif-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 6px;
+            background: rgba(0, 122, 204, 0.06);
+            border-radius: 14px;
+            border: 1px solid rgba(0, 122, 204, 0.15);
         }
 
-        @keyframes slideDown {
-            from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
+        .notif-tab {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
         }
 
-        .incoming-call-content {
+        .notif-tab i { font-size: 1rem; }
+
+        .notif-tab:hover {
+            color: #007acc;
+            background: rgba(0, 122, 204, 0.05);
+        }
+
+        .notif-tab.active {
+            background: white;
+            color: #007acc;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.15);
+        }
+
+        .notif-tab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: linear-gradient(135deg, #ff6b8b, #ff8e53);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 10px;
+            margin-left: 4px;
+            border: 1.5px solid white;
+        }
+
+        .notif-tab-content { display: none; }
+        .notif-tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Call history items */
+        .call-history-date {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            margin: 16px 0 8px;
+            padding-left: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .call-history-date:first-child { margin-top: 0; }
+
+        .call-history-item {
             display: flex;
             align-items: center;
             gap: 12px;
+            padding: 14px;
+            background: white;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(0, 122, 204, 0.12);
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .incoming-call-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 25px;
+        .call-history-item::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: #94a3b8;
+        }
+
+        .call-history-item.status-answered::before { background: #22c55e; }
+        .call-history-item.status-missed::before { background: #ef4444; }
+        .call-history-item.status-rejected::before { background: #f59e0b; }
+        .call-history-item.status-cancelled::before { background: #94a3b8; }
+        .call-history-item.status-ringing::before { background: #f59e0b; }
+
+        .call-history-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
             background: linear-gradient(45deg, #007acc, #00b4d8);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: 600;
+            flex-shrink: 0;
             overflow: hidden;
-        }
-
-        .incoming-call-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .incoming-call-info {
-            flex: 1;
-        }
-
-        .incoming-call-name {
-            font-size: 16px;
-            font-weight: 600;
             color: white;
-            margin-bottom: 4px;
+            font-weight: 700;
+            font-size: 1.1rem;
         }
 
-        .incoming-call-status {
+        .call-history-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .call-history-info { flex: 1; min-width: 0; }
+
+        .call-history-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .call-history-meta {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+            color: #64748b;
         }
 
-        .pulsing-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00ff00;
-            animation: pulse 1s infinite;
-        }
-
-        .incoming-call-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .incoming-call-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 22px;
-            border: none;
+        .call-history-status {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .incoming-call-btn.accept {
-            background: #00c853;
-            color: white;
-        }
-
-        .incoming-call-btn.accept:hover {
-            background: #00b34a;
-            transform: scale(1.05);
-        }
-
-        .incoming-call-btn.decline {
-            background: #ff3b30;
-            color: white;
-        }
-
-        .incoming-call-btn.decline:hover {
-            background: #e6352b;
-            transform: scale(1.05);
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 30px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 3000;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: slideUp 0.3s ease;
-            max-width: 90%;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .toast.success {
-            background: rgba(0, 200, 0, 0.9);
-        }
-
-        .toast.error {
-            background: rgba(255, 0, 0, 0.9);
-        }
-
-        .toast.info {
-            background: rgba(0, 122, 255, 0.9);
-        }
-
-        @keyframes slideUp {
-            from { transform: translate(-50%, 100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        .badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ff3b30;
-            color: white;
-            font-size: 10px;
+            gap: 5px;
+            font-size: 0.78rem;
             font-weight: 600;
-            min-width: 16px;
-            height: 16px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            flex-shrink: 0;
         }
 
-        #historyNavItem {
-            position: relative;
-        }
-
-        /* Improve loading states */
-        .loading-indicator.hidden {
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
+        .call-history-status.status-answered { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
+        .call-history-status.status-missed { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+        .call-history-status.status-rejected { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+        .call-history-status.status-cancelled { background: rgba(148, 163, 184, 0.15); color: #64748b; }
+        .call-history-status.status-ringing { background: rgba(245, 158, 11, 0.12); color: #d97706; }
     </style>
 </head>
 <body>
-    <!-- Connection Status Indicator -->
-    <div id="connectionStatus" class="connection-status connecting" style="display: none;">
-        <span class="status-dot connecting"></span>
+    <div id="connectionStatus" class="connection-status" style="display: none;">
+        <span class="status-dot-indicator"></span>
         <span class="status-text">Connecting...</span>
     </div>
 
-    <!-- Loading Screen with animated messages -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
         <div class="loading-text">Connecting to server...</div>
         <div class="loading-subtext">This will just take a moment</div>
     </div>
 
-    <!-- INCOMING CALL MODAL (fallback) -->
-    <div class="modal-overlay" id="incomingCallModal" style="display: none;">
-        <div class="modal-content incoming-call">
-            <div class="incoming-call-header">
-                <i class="fas fa-phone-alt" style="font-size: 48px; color: #007acc; animation: ring 1s infinite;"></i>
-                <h2>Incoming Call</h2>
-            </div>
-            <div class="caller-info" id="callerInfo">
-                <div class="caller-avatar" id="callerAvatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                    <span id="callerInitial"></span>
-                </div>
-                <div class="caller-details">
-                    <div class="caller-name" id="callerName">Loading...</div>
-                    <div class="call-status">Calling...</div>
-                </div>
-            </div>
-            <div class="call-actions">
-                <button class="call-action-btn decline" onclick="rejectCallFromModal()">
-                    <i class="fas fa-times"></i>
-                    <span>Decline</span>
-                </button>
-                <button class="call-action-btn accept" onclick="acceptCallFromModal()">
-                    <i class="fas fa-phone"></i>
-                    <span>Accept</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Header -->
     <header class="friends-header">
         <div class="header-content">
             <div class="header-left">
@@ -397,20 +305,17 @@
                 </button>
                 <h1 class="header-title">Friends</h1>
             </div>
-            <div class="header-actions">
-                <!-- No add friends button - removed as requested -->
-            </div>
+            <div class="header-actions"></div>
         </div>
     </header>
 
-    <!-- Search Bar -->
     <div class="search-container">
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" 
-                   id="searchInput" 
-                   class="search-input" 
-                   placeholder="Search friends..." 
+            <input type="text"
+                   id="searchInput"
+                   class="search-input"
+                   placeholder="Search friends..."
                    autocomplete="off"
                    oninput="searchFriends()">
             <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">
@@ -419,31 +324,64 @@
         </div>
     </div>
 
-    <!-- Friends List -->
     <main class="friends-list" id="friendsList"></main>
 
-    <!-- Bottom Navigation - WITH HISTORY -->
+    <!-- Bottom Navigation - with Notifications between Home and Friends -->
     <nav class="bottom-nav">
         <a href="../../home/index.html" class="nav-item">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
+
+        <a href="#" class="nav-item" onclick="openNotifications(event)">
+            <i class="fas fa-bell"></i>
+            <span>Notifications</span>
+            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </a>
+
         <a href="#" class="nav-item active">
             <i class="fas fa-users"></i>
             <span>Friends</span>
         </a>
-        <a href="history/index.html" class="nav-item" id="historyNavItem">
-            <i class="fas fa-history"></i>
-            <span>History</span>
-            <span class="badge" id="missedCallBadge" style="display: none;">1</span>
-        </a>
+
         <a href="../profile/index.html" class="nav-item">
             <i class="fas fa-user"></i>
             <span>Profile</span>
         </a>
     </nav>
 
-    <!-- Add Friends Modal (hidden by default, can be removed but keeping for compatibility) -->
+    <!-- Notifications Modal with Two Tabs -->
+    <div class="modal-overlay" id="notificationsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+
+            <div class="notif-tabs">
+                <button class="notif-tab active" id="notifTabMain" onclick="switchNotifTab('main')">
+                    <i class="fas fa-bell"></i>
+                    Main
+                    <span class="notif-tab-badge" id="mainTabBadge" style="display: none;">0</span>
+                </button>
+                <button class="notif-tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
+                    <i class="fas fa-phone"></i>
+                    Calls
+                    <span class="notif-tab-badge" id="callsTabBadge" style="display: none;">0</span>
+                </button>
+            </div>
+
+            <div class="notif-tab-content active" id="notifMainContent">
+                <div id="notificationsList"></div>
+            </div>
+
+            <div class="notif-tab-content" id="notifCallsContent">
+                <div id="callHistoryList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Friends modal (kept for compat) -->
     <div class="modal-overlay" id="searchModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -453,9 +391,9 @@
             <div class="modal-body">
                 <div class="search-input-container">
                     <i class="fas fa-search"></i>
-                    <input type="text" 
-                           id="userSearchInput" 
-                           placeholder="Search by username..." 
+                    <input type="text"
+                           id="userSearchInput"
+                           placeholder="Search by username..."
                            autocomplete="off"
                            oninput="searchUsers()">
                 </div>
@@ -464,10 +402,8 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Audio elements for ringtones (preload) -->
     <audio id="incomingRingtone" loop preload="auto" style="display: none;">
         <source src="../../../assets/ringtones/incoming.mp3" type="audio/mpeg">
     </audio>
@@ -475,15 +411,15 @@
         <source src="../../../assets/ringtones/ringing.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- Scripts - Load with async for faster rendering -->
     <link rel="modulepreload" href="../../../utils/supabase.js">
     <link rel="modulepreload" href="friends.js">
     <script type="module" src="../../../utils/supabase.js"></script>
     <script type="module" src="friends.js"></script>
 
-    <!-- Fallback for global functions -->
+    <!-- Global call hub - incoming call banner -->
+    <script type="module" src="/utils/callHub.js"></script>
+
     <script>
-        // Global function stubs to prevent errors
         window.goToHome = function() {
             window.location.href = '../../home/index.html';
         };
@@ -496,31 +432,9 @@
             window.location.href = `../../chats/index.html?friendId=${friendId}`;
         };
 
-        window.searchFriends = function() {
-            // Will be overridden by module
-        };
-
-        window.clearSearch = function() {
-            // Will be overridden by module
-        };
-
         window.closeModal = function() {
             document.getElementById('searchModal').style.display = 'none';
-        };
-
-        // Fallback for modal functions
-        window.rejectCallFromModal = function() {
-            if (window.rejectCall) {
-                window.rejectCall(null, false, null);
-            }
-            document.getElementById('incomingCallModal').style.display = 'none';
-        };
-
-        window.acceptCallFromModal = function() {
-            if (window.acceptCall) {
-                window.acceptCall(null);
-            }
-            document.getElementById('incomingCallModal').style.display = 'none';
+            document.getElementById('notificationsModal').style.display = 'none';
         };
     </script>
 </body>
