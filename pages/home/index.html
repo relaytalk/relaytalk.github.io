@@ -7,19 +7,16 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
-    
-    <!-- TITLE - PRIORITIZE THIS PAGE -->
+
     <title>RelayTalk - Home</title>
     <meta name="title" content="RelayTalk - Dashboard | Connect with Friends">
     <meta name="description" content="Your RelayTalk dashboard - Chat with friends, manage notifications, and stay connected in real-time.">
     <meta name="robots" content="index, follow">
 
-    <!-- CANONICAL - HOME PAGE -->
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/home/">
     <meta property="og:url" content="https://relaytalk.vercel.app/pages/home/">
     <meta name="twitter:url" content="https://relaytalk.vercel.app/pages/home/">
 
-    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
     <meta property="og:title" content="RelayTalk - Dashboard | Connect with Friends">
@@ -28,85 +25,77 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
     <meta name="twitter:title" content="RelayTalk - Dashboard | Connect with Friends">
     <meta name="twitter:description" content="Your RelayTalk dashboard - Chat with friends, manage notifications.">
     <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
 
-    <!-- Icons / PWA -->
     <link rel="icon" href="/favicon.ico">
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#007ACC">
 
-    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- FIXED CSP WITH CLOUDFLARE WORKER (No OneSignal) -->
+    <!-- CSP - cleaned, new Mumbai only -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://*.supabase.in 
-        https://api.imgbb.com 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.github.io 
+        default-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.github.io
         https://github.com
         https://fonts.googleapis.com
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-        https://*.supabase.co 
-        https://api.supabase.com 
+        https://cdnjs.cloudflare.com;
+
+        script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://kponqaktavkrchebmiwr.supabase.co
         https://cdn.jsdelivr.net
         https://fonts.googleapis.com
         https://i.ibb.co
-        https://ibb.co
-        https://cdnjs.cloudflare.com
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        style-src 'self' 'unsafe-inline' 
-        https://fonts.googleapis.com 
+        https://cdnjs.cloudflare.com;
+
+        style-src 'self' 'unsafe-inline'
+        https://fonts.googleapis.com
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
         https://cdnjs.cloudflare.com;
-        img-src 'self' data: blob: 
-        https://*.ibb.co 
-        https://i.ibb.co 
-        https://*.imgbb.com 
+
+        img-src 'self' data: blob:
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.imgbb.com
         https:;
-        font-src 'self' data: 
-        https://fonts.gstatic.com 
+
+        font-src 'self' data:
+        https://fonts.gstatic.com
         https://cdn.jsdelivr.net
         https://cdnjs.cloudflare.com;
-        connect-src 'self' 
-        wss://*.supabase.co 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
+
+        connect-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        wss://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
         https://*.github.io
         https://i.ibb.co
-        https://ibb.co
-        https://relaytalk-proxy.lusterchat.workers.dev;
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
         worker-src 'self' blob:;
-        media-src 'self' 
-        https://i.ibb.co
-        https://*.ibb.co;
+        media-src 'self' https://i.ibb.co https://*.ibb.co;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
         frame-src 'none';
     ">
 
-    <!-- DNS Prefetch for Cloudflare Worker -->
-    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
-    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
-
-    <!-- ✅ CRITICAL FIX: ONLY redirect if NOT logged in -->
+    <!-- Session check: only redirect if NOT logged in -->
     <script>
         (function() {
             try {
@@ -114,7 +103,7 @@
                 const localToken = localStorage.getItem('supabase.auth.token');
                 const sessionToken = sessionStorage.getItem('supabase.auth.token');
                 hasSession = !!(localToken || sessionToken);
-                
+
                 if (!hasSession) {
                     try {
                         const persistedSession = localStorage.getItem('supabase.auth.token');
@@ -135,16 +124,13 @@
     </script>
 </head>
 <body>
-    <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Loading Indicator -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
         <div class="loading-text">✨ Loading Relay...</div>
     </div>
 
-    <!-- Top Header - ORIGINAL UNCHANGED -->
     <header class="top-header">
         <button class="search-btn" onclick="openSearch()">
             <i class="fas fa-search"></i> Search Friends
@@ -152,7 +138,6 @@
         <div class="logo-top">✨ Relay</div>
     </header>
 
-    <!-- Main Content -->
     <main class="main-content">
         <section class="welcome-section">
             <div class="welcome-icon">👋</div>
@@ -165,7 +150,6 @@
             </div>
         </section>
 
-        <!-- Quick Actions -->
         <div class="quick-actions">
             <div class="action-card" onclick="openSearch()">
                 <div class="action-icon">🔍</div>
@@ -184,7 +168,6 @@
             </div>
         </div>
 
-        <!-- Friends Section -->
         <section class="friends-section">
             <div class="section-header">
                 <h2 class="section-title">
@@ -200,7 +183,6 @@
         </section>
     </main>
 
-    <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <button class="nav-btn active" onclick="goToHome()">
             <span class="nav-icon"><i class="fas fa-home"></i></span>
@@ -221,7 +203,7 @@
         </button>
     </nav>
 
-    <!-- Modals -->
+    <!-- Search Modal -->
     <div class="modal-overlay" id="searchModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -236,18 +218,45 @@
         </div>
     </div>
 
+    <!-- Notifications Modal - WITH TWO TABS -->
     <div class="modal-overlay" id="notificationsModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
-            <div id="notificationsList"></div>
+
+            <!-- Two tabs: Main / Calls -->
+            <div class="notif-tabs">
+                <button class="notif-tab active" id="notifTabMain" onclick="switchNotifTab('main')">
+                    <i class="fas fa-bell"></i>
+                    Main
+                    <span class="notif-tab-badge" id="mainTabBadge" style="display: none;">0</span>
+                </button>
+                <button class="notif-tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
+                    <i class="fas fa-phone"></i>
+                    Calls
+                    <span class="notif-tab-badge" id="callsTabBadge" style="display: none;">0</span>
+                </button>
+            </div>
+
+            <!-- Main tab content -->
+            <div class="notif-tab-content active" id="notifMainContent">
+                <div id="notificationsList"></div>
+            </div>
+
+            <!-- Calls tab content -->
+            <div class="notif-tab-content" id="notifCallsContent">
+                <div id="callHistoryList"></div>
+            </div>
         </div>
     </div>
 
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
+
+    <!-- Global call hub - incoming call banner on this page -->
+    <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
