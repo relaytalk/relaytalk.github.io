@@ -1,7 +1,6 @@
-// utils/supabase.js - FINAL WORKING VERSION
-const SUPABASE_HTTP_URL = 'https://relaytalk-proxy.lusterchat.workers.dev'  // Worker for HTTP
-const SUPABASE_WS_URL = 'wss://yrbkwfpksfvbesrjxwse.supabase.co'  // Direct for WebSocket
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
+// utils/supabase.js - NEW MUMBAI PROJECT (Push-Notifications branch)
+const SUPABASE_URL = 'https://kponqaktavkrchebmiwr.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtwb25xYWt0YXZrcmNoZWJtaXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyOTUzMTMsImV4cCI6MjEwNDg3MTMxM30.nkoiFez4G3-CzKvatQ9xZL4FpnZa9Qixcr64Sh8ytDE'
 
 let supabase = null;
 let initializationPromise = null;
@@ -12,12 +11,11 @@ async function initializeSupabase() {
 
     initializationPromise = new Promise(async (resolve, reject) => {
         try {
-            console.log('🔄 Loading Supabase client with direct WebSocket...');
+            console.log('🔄 Loading Supabase client (new Mumbai project)...');
 
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm');
 
-            // Create client with custom WebSocket URL
-            supabase = createClient(SUPABASE_HTTP_URL, SUPABASE_ANON_KEY, {
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     persistSession: true,
                     autoRefreshToken: true,
@@ -33,33 +31,8 @@ async function initializeSupabase() {
                 }
             });
 
-            // 🔥 FIX: Override the WebSocket URL
-            // This is the key - force WebSocket to use direct connection
-            const originalChannel = supabase.channel;
-            supabase.channel = function(topic, params = {}) {
-                const channel = originalChannel.call(this, topic, params);
-                
-                // Override the socket connection
-                const originalSubscribe = channel.subscribe;
-                channel.subscribe = function(callback) {
-                    // Create direct WebSocket connection
-                    const wsUrl = SUPABASE_WS_URL + '/realtime/v1/websocket?' + new URLSearchParams({
-                        apikey: SUPABASE_ANON_KEY,
-                        eventsPerSecond: 10,
-                        vsn: '1.0.0'
-                    });
-                    
-                    // Store for later use
-                    this._wsUrl = wsUrl;
-                    
-                    return originalSubscribe.call(this, callback);
-                };
-                
-                return channel;
-            };
-
             window.supabase = supabase;
-            console.log('✅ Supabase client created with direct WebSocket override');
+            console.log('✅ Supabase client created (direct Mumbai connection)');
 
             // Test connection
             setTimeout(async () => {
@@ -83,7 +56,7 @@ async function initializeSupabase() {
             resolve(supabase);
         } catch (error) {
             console.error('❌ Supabase initialization failed:', error);
-            
+
             // Fallback client
             supabase = {
                 auth: {
@@ -114,7 +87,7 @@ async function initializeSupabase() {
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         initializeSupabase().then(() => {
-            console.log('🎯 Supabase ready - WebSocket: DIRECT, HTTP: WORKER');
+            console.log('🎯 Supabase ready - Direct Mumbai connection');
         }).catch(console.error);
     }, 100);
 }
