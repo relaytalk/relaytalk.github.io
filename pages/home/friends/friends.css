@@ -1,4 +1,4 @@
-/* friends.css - COMPLETE WITH CALL FUNCTIONALITY AND OPTIMIZATIONS - ADD FRIENDS BUTTON REMOVED */
+/* friends.css - COMPLETE WITH NOTIFICATIONS */
 
 * {
     margin: 0;
@@ -243,7 +243,7 @@ body {
     font-size: 1rem;
 }
 
-/* Empty State - WITHOUT Add Friends Button */
+/* Empty State */
 .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -292,6 +292,7 @@ body {
     gap: 4px;
     transition: color 0.2s;
     padding: 5px;
+    position: relative;
 }
 
 .nav-item i {
@@ -306,7 +307,27 @@ body {
     color: #007acc;
 }
 
-/* Modals - Keep but won't be used (add friends removed) */
+/* Notification Badge on bottom nav */
+.bottom-nav .notification-badge {
+    position: absolute;
+    top: 0;
+    right: 8px;
+    background: linear-gradient(135deg, #ff6b8b, #ff8e53);
+    color: white;
+    font-size: 0.65rem;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    padding: 0 5px;
+    border: 2px solid white;
+    z-index: 2;
+}
+
+/* Modals */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -327,20 +348,14 @@ body {
     border-radius: 20px;
     width: 90%;
     max-width: 500px;
-    max-height: 80vh;
+    max-height: 85vh;
     overflow-y: auto;
     animation: modalFadeIn 0.3s ease;
 }
 
 @keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .modal-header {
@@ -349,6 +364,11 @@ body {
     align-items: center;
     padding: 20px;
     border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 5;
+    border-radius: 20px 20px 0 0;
 }
 
 .modal-header h2 {
@@ -382,7 +402,7 @@ body {
     padding: 20px;
 }
 
-/* Search Results - Keep but won't be used */
+/* Search Results */
 .search-input-container {
     position: relative;
     margin-bottom: 20px;
@@ -411,7 +431,7 @@ body {
 }
 
 .search-results {
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
 }
 
@@ -476,7 +496,6 @@ body {
     text-overflow: ellipsis;
 }
 
-/* Add friend button styles - kept but not used */
 .add-friend-btn {
     background: #007acc;
     color: white;
@@ -489,13 +508,8 @@ body {
     flex-shrink: 0;
 }
 
-.add-friend-btn:hover {
-    background: #005a9e;
-}
-
-.add-friend-btn:active {
-    transform: scale(0.95);
-}
+.add-friend-btn:hover { background: #005a9e; }
+.add-friend-btn:active { transform: scale(0.95); }
 
 .add-friend-btn.added {
     background: #e2e8f0;
@@ -515,9 +529,298 @@ body {
     margin-bottom: 10px;
 }
 
-/* ========== CALL FUNCTIONALITY STYLES ========== */
+/* ============================================================ */
+/* NOTIFICATIONS MODAL - TABS + CALL HISTORY                    */
+/* ============================================================ */
 
-/* Incoming Call Notification (Top Banner) */
+.notif-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 20px 18px;
+    padding: 6px;
+    background: rgba(0, 122, 204, 0.06);
+    border-radius: 14px;
+    border: 1px solid rgba(0, 122, 204, 0.15);
+}
+
+.notif-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.notif-tab i { font-size: 1rem; }
+
+.notif-tab:hover {
+    color: #007acc;
+    background: rgba(0, 122, 204, 0.05);
+}
+
+.notif-tab.active {
+    background: white;
+    color: #007acc;
+    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.15);
+}
+
+.notif-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: linear-gradient(135deg, #ff6b8b, #ff8e53);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 10px;
+    margin-left: 4px;
+    border: 1.5px solid white;
+}
+
+.notif-tab-content {
+    display: none;
+    padding: 0 20px 20px;
+}
+
+.notif-tab-content.active {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Notification items inside friends page */
+.notification-item {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+    border-left: 4px solid #007acc;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.15s ease;
+}
+
+.notification-item:hover {
+    background: #f1f5f9;
+    transform: translateX(2px);
+}
+
+.notification-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.notification-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.notification-content strong {
+    color: #1e293b;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notification-content small {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-small {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-small.btn-success {
+    background: rgba(40, 167, 69, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.btn-small.btn-success:hover {
+    background: rgba(40, 167, 69, 0.3);
+}
+
+.btn-small.btn-danger {
+    background: rgba(220, 53, 69, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.btn-small.btn-danger:hover {
+    background: rgba(220, 53, 69, 0.3);
+}
+
+/* Call history items (inside Notifications modal) */
+.call-history-date {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin: 14px 0 8px;
+    padding-left: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.call-history-date:first-child { margin-top: 0; }
+
+.call-history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: white;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.call-history-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: #94a3b8;
+}
+
+.call-history-item.status-answered::before { background: #22c55e; }
+.call-history-item.status-missed::before { background: #ef4444; }
+.call-history-item.status-rejected::before { background: #f59e0b; }
+.call-history-item.status-cancelled::before { background: #94a3b8; }
+.call-history-item.status-ringing::before { background: #f59e0b; }
+
+.call-history-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.08);
+    transform: translateX(2px);
+}
+
+.call-history-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.call-history-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.call-history-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.call-history-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.call-history-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.call-history-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 5px 9px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.call-history-status i { font-size: 0.7rem; }
+
+.call-history-status.status-answered { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
+.call-history-status.status-missed { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+.call-history-status.status-rejected { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.call-history-status.status-cancelled { background: rgba(148, 163, 184, 0.15); color: #64748b; }
+.call-history-status.status-ringing { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+
+/* ============================================================ */
+/* LEGACY INCOMING CALL STYLES (kept for compat)                */
+/* ============================================================ */
+
 .incoming-call-notification {
     position: fixed;
     top: 0;
@@ -530,254 +833,14 @@ body {
     z-index: 10000;
     animation: slideDown 0.3s ease-out;
     border-bottom: 1px solid rgba(255,255,255,0.1);
-    will-change: transform;
 }
 
 @keyframes slideDown {
-    from {
-        transform: translateY(-100%);
-    }
-    to {
-        transform: translateY(0);
-    }
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
 }
 
-.incoming-call-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.incoming-call-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #007acc, #00b4d8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 28px;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,122,204,0.3);
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.incoming-call-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.incoming-call-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.incoming-call-name {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: white;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.incoming-call-status {
-    font-size: 14px;
-    color: #94a3b8;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.pulsing-dot {
-    width: 8px;
-    height: 8px;
-    background: #22c55e;
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.5;
-        transform: scale(1.2);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.incoming-call-actions {
-    display: flex;
-    gap: 12px;
-    flex-shrink: 0;
-}
-
-.incoming-call-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.incoming-call-btn.accept {
-    background: #22c55e;
-    color: white;
-    box-shadow: 0 4px 12px rgba(34,197,94,0.3);
-}
-
-.incoming-call-btn.accept:hover {
-    background: #16a34a;
-    transform: scale(1.1);
-}
-
-.incoming-call-btn.decline {
-    background: #ef4444;
-    color: white;
-    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
-}
-
-.incoming-call-btn.decline:hover {
-    background: #dc2626;
-    transform: scale(1.1);
-}
-
-/* Incoming Call Modal (fallback) */
-.incoming-call {
-    text-align: center;
-    padding: 24px;
-}
-
-.incoming-call-header {
-    margin-bottom: 24px;
-}
-
-.incoming-call-header h2 {
-    margin: 12px 0 0;
-    color: #1e293b;
-    font-size: 1.5rem;
-}
-
-.incoming-call-header i {
-    font-size: 48px;
-    color: #007acc;
-    animation: ring 1s infinite;
-}
-
-.caller-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
-    padding: 16px;
-    background: #f8fafc;
-    border-radius: 12px;
-}
-
-.caller-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(45deg, #007acc, #00b4d8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 24px;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.caller-avatar span {
-    color: white;
-    font-size: 24px;
-    font-weight: 600;
-}
-
-.caller-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.caller-details {
-    flex: 1;
-    text-align: left;
-}
-
-.caller-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 4px;
-}
-
-.call-status {
-    color: #007acc;
-    font-size: 14px;
-}
-
-.call-actions {
-    display: flex;
-    gap: 12px;
-}
-
-.call-action-btn {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 25px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s;
-}
-
-.call-action-btn.accept {
-    background: #22c55e;
-    color: white;
-}
-
-.call-action-btn.accept:hover {
-    background: #16a34a;
-}
-
-.call-action-btn.decline {
-    background: #ef4444;
-    color: white;
-}
-
-.call-action-btn.decline:hover {
-    background: #dc2626;
-}
-
-.call-action-btn i {
-    font-size: 1rem;
-}
-
-/* Toast Container and Toasts */
+/* Toast Container */
 .toast-container {
     position: fixed;
     top: 20px;
@@ -804,41 +867,28 @@ body {
 }
 
 @keyframes slideInToast {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
-.toast.success {
-    border-left-color: #22c55e;
-}
+.toast.success { border-left-color: #22c55e; }
+.toast.error { border-left-color: #ef4444; }
+.toast.info { border-left-color: #007acc; }
 
-.toast.error {
-    border-left-color: #ef4444;
-}
-
-.toast i {
-    font-size: 1.2rem;
-}
-
+.toast i { font-size: 1.2rem; }
+.toast.success i { color: #22c55e; }
+.toast.error i { color: #ef4444; }
+.toast.info i { color: #007acc; }
 .toast span {
     flex: 1;
     font-size: 0.95rem;
     color: #334155;
 }
 
-/* Loading Indicator with animated messages */
+/* Loading Indicator */
 .loading-indicator {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: linear-gradient(135deg, #f8fafc, #ffffff);
     display: flex;
     flex-direction: column;
@@ -879,109 +929,27 @@ body {
     color: #64748b;
 }
 
-/* Responsive Design */
+/* Responsive */
 @media (max-width: 640px) {
-    .friends-list {
-        padding: 15px;
-    }
-    
-    .friend-avatar {
-        width: 50px;
-        height: 50px;
-        font-size: 1.2rem;
-    }
-    
-    .friend-name-clean {
-        font-size: 1rem;
-    }
-    
-    .call-btn {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .call-btn i {
-        font-size: 0.9rem;
-    }
-    
-    .modal-content {
-        width: 95%;
-    }
-    
-    .incoming-call-avatar {
-        width: 50px;
-        height: 50px;
-        font-size: 24px;
-    }
-    
-    .incoming-call-name {
-        font-size: 16px;
-    }
-    
-    .incoming-call-btn {
-        width: 44px;
-        height: 44px;
-        font-size: 18px;
-    }
-    
-    .caller-avatar {
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
-    }
-    
-    .caller-name {
-        font-size: 16px;
-    }
-    
-    .call-action-btn {
-        padding: 10px;
-        font-size: 14px;
-    }
-    
-    .loading-text {
-        font-size: 1rem;
-    }
-    
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-    }
+    .friends-list { padding: 15px; }
+    .friend-avatar { width: 50px; height: 50px; font-size: 1.2rem; }
+    .friend-name-clean { font-size: 1rem; }
+    .call-btn { width: 36px; height: 36px; }
+    .call-btn i { font-size: 0.9rem; }
+    .modal-content { width: 95%; }
+    .loading-text { font-size: 1rem; }
+    .loading-spinner { width: 40px; height: 40px; }
 }
 
-/* Touch Optimizations */
 @media (hover: none) {
-    .friend-item:active {
-        background: #f5f7fa;
-    }
-    
-    .call-btn:active {
-        transform: scale(0.95);
-    }
+    .friend-item:active { background: #f5f7fa; }
+    .call-btn:active { transform: scale(0.95); }
 }
 
-/* Performance Optimizations */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
-    }
-}
-
-/* Print styles */
-@media print {
-    .bottom-nav,
-    .search-container,
-    .header-actions,
-    .call-btn,
-    .modal-overlay,
-    .incoming-call-notification {
-        display: none !important;
-    }
-    
-    .friend-item {
-        break-inside: avoid;
-        page-break-inside: avoid;
     }
 }
