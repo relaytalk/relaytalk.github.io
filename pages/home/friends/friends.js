@@ -521,4 +521,400 @@ async function loadCallHistory() {
             }
 
             const isOutgoing = call.caller_id === currentUser.id;
-            const otherUserId = isOut
+            const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
+            const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
+
+            let statusClass = 'status-missed';
+            let statusText = 'Missed';
+            let statusIcon = 'fa-phone-slash';
+
+            if (call.status === 'active' || call.status === 'ended') {
+                statusClass = 'status-answered';
+                statusText = 'Answered';
+                statusIcon = 'fa-phone';
+            } else if (call.status === 'rejected') {
+                statusClass = 'status-rejected';
+                statusText = 'Rejected';
+                statusIcon = 'fa-phone-slash';
+            } else if (call.status === 'cancelled') {
+                statusClass = 'status-cancelled';
+                statusText = isOutgoing ? 'Cancelled' : 'Missed';
+                statusIcon = 'fa-phone-slash';
+            } else if (call.status === 'ringing') {
+                statusClass = 'status-ringing';
+                statusText = isOutgoing ? 'No answer' : 'Missed';
+                statusIcon = 'fa-phone-slash';
+            }
+
+            const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
+
+            html += `
+                <div class="call-history-item ${statusClass}">
+                    <div class="call-history-avatar">
+                        ${otherUser.avatar_url
+                            ? `<img src="${otherUser.avatar_url}" alt="${otherUser.username}">`
+                            : `<span>${initial}</span>`
+                        }
+                    </div>
+                    <div class="call-history-info">
+                        <div class="call-history-name">${otherUser.username}</div>
+                        <div class="call-history-meta">
+                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}" style="font-size:0.75rem;"></i>
+                            <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
+                            <span>•</span>
+                            <span>${time}</span>
+                        </div>
+                    </div>
+                    <div class="call-history-status ${statusClass}">
+                        <i class="fas ${statusIcon}"></i>
+                        <span>${statusText}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error("❌ Error loading call history:", error);
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
+    }
+}
+
+// ============================================
+// BADGES
+// ============================================
+async function updateBadges() {
+    try {
+        if (!currentUser || !mainSupabase) return;
+
+        const { data: friendReqs } = await mainSupabase
+            .from('friend_requests')
+            .select('id')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+
+        const pendingCount = friendReqs?.length || 0;
+
+        const { count: missedCount } = await mainSupabase
+            .from('calls')
+            .select('*', { count: 'exact', head: true })
+            .eq('callee_id', currentUser.id)
+            .eq('seen', false)
+            .in('status', ['missed', 'rejected']);
+
+        // Bottom nav badge = friend requests + missed calls
+        const notifBadge = document.getElementById('notificationBadge');
+        const total = pendingCount + (missedCount || 0);
+        if (notifBadge) {
+            if (total > 0) {
+                notifBadge.textContent = total > 9 ? '9+' : total;
+                notifBadge.style.display = 'flex';
+            } else {
+                notifBadge.style.display = 'none';
+            }
+        }
+
+        // Main tab badge
+        const mainTabBadge = document.getElementById('mainTabBadge');
+        if (mainTabBadge) {
+            if (pendingCount > 0) {
+                mainTabBadge.textContent = pendingCount > 9 ? '9+' : pendingCount;
+                mainTabBadge.style.display = 'inline-flex';
+            } else {
+                mainTabBadge.style.display = 'none';
+            }
+        }
+
+        // Calls tab badge
+        const callsTabBadge = document.getElementById('callsTabBadge');
+        if (callsTabBadge) {
+            if (missedCount && missedCount > 0) {
+                callsTabBadge.textContent = missedCount > 9 ? '9+' : missedCount;
+                callsTabBadge.style.display = 'inline-flex';
+            } else {
+                callsTabBadge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        // silent
+    }
+}
+
+async function checkMissedCalls() {
+    try {
+        if (!mainSupabase || !currentUser) return;
+
+        const { count } = await mainSupabase
+            .from('calls')
+            .select('*', { count: 'exact', head: true })
+            .eq('callee_id', currentUser.id)
+            .eq('seen', false)
+            .in('status', ['missed', 'rejected']);
+
+        missedCallCount = count || 0;
+        updateBadges();
+    } catch (error) {
+        console.error('Error checking missed calls:', error);
+    }
+}
+
+// ============================================
+// ACCEPT / DECLINE FRIEND REQUEST
+// ============================================
+window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
+    if (button) {
+        button.textContent = '...';
+        button.disabled = true;
+    }
+
+    try {
+        await mainSupabase
+            .from('friend_requests')
+            .update({ status: 'accepted', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+
+        await mainSupabase.from('friends').insert({
+            user_id: currentUser.id,
+            friend_id: senderId,
+            created_at: new Date().toISOString()
+        });
+
+        await mainSupabase.from('friends').insert({
+            user_id: senderId,
+            friend_id: currentUser.id,
+            created_at: new Date().toISOString()
+        });
+
+        showToast('success', `You are now friends with ${senderName}!`);
+
+        await loadFriends();
+        await loadNotifications();
+        await updateBadges();
+
+    } catch (error) {
+        console.error('Accept error:', error);
+        showToast('error', 'Could not accept request');
+        if (button) {
+            button.textContent = '✓';
+            button.disabled = false;
+        }
+    }
+};
+
+window.declineFriendRequest = async function(requestId, button) {
+    if (button) {
+        button.textContent = '...';
+        button.disabled = true;
+    }
+
+    try {
+        await mainSupabase
+            .from('friend_requests')
+            .update({ status: 'rejected', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+
+        showToast('info', 'Request declined');
+
+        await loadNotifications();
+        await updateBadges();
+
+    } catch (error) {
+        console.error('Decline error:', error);
+        if (button) {
+            button.textContent = '✗';
+            button.disabled = false;
+        }
+    }
+};
+
+// ============================================
+// HELPERS
+// ============================================
+function timeAgoShort(dateStr) {
+    const now = new Date();
+    const past = new Date(dateStr);
+    const diffMins = Math.floor((now - past) / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return past.toLocaleDateString();
+}
+
+function updateLoadingText(text) {
+    const el = document.querySelector('.loading-text');
+    if (el) el.textContent = text;
+}
+
+function showToast(type, message) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function startStatusUpdates() {
+    if (currentUser && currentUser.id && mainSupabase) {
+        updateUserStatus(mainSupabase, currentUser.id, 'online');
+    }
+    setInterval(() => {
+        if (currentUser && currentUser.id && mainSupabase) {
+            updateUserStatus(mainSupabase, currentUser.id, 'online');
+        }
+    }, 30000);
+
+    window.addEventListener('beforeunload', () => {
+        if (currentUser && currentUser.id && mainSupabase) {
+            updateUserStatus(mainSupabase, currentUser.id, 'offline');
+        }
+    });
+}
+
+// ============================================
+// NAV FUNCTIONS (kept for compat)
+// ============================================
+window.openSearch = () => {
+    const modal = document.getElementById('searchModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
+    }
+};
+
+window.searchUsers = async function() {
+    if (!mainSupabase || !currentUser) return;
+    const input = document.getElementById('userSearchInput');
+    const container = document.getElementById('searchResults');
+    if (!input || !container) return;
+
+    const term = input.value.toLowerCase().trim();
+    if (!term) {
+        container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-search" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>Search for friends to add</p></div>`;
+        return;
+    }
+
+    try {
+        const { data: friends } = await mainSupabase
+            .from('friends')
+            .select('friend_id')
+            .eq('user_id', currentUser.id);
+
+        const friendIds = friends?.map(f => f.friend_id) || [];
+
+        const { data: pending } = await mainSupabase
+            .from('friend_requests')
+            .select('receiver_id')
+            .eq('sender_id', currentUser.id)
+            .eq('status', 'pending');
+
+        const pendingIds = pending?.map(r => r.receiver_id) || [];
+
+        const { data: users, error } = await mainSupabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .neq('id', currentUser.id)
+            .ilike('username', `%${term}%`)
+            .limit(20);
+
+        if (error || !users || users.length === 0) {
+            container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-user-slash" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>No users found</p></div>`;
+            return;
+        }
+
+        let html = '';
+        users.forEach(user => {
+            const isFriend = friendIds.includes(user.id);
+            const isPending = pendingIds.includes(user.id);
+            const initial = user.username?.charAt(0).toUpperCase() || '?';
+
+            html += `
+                <div class="search-result-item">
+                    <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
+                        ${user.avatar_url
+                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
+                        }
+                    </div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${user.username}</div>
+                        <div class="search-result-username">@${user.username}</div>
+                    </div>
+                    ${isFriend
+                        ? '<button class="add-friend-btn added" disabled>✓ Friends</button>'
+                        : isPending
+                        ? '<button class="add-friend-btn added" disabled>⏳ Sent</button>'
+                        : `<button class="add-friend-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">+ Add</button>`
+                    }
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+};
+
+window.sendFriendRequest = async function(userId, username, btn) {
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        const { error } = await mainSupabase
+            .from('friend_requests')
+            .insert({
+                sender_id: currentUser.id,
+                receiver_id: userId,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
+
+        btn.textContent = '✓ Sent';
+        btn.classList.add('added');
+        showToast('success', `Friend request sent to ${username}`);
+    } catch (error) {
+        console.error('Request error:', error);
+        btn.disabled = false;
+        btn.textContent = '+ Add';
+        showToast('error', 'Failed to send request');
+    }
+};
+
+window.closeModal = function() {
+    document.getElementById('searchModal').style.display = 'none';
+    document.getElementById('notificationsModal').style.display = 'none';
+};
+
+window.logout = async () => {
+    if (mainSupabase) await mainSupabase.auth.signOut();
+    localStorage.clear();
+    sessionStorage.clear();
+    document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    window.location.href = '../../../pages/login/index.html';
+};
+
+// ============================================
+// CLEANUP
+// ============================================
+window.addEventListener('beforeunload', () => {
+    if (realtimeChannel) mainSupabase?.removeChannel(realtimeChannel);
+    if (friendRealtimeChannel) mainSupabase?.removeChannel(friendRealtimeChannel);
+});
+
+document.addEventListener('DOMContentLoaded', initFriendsPage);
