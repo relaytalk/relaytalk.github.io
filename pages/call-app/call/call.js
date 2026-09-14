@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - NEW MUMBAI PROJECT (fixed redirects)
+// /pages/call-app/call/call.js - Return-to-previous-page version
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
@@ -17,8 +17,31 @@ const CALL_TABS_KEY = 'call_app_active_tabs'
 const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'
 const JAAS_DOMAIN = '8x8.vc'
 
-// Where to send the user after a call ends / is rejected / cancelled
-const RETURN_URL = '/pages/home/friends/index.html'
+// 🔥 Where to send the user after a call ends.
+// Priority: (1) returnTo param, (2) sessionStorage, (3) friends page fallback.
+function getReturnUrl() {
+    try {
+        const params = new URLSearchParams(window.location.search)
+        const fromQuery = params.get('returnTo')
+
+        if (fromQuery) {
+            // decodeURIComponent was already applied by URLSearchParams
+            console.log('📞 [call] Return URL from query:', fromQuery)
+            return fromQuery
+        }
+
+        const fromStorage = sessionStorage.getItem('callReturnTo')
+        if (fromStorage) {
+            console.log('📞 [call] Return URL from sessionStorage:', fromStorage)
+            return fromStorage
+        }
+    } catch (e) {
+        console.warn('📞 [call] Could not resolve return URL:', e)
+    }
+
+    console.log('📞 [call] Return URL fallback: /pages/home/friends/index.html')
+    return '/pages/home/friends/index.html'
+}
 
 function registerTab() {
     try {
@@ -29,7 +52,7 @@ function registerTab() {
         if (activeTabs[callId] && activeTabs[callId] !== TAB_ID) {
             console.log('⚠️ Another tab already active for this call, closing...')
             alert('Call is already open in another tab. This tab will close.')
-            window.location.href = RETURN_URL
+            window.location.href = getReturnUrl()
             return false
         }
 
@@ -56,6 +79,13 @@ function unregisterTab() {
 
 async function initCall() {
     console.log('📞 Initializing call...')
+
+    // 🔥 Snapshot the return URL immediately — this is what we'll use everywhere
+    const returnUrl = getReturnUrl()
+    console.log('📞 [call] Using return URL:', returnUrl)
+
+    // Make it globally available to all handlers
+    window.__callReturnUrl = returnUrl
 
     if (!registerTab()) return
 
@@ -128,7 +158,6 @@ async function createCallRoom() {
             url: `https://${JAAS_DOMAIN}/${fullRoomName}`,
             id: uniqueRoomName
         }
-
     } catch (error) {
         console.error('❌ Error creating room:', error)
         throw error
@@ -150,6 +179,7 @@ async function startOutgoingCall(friendId, friendName) {
             room_name: callRoom.name,
             room_url: callRoom.url,
             status: 'ringing',
+            seen: false,
             created_at: new Date().toISOString()
         }
 
@@ -171,7 +201,6 @@ async function startOutgoingCall(friendId, friendName) {
         currentCall = call
         document.getElementById('loadingText').textContent = `Waiting for ${friendName} to answer...`
         setupCallListener(call.id)
-
     } catch (error) {
         console.error('❌ Call error:', error)
         showError('Failed to start call: ' + error.message)
@@ -187,11 +216,10 @@ async function handleIncomingCall(roomName, callerId, callId) {
 
         await supabase
             .from('calls')
-            .update({ status: 'active', answered_at: new Date().toISOString() })
+            .update({ status: 'active', answered_at: new Date().toISOString(), seen: true })
             .eq('id', callId)
 
         await joinCall(roomName)
-
     } catch (error) {
         console.error('❌ Incoming call error:', error)
         showError('Failed to accept call')
@@ -329,7 +357,6 @@ async function joinCall(roomName) {
                             break
                         }
                     }
-
                 } catch(e) {}
             }, 1000)
 
@@ -342,7 +369,6 @@ async function joinCall(roomName) {
         }, 3000)
 
         console.log('✅ Jitsi call connected!')
-
     } catch (error) {
         console.error('❌ Join error:', error)
         showError('Failed to join call: ' + error.message)
@@ -398,7 +424,9 @@ window.endCall = async function(silent = false) {
 
     unregisterTab()
 
-    window.location.href = RETURN_URL
+    const returnUrl = window.__callReturnUrl || getReturnUrl()
+    console.log('📞 [call] Redirecting to:', returnUrl)
+    window.location.href = returnUrl
 }
 
 window.toggleVideo = function() {
@@ -459,7 +487,10 @@ window.cancelCall = async function() {
     }
 
     unregisterTab()
-    window.location.href = RETURN_URL
+
+    const returnUrl = window.__callReturnUrl || getReturnUrl()
+    console.log('📞 [call] Cancelling → redirecting to:', returnUrl)
+    window.location.href = returnUrl
 }
 
 window.acceptCall = function() {}
@@ -470,7 +501,9 @@ function showCallEnded(message) {
     document.getElementById('loadingText').textContent = message
 
     setTimeout(() => {
-        window.location.href = RETURN_URL
+        const returnUrl = window.__callReturnUrl || getReturnUrl()
+        console.log('📞 [call] Call ended → redirecting to:', returnUrl)
+        window.location.href = returnUrl
     }, 2000)
 }
 
