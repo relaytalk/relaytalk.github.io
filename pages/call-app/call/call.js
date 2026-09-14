@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - NEW MUMBAI PROJECT
+// /pages/call-app/call/call.js - NEW MUMBAI PROJECT (fixed redirects)
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
@@ -17,7 +17,9 @@ const CALL_TABS_KEY = 'call_app_active_tabs'
 const JAAS_APP_ID = 'vpaas-magic-cookie-16664d50d3a04e79a2876de86dcc38e4'
 const JAAS_DOMAIN = '8x8.vc'
 
-// Register this tab
+// Where to send the user after a call ends / is rejected / cancelled
+const RETURN_URL = '/pages/home/friends/index.html'
+
 function registerTab() {
     try {
         const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}')
@@ -27,7 +29,7 @@ function registerTab() {
         if (activeTabs[callId] && activeTabs[callId] !== TAB_ID) {
             console.log('⚠️ Another tab already active for this call, closing...')
             alert('Call is already open in another tab. This tab will close.')
-            window.close()
+            window.location.href = RETURN_URL
             return false
         }
 
@@ -40,7 +42,6 @@ function registerTab() {
     }
 }
 
-// Remove tab registration
 function unregisterTab() {
     try {
         const activeTabs = JSON.parse(sessionStorage.getItem(CALL_TABS_KEY) || '{}')
@@ -220,6 +221,8 @@ function setupCallListener(callId) {
                 showCallEnded('Call was rejected')
             } else if (payload.new.status === 'cancelled') {
                 showCallEnded('Call was cancelled')
+            } else if (payload.new.status === 'ended') {
+                showCallEnded('Call ended')
             }
         })
         .subscribe((status) => {
@@ -346,7 +349,6 @@ async function joinCall(roomName) {
     }
 }
 
-// Add Square Hang Button at Bottom Right (Icon Only)
 function addHangButton() {
     const existingBtn = document.getElementById('hangUpBtn')
     if (existingBtn) existingBtn.remove()
@@ -396,11 +398,7 @@ window.endCall = async function(silent = false) {
 
     unregisterTab()
 
-    window.close()
-
-    setTimeout(() => {
-        window.location.href = '/pages/call-app/index.html'
-    }, 500)
+    window.location.href = RETURN_URL
 }
 
 window.toggleVideo = function() {
@@ -461,7 +459,7 @@ window.cancelCall = async function() {
     }
 
     unregisterTab()
-    window.location.href = '/pages/call-app/index.html'
+    window.location.href = RETURN_URL
 }
 
 window.acceptCall = function() {}
@@ -472,7 +470,7 @@ function showCallEnded(message) {
     document.getElementById('loadingText').textContent = message
 
     setTimeout(() => {
-        window.location.href = '/pages/call-app/index.html'
+        window.location.href = RETURN_URL
     }, 2000)
 }
 
