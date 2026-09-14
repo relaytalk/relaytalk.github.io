@@ -11,26 +11,55 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <!-- CSP - FIXED with Cloudflare Worker AND WEBSOCKET -->
+    <!-- CSP - CLEANED: new Mumbai only, no worker -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' https://*.supabase.co https://api.supabase.com https://*.supabase.in https://api.imgbb.com https://*.ibb.co https://i.ibb.co https://*.github.io https://github.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://relaytalk-proxy.lusterchat.workers.dev;
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://api.supabase.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://i.ibb.co https://ibb.co https://cdnjs.cloudflare.com https://relaytalk-proxy.lusterchat.workers.dev;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdnjs.cloudflare.com;
-        img-src 'self' data: blob: https://*.ibb.co https://i.ibb.co https://*.imgbb.com https:;
-        font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
-        connect-src 'self' 
-            wss://*.supabase.co 
-            https://*.supabase.co 
-            https://api.supabase.com 
-            https://api.imgbb.com 
-            https://*.github.io
-            https://i.ibb.co
-            https://ibb.co
-            https://relaytalk-proxy.lusterchat.workers.dev
-            wss://relaytalk-proxy.lusterchat.workers.dev
-            wss://yrbkwfpksfvbesrjxwse.supabase.co;
+        default-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.github.io
+        https://github.com
+        https://fonts.googleapis.com
+        https://cdnjs.cloudflare.com;
+
+        script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://cdn.jsdelivr.net
+        https://fonts.googleapis.com
+        https://i.ibb.co
+        https://cdnjs.cloudflare.com;
+
+        style-src 'self' 'unsafe-inline'
+        https://fonts.googleapis.com
+        https://cdn.jsdelivr.net
+        https://fonts.gstatic.com
+        https://cdnjs.cloudflare.com;
+
+        img-src 'self' data: blob:
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.imgbb.com
+        https:;
+
+        font-src 'self' data:
+        https://fonts.gstatic.com
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
+        connect-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        wss://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.github.io
+        https://i.ibb.co
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
         worker-src 'self' blob:;
-        media-src 'self' https://i.ibb.co https://*.ibb.co;
+        media-src 'self' blob:;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
@@ -40,12 +69,8 @@
     <!-- Preloads -->
     <link rel="preconnect" href="https://i.ibb.co" crossorigin>
     <link rel="dns-prefetch" href="https://i.ibb.co">
-    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
-    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
-    <link rel="preconnect" href="wss://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
-    <link rel="dns-prefetch" href="wss://relaytalk-proxy.lusterchat.workers.dev">
-    <link rel="preconnect" href="wss://yrbkwfpksfvbesrjxwse.supabase.co" crossorigin>
-    <link rel="dns-prefetch" href="wss://yrbkwfpksfvbesrjxwse.supabase.co">
+    <link rel="preconnect" href="https://kponqaktavkrchebmiwr.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://kponqaktavkrchebmiwr.supabase.co">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -93,7 +118,7 @@
 
     <!-- Chat Interface -->
     <div id="chat" style="display: none;">
-        <!-- Chat Header - ONLY NOTIFICATION BUTTON -->
+        <!-- Chat Header -->
         <header class="chat-header">
             <button class="back-btn" onclick="goBack()">←</button>
             <div class="chat-user-info">
@@ -107,18 +132,12 @@
                 </div>
             </div>
             <div class="chat-actions">
-                <!-- ONLY NOTIFICATION BUTTON -->
-                <button id="notificationToggleBtn" class="notification-toggle-btn" style="display: none;">
-                    <i class="fas fa-bell"></i>
-                    <span id="notificationBadgeSmall" class="notification-badge-small" style="display: none;">1</span>
+                <!-- Call button — same style as friends page -->
+                <button class="call-btn" id="chatCallBtn" onclick="callCurrentFriend()" aria-label="Call friend">
+                    <i class="fas fa-phone"></i>
                 </button>
             </div>
         </header>
-
-        <!-- Notification Tooltip -->
-        <div id="notificationTooltip" class="notification-tooltip" style="display: none;">
-            <p><i class="fas fa-bell"></i> <span id="tooltipMessage">Enable notifications to get alerts</span></p>
-        </div>
 
         <!-- Main Chat Area -->
         <main class="main-content">
@@ -230,15 +249,42 @@
 
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
-    <script src="/utils/sw-manager.js"></script>
 
-    <!-- Mobile Detection -->
+    <!-- Global call hub: incoming call banner + window.startCall() -->
+    <script type="module" src="/utils/callHub.js"></script>
+
+    <!-- Chat page call button glue -->
     <script>
+        window.callCurrentFriend = function() {
+            const friend = window.chatFriend;
+
+            if (!friend || !friend.id) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Friend info not ready yet', '⚠️', 1500);
+                } else {
+                    alert('Friend info not ready yet');
+                }
+                return;
+            }
+
+            if (typeof window.startCall !== 'function') {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Calling service not ready yet', '⚠️', 1500);
+                } else {
+                    alert('Calling service not ready yet');
+                }
+                return;
+            }
+
+            console.log('📞 [chats] Triggering call to:', friend.id, friend.username);
+            window.startCall(friend.id, friend.username || 'Friend');
+        };
+
         function isMobileChrome() {
             const ua = navigator.userAgent;
             return (/Android/i.test(ua) && /Chrome/i.test(ua) && !/Edg/i.test(ua));
         }
-        
+
         function applyChromeMobileFixes() {
             if (isMobileChrome()) {
                 document.body.classList.add('chrome-mobile');
@@ -250,13 +296,13 @@
                 });
             }
         }
-        
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', applyChromeMobileFixes);
         } else {
             applyChromeMobileFixes();
         }
-        
+
         function fixImgBBUrls(url) {
             if (isMobileChrome() && url && url.includes('ibb.co')) {
                 url = url.replace('https://ibb.co/', 'https://i.ibb.co/');
@@ -266,7 +312,7 @@
             }
             return url;
         }
-        
+
         window.fixImgBBUrls = fixImgBBUrls;
         window.isMobileChrome = isMobileChrome;
     </script>
