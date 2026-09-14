@@ -1,6 +1,4 @@
-// pages/call-app/utils/userSync.js - NEW MUMBAI PROJECT
-// Old Japan project (blxtldgnssvasuinpyit) is no longer used.
-// Friends sync from old DB is removed — new Mumbai already has friends.
+// pages/call-app/utils/userSync.js - NEW MUMBAI PROJECT (bulletproof)
 
 // ============================================================
 // GET USER FROM MAIN APP'S LOCALSTORAGE
@@ -62,6 +60,7 @@ export function getRelayTalkUser() {
 
 // ============================================================
 // SYNC USER TO CALLAPP DB (new Mumbai)
+// Never throws — always returns a user object so pages keep working.
 // ============================================================
 export async function syncUserToDatabase(supabase, user) {
     try {
@@ -84,13 +83,16 @@ export async function syncUserToDatabase(supabase, user) {
                 })
                 .eq('id', user.id)
                 .select()
-                .single()
+                .maybeSingle()
 
-            if (updateError) throw updateError
+            if (updateError) {
+                console.warn('⚠️ Profile update warning (non-fatal):', updateError.message)
+            }
+            console.log('✅ User synced (existing)')
             return updated || existing
         }
 
-        // Fallback if profile missing (shouldn't happen — main app creates it)
+        // Profile missing — create it (no `email` column!)
         const newUser = {
             id: user.id,
             username: user.username,
@@ -105,21 +107,34 @@ export async function syncUserToDatabase(supabase, user) {
             .from('profiles')
             .insert([newUser])
             .select()
-            .single()
+            .maybeSingle()
 
-        if (insertError) throw insertError
+        if (insertError) {
+            console.error('❌ Profile insert failed:', insertError.message)
+            return {
+                id: user.id,
+                username: user.username,
+                avatar_url: user.avatar_url,
+                status: 'online'
+            }
+        }
 
         console.log('✅ User created in CallApp DB')
-        return created
+        return created || newUser
 
     } catch (error) {
-        console.error('❌ Sync failed:', error)
-        throw error
+        console.error('❌ Sync failed (non-fatal, continuing):', error)
+        return {
+            id: user.id,
+            username: user.username,
+            avatar_url: user.avatar_url,
+            status: 'online'
+        }
     }
 }
 
 // ============================================================
-// GET USER'S FRIENDS LIST (from new Mumbai)
+// GET USER'S FRIENDS LIST
 // ============================================================
 export async function getUserFriends(supabase, userId) {
     try {
@@ -128,9 +143,7 @@ export async function getUserFriends(supabase, userId) {
             .select('friend_id')
             .eq('user_id', userId)
 
-        if (!friendships || friendships.length === 0) {
-            return []
-        }
+        if (!friendships || friendships.length === 0) return []
 
         const friendIds = friendships.map(f => f.friend_id)
 
@@ -169,12 +182,11 @@ export async function updateUserStatus(supabase, userId, status) {
 // FRIENDS PAGE EXPORTS
 // ============================================================
 
-// Search all users (for adding friends)
 export async function searchAllUsers(supabase, searchTerm, currentUserId) {
     try {
         const { data: users, error } = await supabase
             .from('profiles')
-            .select('id, username, avatar_url, email')
+            .select('id, username, avatar_url')
             .neq('id', currentUserId)
             .ilike('username', `%${searchTerm}%`)
             .limit(20)
@@ -188,7 +200,6 @@ export async function searchAllUsers(supabase, searchTerm, currentUserId) {
     }
 }
 
-// Send friend request
 export async function sendFriendRequest(supabase, senderId, receiverId) {
     try {
         const { data: existing } = await supabase
@@ -220,7 +231,6 @@ export async function sendFriendRequest(supabase, senderId, receiverId) {
     }
 }
 
-// Get friend requests
 export async function getFriendRequests(supabase, userId) {
     try {
         const { data: requests, error } = await supabase
@@ -246,7 +256,6 @@ export async function getFriendRequests(supabase, userId) {
     }
 }
 
-// Respond to friend request
 export async function respondToFriendRequest(supabase, requestId, status) {
     try {
         const { error } = await supabase
@@ -272,7 +281,7 @@ export async function respondToFriendRequest(supabase, requestId, status) {
                     .upsert([
                         { user_id: request.sender_id, friend_id: request.receiver_id },
                         { user_id: request.receiver_id, friend_id: request.sender_id }
-                    ])
+                    ], { onConflict: 'user_id,friend_id' })
             }
         }
 
@@ -284,7 +293,6 @@ export async function respondToFriendRequest(supabase, requestId, status) {
     }
 }
 
-// Check friendship status
 export async function checkFriendship(supabase, userId1, userId2) {
     try {
         const { data, error } = await supabase
@@ -303,7 +311,6 @@ export async function checkFriendship(supabase, userId1, userId2) {
     }
 }
 
-// Get pending friend requests count
 export async function getPendingRequestsCount(supabase, userId) {
     try {
         const { count, error } = await supabase
@@ -321,17 +328,14 @@ export async function getPendingRequestsCount(supabase, userId) {
     }
 }
 
-// Accept friend request
 export async function acceptFriendRequest(supabase, requestId) {
     return respondToFriendRequest(supabase, requestId, 'accepted')
 }
 
-// Reject friend request
 export async function rejectFriendRequest(supabase, requestId) {
     return respondToFriendRequest(supabase, requestId, 'rejected')
 }
 
-// Remove friend
 export async function removeFriend(supabase, userId, friendId) {
     try {
         await supabase
