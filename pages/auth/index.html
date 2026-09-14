@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Primary SEO Title - UPDATED -->
     <title>Create Account | RelayTalk</title>
 
-    <!-- Meta Descriptions -->
     <meta name="description" content="Create your free RelayTalk account. Join our secure messaging platform and start connecting with friends instantly. Simple sign up, no email required.">
     <meta name="keywords" content="RelayTalk, Create Account, Sign Up, Register, RelayTalk App, RelayTalk Messaging App, Instant Chat, Secure Messaging, Private Chat, Create Account Online, Free Account, Chat App Signup, Messenger Account, Social Messaging">
 
-    <!-- Open Graph / Facebook - UPDATED for Vercel -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Create Account | RelayTalk">
     <meta property="og:description" content="Join RelayTalk - Create your free account for secure, private messaging. No email needed, instant sign up.">
@@ -19,20 +16,14 @@
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta property="og:site_name" content="RelayTalk">
 
-    <!-- Twitter - UPDATED for Vercel -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Create Account | RelayTalk">
     <meta name="twitter:description" content="Create your RelayTalk account in seconds. Free secure messaging with friends and family.">
     <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta name="twitter:site" content="@relaytalk">
 
-    <!-- Canonical URL - UPDATED for Vercel -->
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/auth/">
 
-    <!-- DNS Prefetch -->
-    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
-
-    <!-- Structured Data - UPDATED for Vercel -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -57,11 +48,68 @@
     }
     </script>
 
-    <!-- Global CSS -->
     <link rel="stylesheet" href="/style.css">
-
-    <!-- Page CSS (moved from <style>) -->
     <link rel="stylesheet" href="/pages/auth/style.css">
+
+    <style>
+        /* Inline SVG icon sizing inside labels and buttons */
+        .form-label-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .form-label-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke: #007acc;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .password-toggle svg {
+            width: 18px;
+            height: 18px;
+            stroke: #888888;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: block;
+            pointer-events: none;
+        }
+
+        .password-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .password-toggle:hover svg {
+            stroke: #007acc;
+        }
+
+        .terms-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .terms-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
 </head>
 <body>
 
@@ -82,7 +130,13 @@
             <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="username">
-                    <span class="form-label-icon">👤</span>
+                    <span class="form-label-icon">
+                        <!-- User icon -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </span>
                     Username
                 </label>
                 <input type="text" id="username" class="form-input"
@@ -94,13 +148,25 @@
             <!-- Password -->
             <div class="form-group">
                 <label class="form-label" for="password">
-                    <span class="form-label-icon">🔒</span>
+                    <span class="form-label-icon">
+                        <!-- Lock icon -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
                     Password
                 </label>
                 <div class="password-input">
                     <input type="password" id="password" class="form-input"
                            placeholder="Create a strong password" required minlength="6">
-                    <button type="button" class="password-toggle" onclick="togglePassword()">👁️</button>
+                    <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Show password">
+                        <!-- Eye icon (hidden-by-default state) -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="error-message" id="passwordError"></div>
             </div>
@@ -108,10 +174,16 @@
             <!-- Confirm Password -->
             <div class="form-group">
                 <label class="form-label" for="confirmPassword">
-                    <span class="form-label-icon">✅</span>
+                    <span class="form-label-icon">
+                        <!-- Check / shield check icon -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                    </span>
                     Confirm Password
                 </label>
-                <input type="password" id="confirmPassword" class="form-input" 
+                <input type="password" id="confirmPassword" class="form-input"
                        placeholder="Re-enter your password" required>
                 <div class="error-message" id="confirmError"></div>
             </div>
@@ -121,16 +193,29 @@
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms" required>
                     <label for="terms">
-                        I agree to the Terms & Conditions and Privacy Policy
+                        I agree to the Terms &amp; Conditions and Privacy Policy
                     </label>
                 </div>
 
                 <div class="terms-buttons">
                     <button type="button" class="terms-btn" onclick="showTerms()">
-                        📄 Terms & Conditions
+                        <!-- Document icon -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Terms &amp; Conditions
                     </button>
                     <button type="button" class="terms-btn" onclick="showPrivacy()">
-                        🔒 Privacy Policy
+                        <!-- Lock icon for privacy -->
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        Privacy Policy
                     </button>
                 </div>
             </div>
@@ -147,7 +232,13 @@
     <div class="modal-overlay" id="termsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">📄 Terms & Conditions</h2>
+                <h2 class="modal-title">
+                    <svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:#005a9e;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;margin-right:6px;" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    Terms &amp; Conditions
+                </h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
             <div class="modal-body">
@@ -186,7 +277,13 @@
     <div class="modal-overlay" id="privacyModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">🔒 Privacy Policy</h2>
+                <h2 class="modal-title">
+                    <svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:#005a9e;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;margin-right:6px;" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    Privacy Policy
+                </h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
             <div class="modal-body">
@@ -202,10 +299,10 @@
 
                 <h3>What We Don't Store</h3>
                 <ul>
-                    <li>❌ Email addresses</li>
-                    <li>❌ Phone numbers</li>
-                    <li>❌ Location data</li>
-                    <li>❌ Contact lists</li>
+                    <li>Email addresses</li>
+                    <li>Phone numbers</li>
+                    <li>Location data</li>
+                    <li>Contact lists</li>
                 </ul>
 
                 <h3>Your Data is Yours</h3>
@@ -213,11 +310,11 @@
                     <li>Messages are stored only as long as needed</li>
                     <li>We don't sell your data to anyone</li>
                     <li>We don't show ads</li>
-                    <li>🔒 All data is currently stored locally in your browser for testing. When we connect Supabase, it will be encrypted and secured in the cloud.</li>
+                    <li>All data is encrypted and secured in the cloud</li>
                 </ul>
 
                 <div class="security-note">
-                    <strong>🔐 Security First:</strong>
+                    <strong>Security First:</strong>
                     <p>Relay is built with security in mind. Created by RelayChat to provide safe, private messaging for everyone.</p>
                 </div>
 
@@ -229,7 +326,6 @@
         </div>
     </div>
 
-    <!-- JS -->
     <script type="module" src="/pages/auth/script.js"></script>
     <script src="/utils/sw-manager.js"></script>
 </body>
