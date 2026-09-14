@@ -1,23 +1,21 @@
-// home/script.js - COMPLETE WITH AVATAR SUPPORT & NO REDIRECT LOOP
+// home/script.js - COMPLETE WITH CALL HISTORY IN NOTIFICATIONS
 
 import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
 // ============================================
-// ✅ IMMEDIATE REDIRECT CHECK - ONLY IF NOT LOGGED IN
+// IMMEDIATE REDIRECT CHECK - ONLY IF NOT LOGGED IN
 // ============================================
 (function() {
     try {
-        // Check for Supabase session token
         let hasSession = false;
-        
+
         const localToken = localStorage.getItem('supabase.auth.token');
         const sessionToken = sessionStorage.getItem('supabase.auth.token');
-        
+
         hasSession = !!(localToken || sessionToken);
-        
-        // Additional check: if we have persisted session in localStorage
+
         if (!hasSession) {
             try {
                 const persistedSession = localStorage.getItem('supabase.auth.token');
@@ -27,16 +25,13 @@ console.log("✨ Relay Home Page Loaded");
             } catch (e) {}
         }
 
-        // ✅ ONLY redirect if NO session (not logged in)
         if (!hasSession) {
             console.log('🚫 No session - redirecting to root');
             window.location.replace('/');
-            return; // Stop execution
+            return;
         }
-        // ✅ NEVER redirect if logged in - stay on home page
     } catch (e) {
         console.log('Session check error:', e);
-        // If we can't check, assume not logged in and redirect
         window.location.replace('/');
     }
 })();
@@ -120,7 +115,6 @@ class ToastNotification {
 
 const toast = new ToastNotification();
 
-// Global functions
 window.showToast = toast.show.bind(toast);
 window.showSuccess = toast.success.bind(toast);
 window.showError = toast.error.bind(toast);
@@ -132,6 +126,7 @@ window.showInfo = toast.info.bind(toast);
 // ============================================
 let currentUser = null;
 let currentProfile = null;
+let currentNotifTab = 'main'; // 'main' or 'calls'
 
 // ============================================
 // SUPABASE WAIT FUNCTION
@@ -160,7 +155,6 @@ async function waitForSupabase() {
             console.error('❌ Supabase failed to load after waiting');
             return false;
         }
-
     } catch (error) {
         console.error('❌ Error loading Supabase:', error);
         return false;
@@ -173,19 +167,16 @@ async function waitForSupabase() {
 async function initHomePage() {
     console.log('🏠 Initializing home page...');
 
-    // Double-check authentication - but DON'T redirect if it fails
-    // The inline script already redirected if no session
     try {
         const { success, user } = await auth.getCurrentUser();
-        
+
         if (!success || !user) {
             console.log('⚠️ Auth check failed, but session exists - continuing anyway');
-            // Try to get user from localStorage
             try {
                 const sessionStr = localStorage.getItem('supabase.auth.token');
                 if (sessionStr) {
                     const session = JSON.parse(sessionStr);
-                    currentUser = { 
+                    currentUser = {
                         id: session?.user?.id,
                         email: session?.user?.email,
                         user_metadata: session?.user?.user_metadata || {}
@@ -193,7 +184,7 @@ async function initHomePage() {
                     console.log('✅ Recovered user from localStorage');
                 }
             } catch (e) {}
-            
+
             if (!currentUser) {
                 console.log('❌ No user data available - redirecting');
                 window.location.replace('/');
@@ -205,12 +196,11 @@ async function initHomePage() {
         }
     } catch (error) {
         console.error('Auth check failed:', error);
-        // Don't redirect immediately - try to recover from localStorage
         try {
             const sessionStr = localStorage.getItem('supabase.auth.token');
             if (sessionStr) {
                 const session = JSON.parse(sessionStr);
-                currentUser = { 
+                currentUser = {
                     id: session?.user?.id,
                     email: session?.user?.email,
                     user_metadata: session?.user?.user_metadata || {}
@@ -243,6 +233,7 @@ async function initHomePage() {
         updateWelcomeMessage();
         await loadFriends();
         await updateNotificationsBadge();
+        await updateCallsTabBadge();
         setupEventListeners();
 
         console.log('✅ Home page initialized successfully');
@@ -257,8 +248,6 @@ async function initHomePage() {
         console.error('❌ Home page initialization failed:', error);
 
         if (loadingIndicator) loadingIndicator.style.display = 'none';
-        
-        // Don't redirect on initialization error - just show error
         toast.error("Initialization Error", "Failed to load page. Please refresh.");
     }
 }
@@ -270,7 +259,7 @@ async function loadUserProfile() {
     try {
         if (!currentUser || !window.supabase) {
             currentProfile = {
-                username: currentUser?.user_metadata?.username || 
+                username: currentUser?.user_metadata?.username ||
                          currentUser?.email?.split('@')[0] || 'User',
                 full_name: currentUser?.user_metadata?.full_name || 'User'
             };
@@ -295,17 +284,16 @@ async function loadUserProfile() {
             console.log('✅ Profile loaded:', profile.username);
         } else {
             currentProfile = {
-                username: currentUser.user_metadata?.username || 
+                username: currentUser.user_metadata?.username ||
                          currentUser.email?.split('@')[0] || 'User',
                 full_name: currentUser.user_metadata?.full_name || 'User'
             };
             console.log('⚠️ No profile found, using default:', currentProfile.username);
         }
-
     } catch (error) {
         console.error('❌ Error loading profile:', error);
         currentProfile = {
-            username: currentUser?.user_metadata?.username || 
+            username: currentUser?.user_metadata?.username ||
                      currentUser?.email?.split('@')[0] || 'User',
             full_name: currentUser?.user_metadata?.full_name || 'User'
         };
@@ -326,7 +314,7 @@ function updateWelcomeMessage() {
 }
 
 // ============================================
-// LOAD FRIENDS LIST WITH AVATARS
+// LOAD FRIENDS LIST
 // ============================================
 async function loadFriends() {
     if (!currentUser || !window.supabase) {
@@ -343,7 +331,6 @@ async function loadFriends() {
 
     try {
         console.log('Loading friends for user:', currentUser.id);
-
         const { data: friends, error } = await window.supabase
             .from('friends')
             .select('friend_id')
@@ -362,7 +349,6 @@ async function loadFriends() {
             return;
         }
 
-        // Get profiles WITH avatar_url
         const friendIds = friends.map(f => f.friend_id);
         const { data: profiles, error: profilesError } = await window.supabase
             .from('profiles')
@@ -387,11 +373,10 @@ async function loadFriends() {
                 const timeAgo = getTimeAgo(lastSeen);
                 const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
 
-                // Show avatar image if exists, fallback to initials
                 html += `
                     <div class="friend-card" onclick="openChat('${profile.id}', '${profile.username}')">
                         <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                            ${profile.avatar_url 
+                            ${profile.avatar_url
                                 ? `<img src="${profile.avatar_url}" alt="${profile.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
                                 : `<span style="color:white; font-size:1.3rem; font-weight:600;">${firstLetter}</span>`
                             }
@@ -413,14 +398,12 @@ async function loadFriends() {
 
         container.innerHTML = html;
 
-        // Update online counter
         const onlineCounter = document.getElementById('onlineCounter');
         if (onlineCounter) {
             onlineCounter.textContent = `${onlineCount} Online`;
         }
 
         console.log('✅ Friends list updated');
-
     } catch (error) {
         console.error('❌ Error loading friends:', error);
         showEmptyFriends();
@@ -470,7 +453,7 @@ function getTimeAgo(date) {
 }
 
 // ============================================
-// OPEN CHAT WITH FRIEND
+// OPEN CHAT
 // ============================================
 async function openChat(friendId, friendUsername = 'Friend') {
     console.log("Opening chat with:", friendId, friendUsername);
@@ -489,7 +472,7 @@ async function openChat(friendId, friendUsername = 'Friend') {
 }
 
 // ============================================
-// LOAD SEARCH RESULTS WITH AVATARS
+// SEARCH
 // ============================================
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
@@ -544,17 +527,12 @@ async function loadSearchResults() {
 
             searchInput.focus();
         }
-
     } catch (error) {
         console.error('❌ Error in search:', error);
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Search failed</p></div>`;
         toast.error("Search Error", "Could not load users");
     }
 }
-
-// ============================================
-// DISPLAY SEARCH RESULTS WITH AVATARS
-// ============================================
 
 async function displaySearchResults(users) {
     const container = document.getElementById('searchResults');
@@ -590,7 +568,7 @@ async function displaySearchResults(users) {
             html += `
                 <div class="search-result">
                     <div class="search-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                        ${user.avatar_url 
+                        ${user.avatar_url
                             ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
                             : `<span style="color:white; font-size:1.1rem; font-weight:600;">${firstLetter}</span>`
                         }
@@ -611,7 +589,6 @@ async function displaySearchResults(users) {
         });
 
         container.innerHTML = html;
-
     } catch (error) {
         console.error('Display results error:', error);
     }
@@ -678,7 +655,6 @@ async function sendFriendRequest(toUserId, toUsername, button) {
             button.disabled = true;
             button.classList.add('sent');
         }
-
     } catch (error) {
         console.error("❌ Friend request error:", error);
         toast.error("Request Failed", "Please check your connection");
@@ -690,7 +666,7 @@ async function sendFriendRequest(toUserId, toUsername, button) {
 }
 
 // ============================================
-// LOAD NOTIFICATIONS WITH AVATARS
+// LOAD NOTIFICATIONS (Main tab - friend requests)
 // ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
@@ -745,7 +721,7 @@ async function loadNotifications() {
             html += `
                 <div class="notification-item">
                     <div class="notification-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                        ${sender.avatar_url 
+                        ${sender.avatar_url
                             ? `<img src="${sender.avatar_url}" alt="${senderName}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
                             : `<span style="color:white; font-size:1rem; font-weight:600;">${firstLetter}</span>`
                         }
@@ -763,16 +739,12 @@ async function loadNotifications() {
         });
 
         container.innerHTML = html;
-
     } catch (error) {
         console.error("❌ Error loading notifications:", error);
         showEmptyNotifications(container);
     }
 }
 
-// ============================================
-// SHOW EMPTY NOTIFICATIONS
-// ============================================
 function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
@@ -781,6 +753,170 @@ function showEmptyNotifications(container) {
         </div>
     `;
 }
+
+// ============================================
+// LOAD CALL HISTORY (Calls tab)
+// ============================================
+async function loadCallHistory() {
+    const container = document.getElementById('callHistoryList');
+    if (!container) {
+        console.error("Call history container not found!");
+        return;
+    }
+
+    try {
+        if (!currentUser || !window.supabase) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">📞</div><p>Cannot load call history</p></div>`;
+            return;
+        }
+
+        console.log('📞 Loading call history for user:', currentUser.id);
+
+        const { data: calls, error } = await window.supabase
+            .from('calls')
+            .select('*')
+            .or(`caller_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error("Call history error:", error.message);
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
+            return;
+        }
+
+        if (!calls || calls.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📞</div>
+                    <h3 class="empty-title">No calls yet</h3>
+                    <p class="empty-desc">Your call history will appear here</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Gather user IDs to fetch profiles
+        const userIds = new Set();
+        calls.forEach(call => {
+            if (call.caller_id !== currentUser.id) userIds.add(call.caller_id);
+            if (call.receiver_id !== currentUser.id) userIds.add(call.receiver_id);
+            if (call.callee_id && call.callee_id !== currentUser.id) userIds.add(call.callee_id);
+        });
+
+        let profileMap = {};
+        if (userIds.size > 0) {
+            const { data: profiles } = await window.supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', [...userIds]);
+
+            if (profiles) {
+                profiles.forEach(p => profileMap[p.id] = p);
+            }
+        }
+
+        let html = '';
+        let lastDate = '';
+
+        calls.forEach(call => {
+            const callDate = new Date(call.created_at).toLocaleDateString();
+            if (callDate !== lastDate) {
+                lastDate = callDate;
+                html += `<div class="call-history-date">${callDate}</div>`;
+            }
+
+            const isOutgoing = call.caller_id === currentUser.id;
+            const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
+            const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
+
+            let statusClass = 'status-missed';
+            let statusText = 'Missed';
+            let statusIcon = 'fa-phone-slash';
+
+            if (call.status === 'active' || call.status === 'ended') {
+                statusClass = 'status-answered';
+                statusText = 'Answered';
+                statusIcon = 'fa-phone';
+            } else if (call.status === 'rejected') {
+                statusClass = 'status-rejected';
+                statusText = 'Rejected';
+                statusIcon = 'fa-phone-slash';
+            } else if (call.status === 'cancelled') {
+                statusClass = 'status-cancelled';
+                statusText = isOutgoing ? 'Cancelled' : 'Missed';
+                statusIcon = 'fa-phone-slash';
+            } else if (call.status === 'ringing') {
+                statusClass = 'status-ringing';
+                statusText = isOutgoing ? 'No answer' : 'Missed';
+                statusIcon = 'fa-phone-slash';
+            }
+
+            const time = new Date(call.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
+
+            html += `
+                <div class="call-history-item ${statusClass}">
+                    <div class="call-history-avatar">
+                        ${otherUser.avatar_url
+                            ? `<img src="${otherUser.avatar_url}" alt="${otherUser.username}">`
+                            : `<span>${initial}</span>`
+                        }
+                    </div>
+                    <div class="call-history-info">
+                        <div class="call-history-name">${otherUser.username}</div>
+                        <div class="call-history-meta">
+                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}" style="font-size:0.75rem;color:#64748b;"></i>
+                            <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
+                            <span class="dot">•</span>
+                            <span>${time}</span>
+                        </div>
+                    </div>
+                    <div class="call-history-status ${statusClass}">
+                        <i class="fas ${statusIcon}"></i>
+                        <span>${statusText}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error("❌ Error loading call history:", error);
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
+    }
+}
+
+// ============================================
+// NOTIFICATION TAB SWITCHER
+// ============================================
+window.switchNotifTab = function(tab) {
+    currentNotifTab = tab;
+
+    const mainTab = document.getElementById('notifTabMain');
+    const callsTab = document.getElementById('notifTabCalls');
+    const mainContent = document.getElementById('notifMainContent');
+    const callsContent = document.getElementById('notifCallsContent');
+
+    if (tab === 'main') {
+        mainTab.classList.add('active');
+        callsTab.classList.remove('active');
+        mainContent.classList.add('active');
+        callsContent.classList.remove('active');
+        loadNotifications();
+    } else {
+        callsTab.classList.add('active');
+        mainTab.classList.remove('active');
+        callsContent.classList.add('active');
+        mainContent.classList.remove('active');
+        loadCallHistory();
+        updateCallsTabBadge();
+    }
+};
 
 // ============================================
 // ACCEPT FRIEND REQUEST
@@ -832,7 +968,6 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             button.textContent = '✓ Accepted';
             button.style.background = 'rgba(40, 167, 69, 0.3)';
         }
-
     } catch (error) {
         console.error("❌ Error accepting friend request:", error);
         toast.error("Connection Failed", "Could not accept friend request");
@@ -875,7 +1010,6 @@ async function declineFriendRequest(requestId, button = null) {
             button.textContent = '✗ Declined';
             button.style.background = 'rgba(220, 53, 69, 0.3)';
         }
-
     } catch (error) {
         console.error("❌ Error declining friend request:", error);
         toast.error("Action Failed", "Could not decline friend request");
@@ -888,17 +1022,14 @@ async function declineFriendRequest(requestId, button = null) {
 }
 
 // ============================================
-// UPDATE NOTIFICATIONS BADGE
+// UPDATE NOTIFICATIONS BADGE (Main - friend requests)
 // ============================================
 async function updateNotificationsBadge() {
     try {
         if (!currentUser || !window.supabase) {
-            console.log('Cannot update notifications: No user or Supabase');
             hideNotificationBadge();
             return;
         }
-
-        console.log('Checking notifications for user:', currentUser.id);
 
         const { data: notifications, error } = await window.supabase
             .from('friend_requests')
@@ -907,16 +1038,23 @@ async function updateNotificationsBadge() {
             .eq('status', 'pending');
 
         if (error) {
-            console.log('Notifications error:', error.message);
             hideNotificationBadge();
             return;
         }
 
         const unreadCount = notifications?.length || 0;
-        console.log('Found', unreadCount, 'notifications');
-
         updateBadgeDisplay(unreadCount);
 
+        // Also update Main tab badge
+        const mainTabBadge = document.getElementById('mainTabBadge');
+        if (mainTabBadge) {
+            if (unreadCount > 0) {
+                mainTabBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                mainTabBadge.style.display = 'inline-flex';
+            } else {
+                mainTabBadge.style.display = 'none';
+            }
+        }
     } catch (error) {
         console.error('❌ Error loading notifications:', error);
         hideNotificationBadge();
@@ -924,15 +1062,58 @@ async function updateNotificationsBadge() {
 }
 
 // ============================================
-// UPDATE BADGE DISPLAY
+// UPDATE CALLS TAB BADGE (unseen missed calls)
 // ============================================
+async function updateCallsTabBadge() {
+    try {
+        if (!currentUser || !window.supabase) return;
+
+        const { count } = await window.supabase
+            .from('calls')
+            .select('*', { count: 'exact', head: true })
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .eq('seen', false)
+            .in('status', ['missed', 'rejected']);
+
+        const badge = document.getElementById('callsTabBadge');
+        if (badge) {
+            if (count && count > 0) {
+                badge.textContent = count > 9 ? '9+' : String(count);
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Also update the main bottom-nav badge
+        // Combined count: friend requests + unseen calls
+        const notifBadge = document.getElementById('notificationBadge');
+        if (notifBadge) {
+            const { data: fr } = await window.supabase
+                .from('friend_requests')
+                .select('id')
+                .eq('receiver_id', currentUser.id)
+                .eq('status', 'pending');
+
+            const total = (fr?.length || 0) + (count || 0);
+            if (total > 0) {
+                notifBadge.textContent = total > 9 ? '9+' : total;
+                notifBadge.style.display = 'block';
+            } else {
+                notifBadge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        // silent
+    }
+}
+
 function updateBadgeDisplay(count) {
     const badge = document.getElementById('notificationBadge');
     if (badge) {
         if (count > 0) {
             badge.textContent = count > 9 ? '9+' : count;
             badge.style.display = 'block';
-            console.log('Badge updated with count:', count);
 
             if (count === 1) {
                 setTimeout(() => {
@@ -940,14 +1121,11 @@ function updateBadgeDisplay(count) {
                 }, 1000);
             }
         } else {
-            badge.style.display = 'none';
+            // Don't hide yet - calls badge may still show. Handled by updateCallsTabBadge.
         }
     }
 }
 
-// ============================================
-// HIDE NOTIFICATION BADGE
-// ============================================
 function hideNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
     if (badge) badge.style.display = 'none';
@@ -983,7 +1161,7 @@ function setupEventListeners() {
 }
 
 // ============================================
-// LOGOUT FUNCTION
+// LOGOUT
 // ============================================
 window.logout = async function() {
     try {
@@ -1006,7 +1184,6 @@ window.logout = async function() {
         setTimeout(() => {
             window.location.href = '/';
         }, 1000);
-
     } catch (error) {
         console.error("Error logging out:", error);
         toast.error("Logout Failed", "Please try again");
@@ -1014,7 +1191,7 @@ window.logout = async function() {
 };
 
 // ============================================
-// NAVIGATION FUNCTIONS
+// NAVIGATION
 // ============================================
 function goToHome() {
     window.location.href = '/pages/home/index.html';
@@ -1048,7 +1225,9 @@ window.openNotifications = function() {
     const modal = document.getElementById('notificationsModal');
     if (modal) {
         modal.style.display = 'flex';
-        loadNotifications();
+        // Reset to main tab by default
+        switchNotifTab('main');
+        updateCallsTabBadge();
     } else {
         console.error("Notifications modal not found!");
         toast.error("Notifications Unavailable", "Unable to load notifications");
@@ -1063,7 +1242,6 @@ window.closeModal = function() {
     if (notificationsModal) notificationsModal.style.display = 'none';
 };
 
-// Export functions globally
 window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptFriendRequest = acceptFriendRequest;
