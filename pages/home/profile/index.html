@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Profile · RelayTalk</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
-    
-    <!-- DNS Prefetch for Cloudflare Worker -->
-    <link rel="preconnect" href="https://relaytalk-proxy.lusterchat.workers.dev" crossorigin>
-    <link rel="dns-prefetch" href="https://relaytalk-proxy.lusterchat.workers.dev">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="profile.css">
@@ -21,13 +17,13 @@
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading profile...</div>
     </div>
-    
+
     <!-- Upload Loading -->
     <div class="loading-overlay" id="uploadLoading">
         <div class="loading-spinner"></div>
         <div class="loading-text">Uploading...</div>
     </div>
-    
+
     <!-- Header -->
     <header class="profile-header">
         <div class="header-content">
@@ -37,7 +33,7 @@
             <h1 class="header-title">Profile</h1>
         </div>
     </header>
-    
+
     <!-- Main Content -->
     <main class="profile-main">
         <div class="profile-card">
@@ -52,14 +48,13 @@
                     <i class="fas fa-camera"></i>
                 </button>
             </div>
-            
-            <!-- User Info - NO BIO SECTION -->
+
+            <!-- User Info -->
             <div class="user-info">
                 <h2 class="user-name" id="displayName">User</h2>
                 <div class="user-username" id="displayUsername">@username</div>
-                <!-- BIO REMOVED -->
             </div>
-            
+
             <!-- Stats -->
             <div class="profile-stats">
                 <div class="stat-item">
@@ -71,7 +66,7 @@
                     <div class="stat-label">Messages</div>
                 </div>
             </div>
-            
+
             <!-- Actions -->
             <div class="profile-actions">
                 <button class="action-btn" onclick="openImagePicker()">
@@ -89,7 +84,7 @@
             </div>
         </div>
     </main>
-    
+
     <!-- Image Picker Modal -->
     <div class="modal-overlay" id="imagePickerModal">
         <div class="modal-content">
@@ -103,13 +98,13 @@
                     <i class="fas fa-camera"></i>
                     <span>Take Photo</span>
                 </div>
-                
+
                 <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
                 <div class="image-picker-option" onclick="uploadFromGallery()">
                     <i class="fas fa-image"></i>
                     <span>Choose from Gallery</span>
                 </div>
-                
+
                 <div class="image-picker-option" onclick="removeAvatar()" style="border-color: rgba(220,53,69,0.2);">
                     <i class="fas fa-trash" style="color: #dc3545;"></i>
                     <span style="color: #dc3545;">Remove Current Photo</span>
@@ -117,10 +112,10 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
-    
+
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <a href="../../home/index.html" class="nav-item">
@@ -136,9 +131,12 @@
             <span>Profile</span>
         </a>
     </nav>
-    
+
     <!-- Scripts -->
     <script type="module" src="../../../utils/supabase.js"></script>
     <script type="module" src="profile.js"></script>
+
+    <!-- Global call hub — incoming call banner on this page -->
+    <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
