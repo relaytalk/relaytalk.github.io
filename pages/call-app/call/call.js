@@ -1,7 +1,7 @@
-// /pages/call-app/call/call.js - COMPLETE FINAL VERSION WITH BOTTOM RIGHT SQUARE BUTTON
+// /pages/call-app/call/call.js - NEW MUMBAI PROJECT
 
-import { initializeSupabase } from '/pages/call-app/utils/supabase.js'
-import { getRelayTalkUser, syncUserToDatabase } from '/pages/call-app/utils/userSync.js'
+import { initializeSupabase } from '../utils/supabase.js'
+import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
 
 let supabase
 let currentUser
@@ -56,7 +56,6 @@ function unregisterTab() {
 async function initCall() {
     console.log('📞 Initializing call...')
 
-    // Register tab first
     if (!registerTab()) return
 
     try {
@@ -81,7 +80,6 @@ async function initCall() {
 
         console.log('📞 Call params:', { friendId, friendName, incoming, roomName, callerId, callId })
 
-        // Listen for storage events
         window.addEventListener('storage', handleStorageEvent)
         window.addEventListener('beforeunload', handleBeforeUnload)
 
@@ -290,7 +288,6 @@ async function joinCall(roomName) {
         container.appendChild(wrapper)
         jitsiIframe = iframe
 
-        // Add CSS to hide any remaining Jitsi UI
         const style = document.createElement('style')
         style.textContent = `
             .prejoin-screen, .welcome-page, .join-dialog,
@@ -306,7 +303,6 @@ async function joinCall(roomName) {
         `
         wrapper.appendChild(style)
 
-        // AUTO-JOIN: Click join button repeatedly
         iframe.onload = function() {
             console.log('Iframe loaded, auto-joining...')
 
@@ -337,7 +333,6 @@ async function joinCall(roomName) {
             setTimeout(() => clearInterval(joinInterval), 10000)
         }
 
-        // Hide loading after delay and add hang button
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none'
             addHangButton()
@@ -353,7 +348,6 @@ async function joinCall(roomName) {
 
 // Add Square Hang Button at Bottom Right (Icon Only)
 function addHangButton() {
-    // Remove any existing hang button
     const existingBtn = document.getElementById('hangUpBtn')
     if (existingBtn) existingBtn.remove()
 
@@ -362,40 +356,34 @@ function addHangButton() {
     hangBtn.className = 'hang-up-btn'
     hangBtn.setAttribute('aria-label', 'Hang up call')
     hangBtn.setAttribute('title', 'Hang up')
-    
-    // SVG Phone Slash Icon (beautiful, no gradients)
+
     const svgIcon = `
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.574 2.81.7A2 2 0 0 1 22 16.92z"></path>
             <line x1="1" y1="1" x2="23" y2="23"></line>
         </svg>
     `
-    
+
     hangBtn.innerHTML = svgIcon
     hangBtn.onclick = hangUp
-    
-    // Add to body
+
     document.body.appendChild(hangBtn)
 }
 
-// HANG UP FUNCTION - ENDS CALL AND CLOSES TAB WITH ANIMATION
 window.hangUp = async function() {
     console.log('🔴 Hanging up call...')
-    
+
     const hangBtn = document.getElementById('hangUpBtn')
     if (hangBtn) {
-        // Add click animation
         hangBtn.style.transform = 'scale(0.9)'
         hangBtn.style.opacity = '0.7'
     }
-    
-    // Brief delay for animation
+
     setTimeout(async () => {
         await endCall(false)
     }, 150)
 }
 
-// End call
 window.endCall = async function(silent = false) {
     console.log('Ending call...')
 
@@ -407,17 +395,14 @@ window.endCall = async function(silent = false) {
     }
 
     unregisterTab()
-    
-    // Try to close the tab
+
     window.close()
-    
-    // Fallback if window.close() fails (browser restrictions)
+
     setTimeout(() => {
         window.location.href = '/pages/call-app/index.html'
     }, 500)
 }
 
-// Video toggle
 window.toggleVideo = function() {
     const btn = document.getElementById('videoBtn')
     isVideoOn = !isVideoOn
@@ -442,12 +427,11 @@ window.toggleVideo = function() {
     }
 }
 
-// Mute toggle
 window.toggleMute = function() {
     const btn = document.getElementById('muteBtn')
     btn.classList.toggle('muted')
-    btn.innerHTML = btn.classList.contains('muted') 
-        ? '<i class="fas fa-microphone-slash"></i>' 
+    btn.innerHTML = btn.classList.contains('muted')
+        ? '<i class="fas fa-microphone-slash"></i>'
         : '<i class="fas fa-microphone"></i>'
 
     if (jitsiIframe) {
@@ -460,7 +444,6 @@ window.toggleMute = function() {
     }
 }
 
-// Speaker toggle
 window.toggleSpeaker = function() {
     const btn = document.getElementById('speakerBtn')
     btn.classList.toggle('speaker-off')
