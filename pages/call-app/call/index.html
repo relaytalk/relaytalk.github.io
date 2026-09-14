@@ -5,58 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Call · CallApp</title>
 
-    <!-- Content Security Policy - FIXED FOR JITSI -->
+    <!-- CSP — new Mumbai only, no worker -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
-        https://*.github.io 
+        default-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.github.io
         https://github.com
         https://fonts.googleapis.com
         https://cdnjs.cloudflare.com
         https://8x8.vc
         https://*.8x8.vc
-        https://relaytalk-proxy.lusterchat.workers.dev
-        wss://*.supabase.co
-        wss://relaytalk-proxy.lusterchat.workers.dev;
-        
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-        https://*.supabase.co 
-        https://api.supabase.com 
+        wss://kponqaktavkrchebmiwr.supabase.co;
+
+        script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://kponqaktavkrchebmiwr.supabase.co
         https://cdn.jsdelivr.net
         https://fonts.googleapis.com
         https://cdnjs.cloudflare.com
         https://8x8.vc
-        https://*.8x8.vc
-        https://relaytalk-proxy.lusterchat.workers.dev;
-        
-        style-src 'self' 'unsafe-inline' 
-        https://fonts.googleapis.com 
+        https://*.8x8.vc;
+
+        style-src 'self' 'unsafe-inline'
+        https://fonts.googleapis.com
         https://cdn.jsdelivr.net
         https://fonts.gstatic.com
         https://cdnjs.cloudflare.com;
-        
-        img-src 'self' data: blob: 
-        https://*.8x8.vc 
+
+        img-src 'self' data: blob:
+        https://*.8x8.vc
         https:;
-        
-        font-src 'self' data: 
-        https://fonts.gstatic.com 
+
+        font-src 'self' data:
+        https://fonts.gstatic.com
         https://cdn.jsdelivr.net
         https://cdnjs.cloudflare.com;
-        
-        connect-src 'self' 
-        wss://*.supabase.co 
-        https://*.supabase.co 
-        https://api.supabase.com 
-        https://api.imgbb.com 
+
+        connect-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        wss://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
         https://*.github.io
         https://*.8x8.vc
-        wss://*.8x8.vc
-        https://relaytalk-proxy.lusterchat.workers.dev
-        wss://relaytalk-proxy.lusterchat.workers.dev;
-        
+        wss://*.8x8.vc;
+
         worker-src 'self' blob:;
         media-src 'self' blob:;
         object-src 'none';
@@ -68,335 +62,217 @@
     <!-- Jitsi External API -->
     <script src='https://8x8.vc/external_api.js' async></script>
 
-    <!-- Font Awesome for icons -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-      <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body, html {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #000;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    #dailyContainer {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        background: #000;
-    }
-
-    /* Loading Screen */
-    .call-loading {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        z-index: 1000;
-    }
-
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid #333;
-        border-top: 3px solid #f5b342;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 20px;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    #loadingText {
-        font-size: 16px;
-        color: #ccc;
-    }
-
-    /* Error Screen */
-    .error-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        z-index: 2000;
-        padding: 20px;
-        text-align: center;
-    }
-
-    .error-screen i {
-        font-size: 60px;
-        color: #dc3545;
-        margin-bottom: 20px;
-    }
-
-    .error-screen h3 {
-        font-size: 24px;
-        margin-bottom: 10px;
-        color: white;
-    }
-
-    #errorMessage {
-        color: #ccc;
-        margin: 10px 0 20px;
-        font-size: 16px;
-        max-width: 300px;
-    }
-
-    .back-home-btn {
-        background: #f5b342;
-        color: #333;
-        border: none;
-        padding: 12px 30px;
-        border-radius: 25px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s;
-        margin-top: 10px;
-    }
-
-    .back-home-btn:active {
-        background: #e69a00;
-        transform: scale(0.98);
-    }
-
-    .back-home-btn i {
-        font-size: 16px;
-        color: #333;
-        margin: 0;
-    }
-
-    /* Square Hang Up Button at Bottom Right - Icon Only */
-    .hang-up-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 56px;
-        height: 56px;
-        background: #dc2626;
-        border: none;
-        border-radius: 12px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        z-index: 9999;
-        box-shadow: 0 4px 6px rgba(220, 38, 38, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .hang-up-btn:hover {
-        background: #b91c1c;
-        transform: scale(1.05);
-        box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.4), 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-
-    .hang-up-btn:active {
-        transform: scale(0.95);
-        background: #991b1b;
-    }
-
-    .hang-up-btn svg {
-        width: 28px;
-        height: 28px;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0% {
-            opacity: 1;
-            transform: scale(1);
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        50% {
-            opacity: 0.9;
-            transform: scale(1.1);
+
+        #dailyContainer {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #000;
         }
-        100% {
-            opacity: 1;
-            transform: scale(1);
+
+        .call-loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 1000;
         }
-    }
 
-    /* Slide in animation */
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(20px);
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #f5b342;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
         }
-        to {
-            opacity: 1;
-            transform: translateX(0);
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #loadingText { font-size: 16px; color: #ccc; }
+
+        .error-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
         }
-    }
 
-    .hang-up-btn {
-        animation: slideIn 0.3s ease-out;
-    }
+        .error-screen i { font-size: 60px; color: #dc3545; margin-bottom: 20px; }
+        .error-screen h3 { font-size: 24px; margin-bottom: 10px; color: white; }
 
-    /* Incoming Call Screen */
-    .incoming-call-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1500;
-    }
+        #errorMessage {
+            color: #ccc;
+            margin: 10px 0 20px;
+            font-size: 16px;
+            max-width: 300px;
+        }
 
-    .incoming-call-content {
-        text-align: center;
-        padding: 20px;
-        width: 100%;
-        max-width: 400px;
-    }
+        .back-home-btn {
+            background: #f5b342;
+            color: #333;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
 
-    .caller-avatar {
-        margin-bottom: 20px;
-    }
+        .back-home-btn:active { background: #e69a00; transform: scale(0.98); }
+        .back-home-btn i { font-size: 16px; color: #333; margin: 0; }
 
-    .caller-avatar i {
-        font-size: 100px;
-        color: #f5b342;
-    }
-
-    .caller-avatar img {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid #f5b342;
-    }
-
-    .caller-info h2 {
-        font-size: 28px;
-        color: white;
-        margin-bottom: 10px;
-    }
-
-    .caller-info p {
-        color: #ccc;
-        font-size: 16px;
-        margin-bottom: 40px;
-    }
-
-    .call-actions {
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-    }
-
-    .call-btn {
-        width: 70px;
-        height: 70px;
-        border: none;
-        border-radius: 50%;
-        font-size: 28px;
-        color: white;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-
-    .call-btn:active {
-        transform: scale(0.95);
-    }
-
-    .accept-btn {
-        background: #28a745;
-    }
-
-    .decline-btn {
-        background: #dc3545;
-    }
-
-    /* Ensure video is visible */
-    video {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-    }
-
-    /* Responsive */
-    @media (max-width: 480px) {
         .hang-up-btn {
-            width: 52px;
-            height: 52px;
-            bottom: 16px;
-            right: 16px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #dc2626;
+            border: none;
+            border-radius: 12px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(220, 38, 38, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideIn 0.3s ease-out;
         }
-        
+
+        .hang-up-btn:hover {
+            background: #b91c1c;
+            transform: scale(1.05);
+        }
+
+        .hang-up-btn:active { transform: scale(0.95); background: #991b1b; }
+
         .hang-up-btn svg {
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            animation: pulse 2s infinite;
         }
 
-        .caller-avatar i {
-            font-size: 80px;
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
         }
 
-        .caller-info h2 {
-            font-size: 24px;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .incoming-call-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1500;
+        }
+
+        .incoming-call-content {
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .caller-avatar { margin-bottom: 20px; }
+        .caller-avatar i { font-size: 100px; color: #f5b342; }
+        .caller-avatar img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #f5b342;
+        }
+
+        .caller-info h2 { font-size: 28px; color: white; margin-bottom: 10px; }
+        .caller-info p { color: #ccc; font-size: 16px; margin-bottom: 40px; }
+
+        .call-actions {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
         }
 
         .call-btn {
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
+            width: 70px;
+            height: 70px;
+            border: none;
+            border-radius: 50%;
+            font-size: 28px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
-    }
 
-    /* Extra small devices */
-    @media (max-width: 360px) {
-        .hang-up-btn {
-            width: 48px;
-            height: 48px;
-            bottom: 12px;
-            right: 12px;
+        .call-btn:active { transform: scale(0.95); }
+        .accept-btn { background: #28a745; }
+        .decline-btn { background: #dc3545; }
+
+        video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
         }
-        
-        .hang-up-btn svg {
-            width: 22px;
-            height: 22px;
+
+        @media (max-width: 480px) {
+            .hang-up-btn { width: 52px; height: 52px; bottom: 16px; right: 16px; }
+            .hang-up-btn svg { width: 24px; height: 24px; }
+            .caller-avatar i { font-size: 80px; }
+            .caller-info h2 { font-size: 24px; }
+            .call-btn { width: 60px; height: 60px; font-size: 24px; }
         }
-    }
-</style>
+
+        @media (max-width: 360px) {
+            .hang-up-btn { width: 48px; height: 48px; bottom: 12px; right: 12px; }
+            .hang-up-btn svg { width: 22px; height: 22px; }
+        }
+    </style>
 </head>
 <body>
     <!-- Loading Screen -->
@@ -426,10 +302,8 @@
         </div>
     </div>
 
-    <!-- Active Call Screen - Jitsi container -->
+    <!-- Active Call Container -->
     <div id="dailyContainer"></div>
-
-    <!-- Hang Up Button will be inserted here by JavaScript -->
 
     <!-- Error Screen -->
     <div class="error-screen" id="errorScreen" style="display: none;">
@@ -459,19 +333,33 @@
 
     <script type="module" src="call.js"></script>
 
-    <!-- Fallback for non-module browsers -->
+    <!-- Fallback — honors returnTo -->
     <script>
-        window.goBack = function() {
-            window.location.href = '/pages/call-app/index.html';
-        };
+        (function() {
+            function getReturnUrl() {
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const fromQuery = params.get('returnTo');
+                    if (fromQuery) return fromQuery;
 
-        window.acceptCall = function() {
-            document.getElementById('incomingCallScreen').style.display = 'none';
-        };
+                    const fromStorage = sessionStorage.getItem('callReturnTo');
+                    if (fromStorage) return fromStorage;
+                } catch (e) {}
+                return '/pages/home/friends/index.html';
+            }
 
-        window.declineCall = function() {
-            window.location.href = '/pages/call-app/index.html';
-        };
+            window.goBack = function() {
+                window.location.href = getReturnUrl();
+            };
+
+            window.acceptCall = function() {
+                document.getElementById('incomingCallScreen').style.display = 'none';
+            };
+
+            window.declineCall = function() {
+                window.location.href = getReturnUrl();
+            };
+        })();
     </script>
 </body>
 </html>
