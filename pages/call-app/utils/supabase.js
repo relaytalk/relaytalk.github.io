@@ -1,17 +1,17 @@
-// pages/call-app/utils/supabase.js - FIXED TO USE WORKER
+// pages/call-app/utils/supabase.js - NEW MUMBAI PROJECT
 import { createClient } from './supabase-local.js'
 
-// ✅ USE WORKER URL - NOT DIRECT MUMBAI!
-const SUPABASE_URL = 'https://relaytalk-proxy.lusterchat.workers.dev'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmt3ZnBrc2Z2YmVzcmp4d3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTQ3NTYsImV4cCI6MjA4NjYzMDc1Nn0.a2hWJyMENdxjXPImM13Eq31lbszsr-kyIG08X4JlgWU'
+// ✅ Direct connection to new Mumbai project
+const SUPABASE_URL = 'https://kponqaktavkrchebmiwr.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtwb25xYWt0YXZrcmNoZWJtaXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyOTUzMTMsImV4cCI6MjEwNDg3MTMxM30.nkoiFez4G3-CzKvatQ9xZL4FpnZa9Qixcr64Sh8ytDE'
 
 let supabaseInstance = null
 
 export async function initializeSupabase() {
     if (supabaseInstance) return supabaseInstance
-    
-    console.log('🔄 Initializing CallApp Supabase with WORKER...')
-    
+
+    console.log('🔄 Initializing CallApp Supabase (new Mumbai project)...')
+
     try {
         supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
@@ -20,18 +20,18 @@ export async function initializeSupabase() {
                 detectSessionInUrl: false
             }
         })
-        
+
         // Test connection
         const { error } = await supabaseInstance
             .from('profiles')
             .select('count', { count: 'exact', head: true })
-        
+
         if (error) {
             console.warn('⚠️ Supabase connection warning:', error)
         } else {
-            console.log('✅ CallApp Supabase connected via WORKER')
+            console.log('✅ CallApp Supabase connected (new Mumbai project)')
         }
-        
+
         return supabaseInstance
     } catch (error) {
         console.error('❌ Failed to initialize CallApp Supabase:', error)
