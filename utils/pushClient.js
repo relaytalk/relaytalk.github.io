@@ -4,7 +4,7 @@
 import { initializeSupabase } from './supabase.js'
 
 // ⚠️ PASTE YOUR VAPID PUBLIC KEY FROM STEP 1 HERE (the long string, no quotes around it inside these quotes)
-const VAPID_PUBLIC_KEY = 'PASTE_YOUR_PUBLIC_KEY_HERE'
+const VAPID_PUBLIC_KEY = 'BJvYkb3poqpv8xqDhYxhgzTomReEe4fsxiEdJsb8dwN-j7GNPmfcBXLcOvmIJOcvcAAtvzNfy1rEb_7mY63281w'
 
 let supabase = null
 let currentUser = null
