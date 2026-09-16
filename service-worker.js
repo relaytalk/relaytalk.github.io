@@ -442,3 +442,67 @@ self.addEventListener('offline', () => {
 console.log('🚀 Combined RelayTalk Service Worker v' + APP_VERSION + ' loaded');
 console.log(`🎮 Will auto-cache ${CAR_GAME_FILES.length} game files`);
 console.log('🔔 Push notifications enabled');
+// ============================================================
+// PUSH NOTIFICATIONS HANDLERS
+// ============================================================
+
+self.addEventListener('push', (event) => {
+    console.log('📬 [SW] Push received')
+
+    let data = {
+        title: 'RelayTalk',
+        body: 'You have a new notification',
+        url: '/pages/home/index.html',
+        tag: 'relaytalk-default'
+    }
+
+    try {
+        if (event.data) {
+            const parsed = event.data.json()
+            data = { ...data, ...parsed }
+        }
+    } catch (e) {
+        console.warn('📬 [SW] Push data parse error:', e)
+        try {
+            const text = event.data?.text()
+            if (text) data.body = text
+        } catch (_) {}
+    }
+
+    const options = {
+        body: data.body,
+        tag: data.tag,
+        renotify: true,
+        requireInteraction: false,
+        icon: '/relay.png',
+        badge: '/relay.png',
+        data: { url: data.url, receivedAt: Date.now() }
+    }
+
+    event.waitUntil(self.registration.showNotification(data.title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+    console.log('📬 [SW] Notification clicked')
+    event.notification.close()
+
+    const url = event.notification.data?.url || '/pages/home/index.html'
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    client.navigate(url)
+                    return client.focus()
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(url)
+            }
+        })
+    )
+})
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+    console.log('📬 [SW] Subscription expired — will re-subscribe on next app load')
+})
