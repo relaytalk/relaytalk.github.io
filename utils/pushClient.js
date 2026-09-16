@@ -1,6 +1,6 @@
 // utils/pushClient.js
 // Client-side Web Push subscription manager.
-// Fixed for Chrome: waits for SW to be fully active before subscribing.
+// Registers the service worker itself (no separate sw-manager required).
 
 import { initializeSupabase } from './supabase.js'
 
@@ -10,6 +10,7 @@ const VAPID_PUBLIC_KEY = 'BJvYkb3poqpv8xqDhYxhgzTomReEe4fsxiEdJsb8dwN-j7GNPmfcBX
 let supabase = null
 let currentUser = null
 let swRegistration = null
+let swRegisterPromise = null
 
 // ============================================================
 // HELPERS
@@ -25,26 +26,54 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray
 }
 
-async function getSwRegistration() {
-    if (swRegistration) return swRegistration
-    if (!('serviceWorker' in navigator)) return null
-
-    try {
-        swRegistration = await navigator.serviceWorker.getRegistration()
-        if (swRegistration) return swRegistration
-
-        for (let i = 0; i < 25; i++) {
-            await new Promise((r) => setTimeout(r, 200))
-            swRegistration = await navigator.serviceWorker.getRegistration()
-            if (swRegistration) return swRegistration
-        }
-    } catch (e) {
-        console.warn('📬 [push] SW registration lookup failed:', e)
-    }
-    return swRegistration
+// Figure out the correct path to /service-worker.js based on current page depth
+function resolveServiceWorkerPath() {
+    // We want the SW to be at the site root so it can control the whole app.
+    // Files:
+    //   /service-worker.js
+    // Pages can be at:
+    //   /                          → 'service-worker.js'
+    //   /pages/home/               → '/service-worker.js'
+    //   /pages/home/profiles/      → '/service-worker.js'
+    // Using an absolute path '/' is cleanest on Vercel + GH Pages.
+    return '/service-worker.js'
 }
 
-// Wait until the SW is fully activated (Chrome needs this before subscribing)
+// ============================================================
+// REGISTER SERVICE WORKER (idempotent)
+// ============================================================
+async function ensureServiceWorker() {
+    if (!('serviceWorker' in navigator)) return null
+    if (swRegistration) return swRegistration
+    if (swRegisterPromise) return swRegisterPromise
+
+    swRegisterPromise = (async () => {
+        try {
+            const swPath = resolveServiceWorkerPath()
+            console.log('📬 [push] Registering service worker at:', swPath)
+
+            // Check if already registered
+            const existing = await navigator.serviceWorker.getRegistration(swPath)
+            if (existing) {
+                console.log('📬 [push] SW already registered')
+                swRegistration = existing
+                return existing
+            }
+
+            const reg = await navigator.serviceWorker.register(swPath, { scope: '/' })
+            console.log('📬 [push] SW registered, scope:', reg.scope)
+            swRegistration = reg
+            return reg
+        } catch (err) {
+            console.error('📬 [push] SW registration failed:', err.message)
+            return null
+        }
+    })()
+
+    return swRegisterPromise
+}
+
+// Wait until the SW is fully active (Chrome needs this before subscribing)
 async function waitForActiveWorker(reg) {
     if (reg.active) return reg.active
 
@@ -54,7 +83,6 @@ async function waitForActiveWorker(reg) {
         const worker = reg.installing || reg.waiting
 
         if (!worker) {
-            // Nothing pending; rely on reg.active appearing via controllerchange
             const timeout = setTimeout(() => resolve(reg.active), 5000)
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 clearTimeout(timeout)
@@ -72,9 +100,19 @@ async function waitForActiveWorker(reg) {
             if (worker.state === 'activated') resolve(worker)
         })
 
-        // Safety timeout
         setTimeout(() => resolve(reg.active), 8000)
     })
+}
+
+async function getReadyRegistration() {
+    const reg = await ensureServiceWorker()
+    if (!reg) return null
+
+    if (!reg.active) {
+        await waitForActiveWorker(reg)
+    }
+
+    return reg
 }
 
 // ============================================================
@@ -87,6 +125,9 @@ export async function initPushClient() {
         console.log('📬 [push] Push not supported in this browser')
         return { success: false, reason: 'unsupported' }
     }
+
+    // Register the SW as early as possible, regardless of auth
+    await ensureServiceWorker()
 
     try {
         supabase = await initializeSupabase()
@@ -101,7 +142,6 @@ export async function initPushClient() {
         currentUser = session.user
         console.log('📬 [push] User:', currentUser.email)
 
-        // If permission was already granted, silently re-subscribe
         if (Notification.permission === 'granted') {
             console.log('📬 [push] Permission already granted, ensuring subscription...')
             await subscribeCurrentDevice()
@@ -115,7 +155,7 @@ export async function initPushClient() {
 }
 
 // ============================================================
-// ASK FOR PERMISSION + SUBSCRIBE
+// PERMISSION + SUBSCRIBE
 // ============================================================
 export async function requestPushPermission() {
     console.log('📬 [push] Requesting permission...')
@@ -124,6 +164,9 @@ export async function requestPushPermission() {
         alert('Notifications are not supported in this browser')
         return { success: false, reason: 'unsupported' }
     }
+
+    // Make sure SW is up before we ask for permission
+    await ensureServiceWorker()
 
     const perm = await Notification.requestPermission()
     console.log('📬 [push] Permission result:', perm)
@@ -135,31 +178,20 @@ export async function requestPushPermission() {
     return await subscribeCurrentDevice()
 }
 
-// ============================================================
-// SUBSCRIBE  (Chrome-safe: waits for SW activation)
-// ============================================================
 async function subscribeCurrentDevice() {
     try {
-        const reg = await getSwRegistration()
+        const reg = await getReadyRegistration()
         if (!reg) {
             console.warn('📬 [push] No service worker registration')
             return { success: false, reason: 'no service worker' }
         }
 
-        // 🔥 Chrome fix: wait until the SW is fully active
-        if (!reg.active) {
-            console.log('📬 [push] SW not active yet — waiting...')
-            await waitForActiveWorker(reg)
-        }
-
         console.log('📬 [push] SW state:', reg.active ? 'active' : (reg.installing ? 'installing' : 'waiting'))
 
-        // Try to reuse existing subscription
         let subscription = await reg.pushManager.getSubscription()
 
         if (!subscription) {
             console.log('📬 [push] Creating new subscription...')
-
             try {
                 subscription = await reg.pushManager.subscribe({
                     userVisibleOnly: true,
@@ -169,7 +201,6 @@ async function subscribeCurrentDevice() {
             } catch (subErr) {
                 console.error('📬 [push] pushManager.subscribe failed:', subErr.name, '-', subErr.message)
 
-                // Friendly message for common cases
                 let reason = subErr.name || 'unknown'
                 if (subErr.name === 'NotAllowedError') reason = 'permission denied'
                 if (subErr.name === 'AbortError') reason = 'service worker not ready'
@@ -223,7 +254,7 @@ async function saveSubscriptionToDb(subscription) {
 // ============================================================
 export async function unsubscribePush() {
     try {
-        const reg = await getSwRegistration()
+        const reg = await ensureServiceWorker()
         if (!reg) return
         const sub = await reg.pushManager.getSubscription()
         if (sub) {
