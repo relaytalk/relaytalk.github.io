@@ -1,9 +1,10 @@
 // utils/pushClient.js
 // Client-side Web Push subscription manager.
+// Fixed for Chrome: waits for SW to be fully active before subscribing.
 
 import { initializeSupabase } from './supabase.js'
 
-// ⚠️ PASTE YOUR VAPID PUBLIC KEY FROM STEP 1 HERE (the long string, no quotes around it inside these quotes)
+// ⚠️ Your VAPID public key
 const VAPID_PUBLIC_KEY = 'BJvYkb3poqpv8xqDhYxhgzTomReEe4fsxiEdJsb8dwN-j7GNPmfcBXLcOvmIJOcvcAAtvzNfy1rEb_7mY63281w'
 
 let supabase = null
@@ -32,7 +33,7 @@ async function getSwRegistration() {
         swRegistration = await navigator.serviceWorker.getRegistration()
         if (swRegistration) return swRegistration
 
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 25; i++) {
             await new Promise((r) => setTimeout(r, 200))
             swRegistration = await navigator.serviceWorker.getRegistration()
             if (swRegistration) return swRegistration
@@ -41,6 +42,39 @@ async function getSwRegistration() {
         console.warn('📬 [push] SW registration lookup failed:', e)
     }
     return swRegistration
+}
+
+// Wait until the SW is fully activated (Chrome needs this before subscribing)
+async function waitForActiveWorker(reg) {
+    if (reg.active) return reg.active
+
+    console.log('📬 [push] Waiting for SW to activate...')
+
+    return new Promise((resolve) => {
+        const worker = reg.installing || reg.waiting
+
+        if (!worker) {
+            // Nothing pending; rely on reg.active appearing via controllerchange
+            const timeout = setTimeout(() => resolve(reg.active), 5000)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                clearTimeout(timeout)
+                resolve(reg.active)
+            }, { once: true })
+            return
+        }
+
+        if (worker.state === 'activated') {
+            resolve(worker)
+            return
+        }
+
+        worker.addEventListener('statechange', () => {
+            if (worker.state === 'activated') resolve(worker)
+        })
+
+        // Safety timeout
+        setTimeout(() => resolve(reg.active), 8000)
+    })
 }
 
 // ============================================================
@@ -67,11 +101,11 @@ export async function initPushClient() {
         currentUser = session.user
         console.log('📬 [push] User:', currentUser.email)
 
+        // If permission was already granted, silently re-subscribe
         if (Notification.permission === 'granted') {
+            console.log('📬 [push] Permission already granted, ensuring subscription...')
             await subscribeCurrentDevice()
         }
-
-        await syncExistingSubscription()
 
         return { success: true }
     } catch (error) {
@@ -88,7 +122,7 @@ export async function requestPushPermission() {
 
     if (!('Notification' in window)) {
         alert('Notifications are not supported in this browser')
-        return { success: false }
+        return { success: false, reason: 'unsupported' }
     }
 
     const perm = await Notification.requestPermission()
@@ -101,6 +135,9 @@ export async function requestPushPermission() {
     return await subscribeCurrentDevice()
 }
 
+// ============================================================
+// SUBSCRIBE  (Chrome-safe: waits for SW activation)
+// ============================================================
 async function subscribeCurrentDevice() {
     try {
         const reg = await getSwRegistration()
@@ -109,16 +146,39 @@ async function subscribeCurrentDevice() {
             return { success: false, reason: 'no service worker' }
         }
 
+        // 🔥 Chrome fix: wait until the SW is fully active
+        if (!reg.active) {
+            console.log('📬 [push] SW not active yet — waiting...')
+            await waitForActiveWorker(reg)
+        }
+
+        console.log('📬 [push] SW state:', reg.active ? 'active' : (reg.installing ? 'installing' : 'waiting'))
+
+        // Try to reuse existing subscription
         let subscription = await reg.pushManager.getSubscription()
 
         if (!subscription) {
             console.log('📬 [push] Creating new subscription...')
-            subscription = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            })
+
+            try {
+                subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                })
+                console.log('📬 [push] Subscription created:', subscription.endpoint.slice(0, 55) + '...')
+            } catch (subErr) {
+                console.error('📬 [push] pushManager.subscribe failed:', subErr.name, '-', subErr.message)
+
+                // Friendly message for common cases
+                let reason = subErr.name || 'unknown'
+                if (subErr.name === 'NotAllowedError') reason = 'permission denied'
+                if (subErr.name === 'AbortError') reason = 'service worker not ready'
+                if (subErr.name === 'InvalidStateError') reason = 'browser state invalid'
+
+                return { success: false, reason }
+            }
         } else {
-            console.log('📬 [push] Reusing existing subscription')
+            console.log('📬 [push] Reusing existing subscription:', subscription.endpoint.slice(0, 55) + '...')
         }
 
         await saveSubscriptionToDb(subscription)
@@ -158,17 +218,8 @@ async function saveSubscriptionToDb(subscription) {
     }
 }
 
-async function syncExistingSubscription() {
-    try {
-        const reg = await getSwRegistration()
-        if (!reg) return
-        const sub = await reg.pushManager.getSubscription()
-        if (sub) await saveSubscriptionToDb(sub)
-    } catch (e) {}
-}
-
 // ============================================================
-// UNSUBSCRIBE (for logout)
+// UNSUBSCRIBE
 // ============================================================
 export async function unsubscribePush() {
     try {
