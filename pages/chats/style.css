@@ -374,11 +374,23 @@ button, input, textarea {
     gap: 4px;
     margin-top: 4px;
     padding: 0 4px;
-    align-self: flex-start;
     max-width: 260px;
+    /* Default: align left (received) */
+    align-self: flex-start;
+    justify-content: flex-start;
 }
 
-.message-wrap.sent .reaction-pills { align-self: flex-end; }
+/* Own-message pills: align right */
+.message-wrap.sent .reaction-pills {
+    align-self: flex-end;
+    justify-content: flex-end;
+}
+
+/* Received-message pills: align left (explicit) */
+.message-wrap.received .reaction-pills {
+    align-self: flex-start;
+    justify-content: flex-start;
+}
 
 .reaction-pill {
     display: inline-flex;
