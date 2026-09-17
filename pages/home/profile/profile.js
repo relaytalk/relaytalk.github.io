@@ -1,13 +1,13 @@
-// profile.js - Simple Profile with IMGBB Avatar Upload + Notifications
+// profile.js - Profile with notifications & details toggle
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 
-// IMGBB API Key
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
 
 let supabase = null;
 let currentUser = null;
 let currentProfile = null;
+let currentShowDetails = true;
 
 // ============================================================
 // INIT
@@ -36,8 +36,8 @@ async function initProfilePage() {
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.style.display = 'none';
 
-        // Reflect notification permission state on the button
         updateNotifyButtonState();
+        updateDetailsToggle();
 
     } catch (error) {
         console.error('Init error:', error);
@@ -50,13 +50,13 @@ async function initProfilePage() {
 }
 
 // ============================================================
-// PROFILE LOADING
+// PROFILE
 // ============================================================
 async function loadProfile() {
     try {
         const { data: profile, error } = await supabase
             .from('profiles')
-            .select('id, username, avatar_url, status, last_seen')
+            .select('id, username, avatar_url, status, last_seen, show_message_preview')
             .eq('id', currentUser.id)
             .maybeSingle();
 
@@ -64,17 +64,18 @@ async function loadProfile() {
 
         currentProfile = profile || {
             id: currentUser.id,
-            username: currentUser.email?.split('@')[0] || 'User'
+            username: currentUser.email?.split('@')[0] || 'User',
+            show_message_preview: true
         };
+
+        currentShowDetails = currentProfile.show_message_preview !== false;
 
         renderProfile(currentProfile);
         setTimeout(() => loadUserStats(), 100);
 
     } catch (error) {
         console.error('Profile load error:', error);
-        renderProfile({
-            username: currentUser.email?.split('@')[0] || 'User'
-        });
+        renderProfile({ username: currentUser.email?.split('@')[0] || 'User' });
     }
 }
 
@@ -108,25 +109,21 @@ function renderProfile(profile) {
 
 async function loadUserStats() {
     try {
-        const { count: friendsCount, error } = await supabase
+        const { count: friendsCount } = await supabase
             .from('friends')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', currentUser.id);
 
-        if (error) throw error;
-
         document.getElementById('friendsCount').textContent = friendsCount || 0;
         document.getElementById('messagesCount').textContent = '0';
-
     } catch (error) {
-        console.error('Stats error:', error);
         document.getElementById('friendsCount').textContent = '0';
         document.getElementById('messagesCount').textContent = '0';
     }
 }
 
 // ============================================================
-// IMAGE PICKER
+// AVATAR
 // ============================================================
 window.openImagePicker = function() {
     document.getElementById('imagePickerModal').style.display = 'flex';
@@ -168,30 +165,24 @@ window.handleImageSelect = async function(event) {
         });
 
         const data = await response.json();
-
         if (!data.success) throw new Error('Upload failed');
 
         const imageUrl = data.data.url;
 
         const { error } = await supabase
             .from('profiles')
-            .update({
-                avatar_url: imageUrl,
-                updated_at: new Date().toISOString()
-            })
+            .update({ avatar_url: imageUrl, updated_at: new Date().toISOString() })
             .eq('id', currentUser.id);
 
         if (error) throw error;
 
         const img = document.getElementById('avatarImage');
         const initialDiv = document.getElementById('avatarInitial');
-
         img.src = imageUrl;
         img.style.display = 'block';
         initialDiv.style.display = 'none';
 
         showToast('success', 'Profile photo updated!');
-
     } catch (error) {
         console.error('Upload error:', error);
         showToast('error', 'Failed to upload image');
@@ -203,16 +194,12 @@ window.handleImageSelect = async function(event) {
 
 window.removeAvatar = async function() {
     if (!confirm('Remove profile photo?')) return;
-
     document.getElementById('uploadLoading').style.display = 'flex';
 
     try {
         const { error } = await supabase
             .from('profiles')
-            .update({
-                avatar_url: null,
-                updated_at: new Date().toISOString()
-            })
+            .update({ avatar_url: null, updated_at: new Date().toISOString() })
             .eq('id', currentUser.id);
 
         if (error) throw error;
@@ -226,9 +213,7 @@ window.removeAvatar = async function() {
         initialDiv.textContent = username.charAt(0).toUpperCase();
 
         showToast('success', 'Profile photo removed');
-
     } catch (error) {
-        console.error('Remove error:', error);
         showToast('error', 'Failed to remove photo');
     } finally {
         document.getElementById('uploadLoading').style.display = 'none';
@@ -237,15 +222,18 @@ window.removeAvatar = async function() {
 };
 
 // ============================================================
-// NOTIFICATIONS
+// NOTIFICATIONS — Enable
 // ============================================================
 window.enableNotifications = async function() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
 
-    // If already enabled, show a friendly message
     if (Notification.permission === 'granted') {
-        showToast('success', 'Notifications are already enabled');
+        // Re-subscribe silently in case they deleted the SW subscription
+        if (window.relaytalkPush) {
+            await window.relaytalkPush.init();
+        }
+        showToast('success', 'Notifications already enabled');
         return;
     }
 
@@ -254,15 +242,6 @@ window.enableNotifications = async function() {
         return;
     }
 
-    const original = btn.innerHTML;
-    btn.innerHTML = `
-        <span class="notify-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-            </svg>
-        </span>
-        <span class="notify-text">Enabling...</span>
-    `;
     btn.disabled = true;
     btn.classList.add('loading');
 
@@ -270,34 +249,86 @@ window.enableNotifications = async function() {
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isStandalone = window.navigator.standalone === true;
         if (isIOS && !isStandalone) {
-            alert('On iPhone, please tap Share → Add to Home Screen first, then open RelayTalk from your home screen and tap this button again.');
-            btn.innerHTML = original;
+            alert('On iPhone, please tap Share → Add to Home Screen first, then reopen and tap Enable again.');
             btn.disabled = false;
             btn.classList.remove('loading');
             return;
         }
 
         const result = await window.relaytalkPush.request();
-
         if (result.success) {
             markNotifyEnabled();
             showToast('success', 'Notifications enabled!');
         } else {
-            btn.innerHTML = original;
-            btn.disabled = false;
-            btn.classList.remove('loading');
-            showToast('error', 'Could not enable notifications: ' + (result.reason || 'denied'));
+            showToast('error', 'Could not enable: ' + (result.reason || 'denied'));
         }
     } catch (e) {
         console.error(e);
-        btn.innerHTML = original;
+        showToast('error', 'Something went wrong');
+    } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
-        showToast('error', 'Something went wrong');
     }
 };
 
-// Reflect current state in the button on page load
+// ============================================================
+// NOTIFICATIONS — Reset
+// ============================================================
+window.resetNotifications = async function() {
+    const btn = document.getElementById('resetNotificationsBtn');
+    if (!btn) return;
+
+    const ok = confirm('Reset notifications?\n\nThis will unsubscribe this device and create a fresh subscription. Any duplicate/broken ones will be cleaned up.');
+    if (!ok) return;
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    showToast('info', 'Resetting...');
+
+    try {
+        // 1. Unsubscribe from browser push
+        if (window.relaytalkPush) {
+            await window.relaytalkPush.unsubscribe();
+        }
+
+        // 2. Also delete all rows for this user (in case of stale subscriptions)
+        if (supabase && currentUser) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
+        }
+
+        // 3. Brief wait so the browser finishes unsubscribing
+        await new Promise(r => setTimeout(r, 800));
+
+        // 4. Re-subscribe (permission is already granted, so no new prompt)
+        if (window.relaytalkPush) {
+            const result = await window.relaytalkPush.request();
+            if (result.success) {
+                markNotifyEnabled();
+                showToast('success', 'Notifications reset successfully!');
+            } else {
+                showToast('error', 'Reset failed: ' + (result.reason || 'unknown'));
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('error', 'Reset failed');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+};
+
+// ============================================================
+// NOTIFY BUTTON STATE
+// ============================================================
+function markNotifyEnabled() {
+    const btn = document.getElementById('enableNotificationsBtn');
+    if (!btn) return;
+
+    btn.classList.add('enabled');
+    btn.querySelector('.notify-label').textContent = 'Enabled';
+}
+
 function updateNotifyButtonState() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
@@ -311,28 +342,98 @@ function updateNotifyButtonState() {
         markNotifyEnabled();
     } else if (Notification.permission === 'denied') {
         btn.classList.add('denied');
-        const text = btn.querySelector('.notify-text');
-        if (text) text.textContent = 'Notifications Blocked';
+        btn.querySelector('.notify-label').textContent = 'Blocked';
     }
 }
 
-function markNotifyEnabled() {
-    const btn = document.getElementById('enableNotificationsBtn');
-    if (!btn) return;
+// ============================================================
+// DETAILS TOGGLE
+// ============================================================
+window.toggleDetails = function() {
+    // Show info popup explaining the change
+    showDetailsInfo();
+};
 
-    btn.classList.remove('loading');
-    btn.classList.remove('denied');
-    btn.classList.add('enabled');
-    btn.disabled = false;
+function showDetailsInfo() {
+    const isCurrentlyOn = currentShowDetails;
+    const titleEl = document.getElementById('detailsInfoTitle');
+    const bodyEl = document.getElementById('detailsInfoBody');
 
-    btn.innerHTML = `
-        <span class="notify-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6 9 17l-5-5"/>
-            </svg>
-        </span>
-        <span class="notify-text">Notifications Enabled</span>
-    `;
+    if (isCurrentlyOn) {
+        // Currently ON → will turn OFF
+        titleEl.innerHTML = '<i class="fas fa-eye-slash" style="color:#d97706;"></i> Hide Details';
+        bodyEl.innerHTML = `
+            <p style="margin-bottom:12px;">By turning this <strong>off</strong>, notifications will be less detailed:</p>
+            <ul style="padding-left:20px; line-height:1.8;">
+                <li>You'll only see <em>"There Is a New Message On RelayTalk"</em></li>
+                <li><strong>No sender name</strong> will be shown</li>
+                <li><strong>No avatar</strong> will be shown</li>
+                <li><strong>No message content</strong> or images</li>
+            </ul>
+            <p style="margin-top:14px;color:#666;font-size:0.9rem;">Useful for privacy when your phone screen is visible to others.</p>
+        `;
+    } else {
+        // Currently OFF → will turn ON
+        titleEl.innerHTML = '<i class="fas fa-eye" style="color:#007acc;"></i> Show Details';
+        bodyEl.innerHTML = `
+            <p style="margin-bottom:12px;">By turning this <strong>on</strong>, notifications will include:</p>
+            <ul style="padding-left:20px; line-height:1.8;">
+                <li>The <strong>sender's name</strong> (bold)</li>
+                <li>The <strong>sender's avatar</strong> as the notification icon</li>
+                <li>The <strong>message content</strong></li>
+                <li>A <strong>preview image</strong> when a photo is sent</li>
+            </ul>
+            <p style="margin-top:14px;color:#666;font-size:0.9rem;">Recommended if you want to know who messaged and what they said.</p>
+        `;
+    }
+
+    document.getElementById('detailsInfoModal').style.display = 'flex';
+}
+
+window.closeDetailsInfo = function() {
+    document.getElementById('detailsInfoModal').style.display = 'none';
+};
+
+window.confirmDetailsToggle = async function() {
+    closeDetailsInfo();
+    await applyDetailsToggle(!currentShowDetails);
+};
+
+async function applyDetailsToggle(newValue) {
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                show_message_preview: newValue,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', currentUser.id);
+
+        if (error) throw error;
+
+        currentShowDetails = newValue;
+        updateDetailsToggle();
+        showToast('success', newValue ? 'Details ON' : 'Details OFF');
+    } catch (error) {
+        console.error('Toggle error:', error);
+        showToast('error', 'Could not update preference');
+    }
+}
+
+function updateDetailsToggle() {
+    const btn = document.getElementById('detailsToggleBtn');
+    const label = document.getElementById('detailsToggleLabel');
+    if (!btn || !label) return;
+
+    if (currentShowDetails) {
+        btn.classList.add('active');
+        btn.classList.remove('inactive');
+        label.textContent = 'Details Visible';
+    } else {
+        btn.classList.add('inactive');
+        btn.classList.remove('active');
+        label.textContent = 'Details Hidden';
+    }
 }
 
 // ============================================================
@@ -345,8 +446,8 @@ function showToast(type, message) {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
 
-    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
-    const color = type === 'success' ? '#28a745' : '#dc3545';
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    const color = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007acc';
 
     toast.innerHTML = `
         <i class="fas fa-${icon}" style="color: ${color}"></i>
@@ -354,7 +455,6 @@ function showToast(type, message) {
     `;
 
     container.appendChild(toast);
-
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(-20px)';
@@ -370,14 +470,11 @@ window.logout = async function() {
         document.getElementById('uploadLoading').style.display = 'flex';
         document.querySelector('.loading-text').textContent = 'Logging out...';
 
-        // Best-effort: unsubscribe from push on logout
         try {
-            if (window.relaytalkPush && window.relaytalkPush.unsubscribe) {
+            if (window.relaytalkPush?.unsubscribe) {
                 await window.relaytalkPush.unsubscribe();
             }
-        } catch (e) {
-            console.warn('Push unsubscribe failed (non-fatal):', e);
-        }
+        } catch (e) {}
 
         if (supabase) await supabase.auth.signOut();
 
@@ -385,21 +482,16 @@ window.logout = async function() {
         sessionStorage.clear();
 
         document.cookie.split(";").forEach(function(c) {
-            document.cookie = c.replace(/^ +/, "")
-                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
 
         window.location.href = '../../../pages/login/index.html';
-
     } catch (error) {
-        console.error('Logout error:', error);
         window.location.href = '../../../pages/login/index.html';
     }
 };
 
-// Navigation
 window.goToHome = () => window.location.href = '../../home/index.html';
 window.goToFriends = () => window.location.href = '../friends/index.html';
 
-// Initialize
 document.addEventListener('DOMContentLoaded', initProfilePage);
