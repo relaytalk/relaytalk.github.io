@@ -1,37 +1,44 @@
 import { auth } from '../../utils/auth.js';
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Chat Core Initialized - MULTI-IMAGE VERSION');
+console.log('✨ Chat Core initialized');
 
-// ====================
-// CORE CHAT VARIABLES
-// ====================
+// ============================================================
+// CORE VARIABLES
+// ============================================================
 let currentUser = null;
 let chatFriend = null;
 let chatChannel = null;
 let statusChannel = null;
 let typingChannel = null;
+let reactionsChannel = null;
 let isLoadingMessages = false;
 let currentMessages = [];
 let isSending = false;
 let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
-let typingIndicatorInterval = null;
 
-// Global variables for coordination
+// Reactions state: { messageId: [ {user_id, emoji}, ... ] }
+let messageReactions = {};
+
+// Long-press state
+let longPressTimer = null;
+let longPressTarget = null;
+let activePickerMessageId = null;
+let activePickerEl = null;
+
+// Global coordination
 window.colorPickerVisible = false;
 window.currentMessages = currentMessages;
 window.currentUser = null;
 window.chatFriend = null;
 window.isSending = false;
 window.isTyping = false;
-window.typingTimeout = null;
-window.friendTypingTimeout = null;
 
-// ====================
-// GLOBAL FUNCTION EXPORTS
-// ====================
+// ============================================================
+// EXPORTS
+// ============================================================
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
@@ -57,48 +64,49 @@ window.showLoading = showLoading;
 window.refreshChat = refreshChat;
 window.reconnectRealtime = reconnectRealtime;
 
-// Export for img-handler
 window.getCurrentUser = () => currentUser;
 window.getChatFriend = () => chatFriend;
 window.getSupabaseClient = () => supabase;
 
-// Signal that core is loaded
 if (window.chatModules) {
     window.chatModules.coreLoaded = true;
-    console.log('✅ chat-core.js loaded and ready');
 }
 
-// ====================
-// INITIALIZATION
-//===================
+// ============================================================
+// REACTION CONSTANTS
+// ============================================================
+const QUICK_REACTIONS = ['🥀', '💕', '🫂', '😭'];
+
+const PICKER_EMOJIS = [
+    '🥀', '💕', '🫂', '😭', '😂', '❤️',
+    '🔥', '👍', '👎', '😮', '😢', '😡',
+    '🙏', '🎉', '💯', '😍', '😘', '🤔',
+    '😴', '🤯', '🥺', '😈', '💀', '🤝',
+    '✨', '🙌', '👏', '🥰', '😅', '🤗'
+];
+
+// ============================================================
+// INIT
+// ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log('🔧 Initializing chat core...');
-
-        // Check authentication
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            console.log('❌ User not authenticated, showing login');
             showLoginScreen();
             return;
         }
 
         currentUser = user;
         window.currentUser = user;
-        console.log('✅ Current User:', user.id);
 
-        // Hide login, show chat interface
         document.getElementById("login").style.display = "none";
         document.getElementById("chat").style.display = "block";
 
-        // Hide all overlays on load
-        const overlays = ['customAlert', 'customToast', 'userInfoModal'];
-        overlays.forEach(id => {
+        ['customAlert', 'customToast', 'userInfoModal'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
 
-        // Get friend ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
 
@@ -109,7 +117,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Load friend data WITH avatar_url
         const { data: friend, error: friendError } = await supabase
             .from('profiles')
             .select('*')
@@ -121,7 +128,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatFriend = friend;
         window.chatFriend = friend;
 
-        // Update chat header WITH avatar
         const chatUserAvatar = document.getElementById('chatUserAvatar');
         const friendInitial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
 
@@ -134,32 +140,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chatUserName').textContent = friend.username;
         updateFriendStatus(friend.status);
 
-        // Load messages
         await loadOldMessages(friendId);
-
-        // Setup real-time and listeners
         setupRealtime(friendId);
         setupTypingListener();
         setupTypingReceiver(friendId);
         setupTypingIndicator();
         updateInputListener();
-
-        // Prevent accidental back navigation
         setupBackButtonPrevention();
+        setupLongPressHandlers();
+        setupPickerDismiss();
 
-        // Initial setup
         setTimeout(() => {
             const input = document.getElementById('messageInput');
             if (input) {
                 autoResize(input);
-                setTimeout(() => {
-                    input.focus();
-                }, 100);
+                input.focus();
             }
             forceScrollToBottom();
-        }, 100);
+        }, 150);
 
-        console.log('✅ Chat core ready!');
+        console.log('✅ Chat ready');
     } catch (error) {
         console.error('Init error:', error);
         showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
@@ -168,33 +168,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ====================
+// ============================================================
 // LOGIN SCREEN
-// ====================
+// ============================================================
 function showLoginScreen() {
-    console.log('Showing login screen...');
     document.getElementById("login").style.display = "block";
     document.getElementById("chat").style.display = "none";
 
     const loginBtn = document.getElementById('loginBtn');
     const signupBtn = document.getElementById('signupBtn');
-
-    if (loginBtn) {
-        loginBtn.onclick = () => {
-            window.location.href = '../login/index.html';
-        };
-    }
-
-    if (signupBtn) {
-        signupBtn.onclick = () => {
-            window.location.href = '../auth/index.html';
-        };
-    }
+    if (loginBtn) loginBtn.onclick = () => window.location.href = '../login/index.html';
+    if (signupBtn) signupBtn.onclick = () => window.location.href = '../auth/index.html';
 }
 
-// ====================
-// BACK BUTTON FIX
-// ====================
+// ============================================================
+// BACK BUTTON
+// ============================================================
 function setupBackButtonPrevention() {
     const backBtn = document.querySelector('.back-btn');
     if (backBtn) {
@@ -211,9 +200,9 @@ function setupBackButtonPrevention() {
     }
 }
 
-// ====================
-// TYPING INDICATOR SETUP
-// ====================
+// ============================================================
+// TYPING INDICATOR
+// ============================================================
 function setupTypingIndicator() {
     if (!document.getElementById('typingIndicator')) {
         const indicator = document.createElement('div');
@@ -221,94 +210,32 @@ function setupTypingIndicator() {
         indicator.className = 'typing-indicator';
         indicator.innerHTML = `
             <div class="typing-dots">
-                <div></div>
-                <div></div>
-                <div></div>
+                <div></div><div></div><div></div>
             </div>
             <span id="typingText">${chatFriend?.username || 'Friend'} is typing...</span>
         `;
         indicator.style.display = 'none';
-
         const messagesContainer = document.getElementById('messagesContainer');
-        if (messagesContainer) {
-            messagesContainer.appendChild(indicator);
-        }
-    }
-
-    if (!document.querySelector('#typing-indicator-style')) {
-        const style = document.createElement('style');
-        style.id = 'typing-indicator-style';
-        style.textContent = `
-            .typing-indicator {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 10px 16px;
-                margin: 8px 0;
-                align-self: flex-start;
-                background: rgba(255, 255, 255, 0.9);
-                border: 1px solid rgba(0, 122, 204, 0.2);
-                border-radius: 20px;
-                border-bottom-left-radius: 5px;
-                font-size: 0.9rem;
-                color: #007acc;
-                width: fit-content;
-                animation: fadeIn 0.2s ease;
-            }
-            
-            .typing-dots {
-                display: flex;
-                gap: 5px;
-            }
-            
-            .typing-dots div {
-                width: 8px;
-                height: 8px;
-                background: #007acc;
-                border-radius: 50%;
-                animation: typing 1.4s infinite;
-            }
-            
-            .typing-dots div:nth-child(2) {
-                animation-delay: 0.2s;
-            }
-            
-            .typing-dots div:nth-child(3) {
-                animation-delay: 0.4s;
-            }
-            
-            @keyframes typing {
-                0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
-                30% { transform: translateY(-6px); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
+        if (messagesContainer) messagesContainer.appendChild(indicator);
     }
 }
 
 function showTypingIndicator(show) {
     const indicator = document.getElementById('typingIndicator');
     if (!indicator) return;
-
     if (show) {
         indicator.style.display = 'flex';
-        setTimeout(() => {
-            forceScrollToBottom();
-        }, 10);
+        forceScrollToBottom();
     } else {
         indicator.style.display = 'none';
     }
 }
 
-// ====================
-// TEXT MESSAGE FUNCTIONS
-// ====================
-
+// ============================================================
+// SEND MESSAGE
+// ============================================================
 async function sendMessage() {
-    if (isSending) {
-        console.log('🔄 Message already being sent, skipping...');
-        return;
-    }
+    if (isSending) return;
 
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
@@ -332,15 +259,9 @@ async function sendMessage() {
     const originalHTML = sendBtn.innerHTML;
 
     try {
-        console.log('📤 Sending message to:', chatFriend.id);
-        sendBtn.innerHTML = `
-            <svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5">
-                <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
-            </svg>
-        `;
+        sendBtn.innerHTML = `<svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>`;
         sendBtn.disabled = true;
 
-        // chat_id = friend's ID (used for realtime filter)
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
@@ -351,7 +272,6 @@ async function sendMessage() {
 
         if (window.selectedColor) {
             messageData.color = window.selectedColor;
-            console.log('🎨 Sending message with color:', window.selectedColor);
             window.selectedColor = null;
         }
 
@@ -363,41 +283,30 @@ async function sendMessage() {
 
         if (error) throw error;
 
-        console.log('✅ Message sent:', data.id);
-
-        // Add to UI immediately
-        if (data) {
-            if (!currentMessages.some(msg => msg.id === data.id)) {
-                currentMessages.push(data);
-                window.currentMessages = currentMessages;
-            }
-            addMessageToUI(data, false);
+        if (!currentMessages.some(msg => msg.id === data.id)) {
+            currentMessages.push(data);
+            window.currentMessages = currentMessages;
         }
+        addMessageToUI(data, false);
 
         playSentSound();
         input.value = '';
         autoResize(input);
+        // 🔥 Keep focus — do NOT blur/focus cycle
+        input.focus({ preventScroll: true });
 
-        // Stop typing indicator
         isTyping = false;
         window.isTyping = false;
         if (typingTimeout) {
             clearTimeout(typingTimeout);
             typingTimeout = null;
-            window.typingTimeout = null;
         }
         sendTypingStatus(false);
 
-        setTimeout(() => {
-            if (input) input.focus();
-            isSending = false;
-            window.isSending = false;
-            sendBtn.innerHTML = originalHTML;
-            sendBtn.disabled = false;
-        }, 150);
     } catch (error) {
         console.error('Send failed:', error);
-        showCustomAlert('Failed to send message: ' + error.message, '❌', 'Error');
+        showToast('Failed to send message', '❌', 2000);
+    } finally {
         isSending = false;
         window.isSending = false;
         sendBtn.innerHTML = originalHTML;
@@ -405,30 +314,27 @@ async function sendMessage() {
     }
 }
 
-// ====================
-// MESSAGE LOADING
-// ====================
+// ============================================================
+// LOAD OLD MESSAGES
+// ============================================================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
 
     try {
-        console.log('Loading messages for friend:', friendId);
-
         const { data: messages, error } = await supabase
             .from('direct_messages')
             .select('*')
             .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
             .order('created_at', { ascending: true });
 
-        if (error) {
-            console.error('Query error:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        console.log('Loaded', messages?.length || 0, 'messages');
         currentMessages = messages || [];
         window.currentMessages = currentMessages;
+
+        // Load reactions for these messages
+        await loadReactionsForMessages(currentMessages.map(m => m.id));
 
         showMessages(currentMessages);
     } catch (error) {
@@ -439,6 +345,30 @@ async function loadOldMessages(friendId) {
     }
 }
 
+async function loadReactionsForMessages(messageIds) {
+    messageReactions = {};
+    if (!messageIds || messageIds.length === 0) return;
+
+    try {
+        const { data: reactions, error } = await supabase
+            .from('message_reactions')
+            .select('message_id, user_id, emoji')
+            .in('message_id', messageIds);
+
+        if (error) throw error;
+
+        (reactions || []).forEach(r => {
+            if (!messageReactions[r.message_id]) messageReactions[r.message_id] = [];
+            messageReactions[r.message_id].push({ user_id: r.user_id, emoji: r.emoji });
+        });
+    } catch (e) {
+        console.warn('Failed to load reactions:', e.message);
+    }
+}
+
+// ============================================================
+// RENDER MESSAGES
+// ============================================================
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -462,8 +392,7 @@ function showMessages(messages) {
     messages.forEach(msg => {
         const isSent = msg.sender_id === currentUser.id;
         const time = new Date(msg.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
+            hour: '2-digit', minute: '2-digit'
         });
         const date = new Date(msg.created_at).toLocaleDateString();
 
@@ -475,11 +404,12 @@ function showMessages(messages) {
         const color = msg.color || null;
         const colorAttr = color ? `data-color="${color}"` : '';
 
+        let messageHTML = '';
         if (msg.image_url) {
             if (typeof window.createImageMessageHTML === 'function') {
-                html += window.createImageMessageHTML(msg, isSent, colorAttr, time);
+                messageHTML = window.createImageMessageHTML(msg, isSent, colorAttr, time);
             } else {
-                html += `
+                messageHTML = `
                     <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
                         <div class="message-content">📸 Image shared</div>
                         <div class="message-time">${time}</div>
@@ -487,23 +417,21 @@ function showMessages(messages) {
                 `;
             }
         } else {
-            html += `
+            messageHTML = `
                 <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-                    <div class="message-content">${msg.content || ''}</div>
+                    <div class="message-content">${escapeHtml(msg.content || '')}</div>
                     <div class="message-time">${time}</div>
                 </div>
             `;
         }
+
+        html += `<div class="message-wrap" data-wrap-id="${msg.id}">${messageHTML}${renderReactionPills(msg.id)}</div>`;
     });
 
-    html += `<div class="typing-indicator-placeholder"></div>`;
     container.innerHTML = html;
-
     setupTypingIndicator();
 
-    setTimeout(() => {
-        forceScrollToBottom();
-    }, 50);
+    setTimeout(() => forceScrollToBottom(), 50);
 }
 
 function addMessageToUI(message, isFromRealtime = false) {
@@ -516,15 +444,13 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     const isSent = message.sender_id === currentUser.id;
     const time = new Date(message.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
     });
 
     const color = message.color || null;
     const colorAttr = color ? `data-color="${color}"` : '';
 
-    let messageHTML;
-
+    let messageHTML = '';
     if (message.image_url) {
         if (typeof window.createImageMessageHTML === 'function') {
             messageHTML = window.createImageMessageHTML(message, isSent, colorAttr, time);
@@ -539,43 +465,40 @@ function addMessageToUI(message, isFromRealtime = false) {
     } else {
         messageHTML = `
             <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
-                <div class="message-content">${message.content || ''}</div>
+                <div class="message-content">${escapeHtml(message.content || '')}</div>
                 <div class="message-time">${time}</div>
             </div>
         `;
     }
 
-    // Remove typing indicator temporarily
     const typingIndicator = document.getElementById('typingIndicator');
-    if (typingIndicator) {
-        typingIndicator.remove();
-    }
+    if (typingIndicator) typingIndicator.remove();
 
-    container.insertAdjacentHTML('beforeend', messageHTML);
+    const wrap = document.createElement('div');
+    wrap.className = 'message-wrap';
+    wrap.dataset.wrapId = message.id;
+    wrap.innerHTML = messageHTML + renderReactionPills(message.id);
+    container.appendChild(wrap);
 
     setupTypingIndicator();
 
-    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
-    if (!isDuplicate) {
+    if (!currentMessages.some(msg => msg.id === message.id)) {
         currentMessages.push(message);
         window.currentMessages = currentMessages;
     }
 
-    const newMessage = container.lastElementChild;
-    if (newMessage && isFromRealtime) {
-        newMessage.style.opacity = '0';
-        newMessage.style.transform = 'translateY(10px)';
-
+    const bubble = wrap.querySelector('.message');
+    if (bubble && isFromRealtime) {
+        bubble.style.opacity = '0';
+        bubble.style.transform = 'translateY(10px)';
         setTimeout(() => {
-            newMessage.style.transition = 'all 0.15s ease';
-            newMessage.style.opacity = '1';
-            newMessage.style.transform = 'translateY(0)';
+            bubble.style.transition = 'all 0.15s ease';
+            bubble.style.opacity = '1';
+            bubble.style.transform = 'translateY(0)';
         }, 10);
     }
 
-    setTimeout(() => {
-        forceScrollToBottom();
-    }, 10);
+    setTimeout(() => forceScrollToBottom(), 10);
 
     if (message.sender_id === chatFriend.id) {
         playReceivedSound();
@@ -587,105 +510,330 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 }
 
-// ====================
-// REALTIME FUNCTIONS - FIXED (no filter, client-side check)
-// ====================
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
+// ============================================================
+// REACTIONS — RENDERING
+// ============================================================
+function renderReactionPills(messageId) {
+    const reactions = messageReactions[messageId] || [];
+    if (reactions.length === 0) return '';
+
+    // Aggregate by emoji
+    const grouped = {};
+    reactions.forEach(r => {
+        grouped[r.emoji] = (grouped[r.emoji] || 0) + 1;
+    });
+
+    const myEmoji = reactions.find(r => r.user_id === currentUser.id)?.emoji;
+
+    const pills = Object.entries(grouped).map(([emoji, count]) => {
+        const isMine = emoji === myEmoji;
+        return `
+            <button class="reaction-pill ${isMine ? 'mine' : ''}" data-emoji="${emoji}" data-message-id="${messageId}">
+                <span class="reaction-emoji">${emoji}</span>
+                ${count > 1 ? `<span class="reaction-count">${count}</span>` : ''}
+            </button>
+        `;
+    }).join('');
+
+    return `<div class="reaction-pills" data-reactions-for="${messageId}">${pills}</div>`;
+}
+
+function updateReactionPills(messageId) {
+    const wrap = document.querySelector(`.message-wrap[data-wrap-id="${messageId}"]`);
+    if (!wrap) return;
+
+    const oldPills = wrap.querySelector('.reaction-pills');
+    const newHTML = renderReactionPills(messageId);
+
+    if (oldPills) {
+        if (newHTML) {
+            oldPills.outerHTML = newHTML;
+        } else {
+            oldPills.remove();
+        }
+    } else if (newHTML) {
+        wrap.insertAdjacentHTML('beforeend', newHTML);
+    }
+}
+
+// ============================================================
+// REACTIONS — SAVE / TOGGLE
+// ============================================================
+async function toggleReaction(messageId, emoji) {
+    try {
+        const existing = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id);
+
+        if (existing && existing.emoji === emoji) {
+            // Remove
+            const { error } = await supabase
+                .from('message_reactions')
+                .delete()
+                .eq('message_id', messageId)
+                .eq('user_id', currentUser.id);
+            if (error) throw error;
+
+            messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== currentUser.id);
+        } else if (existing) {
+            // Update to new emoji
+            const { error } = await supabase
+                .from('message_reactions')
+                .update({ emoji, updated_at: new Date().toISOString() })
+                .eq('message_id', messageId)
+                .eq('user_id', currentUser.id);
+            if (error) throw error;
+
+            existing.emoji = emoji;
+        } else {
+            // Insert new
+            const { error } = await supabase
+                .from('message_reactions')
+                .insert({
+                    message_id: messageId,
+                    user_id: currentUser.id,
+                    emoji
+                });
+            if (error) throw error;
+
+            if (!messageReactions[messageId]) messageReactions[messageId] = [];
+            messageReactions[messageId].push({ user_id: currentUser.id, emoji });
+        }
+
+        updateReactionPills(messageId);
+    } catch (error) {
+        console.error('Reaction error:', error);
+        showToast('Could not save reaction', '❌', 1500);
+    }
+}
+
+// ============================================================
+// REACTIONS — LONG PRESS + PICKER
+// ============================================================
+function setupLongPressHandlers() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    // Touch (mobile)
+    container.addEventListener('touchstart', handlePressStart, { passive: true });
+    container.addEventListener('touchend', handlePressEnd);
+    container.addEventListener('touchmove', handlePressCancel, { passive: true });
+
+    // Mouse (desktop)
+    container.addEventListener('mousedown', handlePressStart);
+    container.addEventListener('mouseup', handlePressEnd);
+    container.addEventListener('mouseleave', handlePressCancel);
+
+    // Right-click on desktop also triggers
+    container.addEventListener('contextmenu', (e) => {
+        const wrap = e.target.closest('.message-wrap');
+        if (wrap) {
+            e.preventDefault();
+            showReactionPicker(wrap);
+        }
+    });
+
+    // Tap on existing pill to toggle
+    container.addEventListener('click', (e) => {
+        const pill = e.target.closest('.reaction-pill');
+        if (pill) {
+            e.stopPropagation();
+            toggleReaction(parseInt(pill.dataset.messageId), pill.dataset.emoji);
+            return;
+        }
+    });
+}
+
+function handlePressStart(e) {
+    const wrap = e.target.closest('.message-wrap');
+    if (!wrap) return;
+
+    longPressTarget = wrap;
+    longPressTimer = setTimeout(() => {
+        if (longPressTarget === wrap) {
+            showReactionPicker(wrap);
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+    }, 500);
+}
+
+function handlePressEnd() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+    longPressTarget = null;
+}
+
+function handlePressCancel() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+    longPressTarget = null;
+}
+
+function showReactionPicker(wrap) {
+    closeReactionPicker();
+
+    const messageId = parseInt(wrap.dataset.wrapId);
+    if (!messageId) return;
+
+    activePickerMessageId = messageId;
+    activePickerEl = wrap;
+
+    const myEmoji = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+
+    const picker = document.createElement('div');
+    picker.className = 'quick-reaction-bar';
+    picker.id = 'quickReactionBar';
+    picker.innerHTML = `
+        ${QUICK_REACTIONS.map(emoji => `
+            <button class="quick-emoji ${myEmoji === emoji ? 'selected' : ''}" data-emoji="${emoji}">${emoji}</button>
+        `).join('')}
+        <button class="quick-emoji quick-more" data-action="more">＋</button>
+    `;
+
+    // Position: above the message bubble
+    wrap.style.position = 'relative';
+    wrap.appendChild(picker);
+
+    // Handle taps
+    picker.querySelectorAll('.quick-emoji').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (btn.dataset.action === 'more') {
+                showEmojiGrid(messageId);
+            } else {
+                toggleReaction(messageId, btn.dataset.emoji);
+                closeReactionPicker();
+            }
+        });
+    });
+}
+
+function closeReactionPicker() {
+    const bar = document.getElementById('quickReactionBar');
+    if (bar) bar.remove();
+    activePickerMessageId = null;
+    activePickerEl = null;
+}
+
+function showEmojiGrid(messageId) {
+    closeReactionPicker();
+
+    const modal = document.createElement('div');
+    modal.className = 'emoji-picker-overlay';
+    modal.id = 'emojiPickerOverlay';
+    modal.innerHTML = `
+        <div class="emoji-picker-panel">
+            <div class="emoji-picker-header">
+                <span>Choose a reaction</span>
+                <button class="emoji-picker-close">×</button>
+            </div>
+            <div class="emoji-picker-grid">
+                ${PICKER_EMOJIS.map(e => `<button class="emoji-cell" data-emoji="${e}">${e}</button>`).join('')}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    setTimeout(() => modal.classList.add('visible'), 10);
+
+    modal.querySelector('.emoji-picker-close').onclick = () => {
+        modal.classList.remove('visible');
+        setTimeout(() => modal.remove(), 200);
+    };
+
+    modal.querySelectorAll('.emoji-cell').forEach(btn => {
+        btn.addEventListener('click', () => {
+            toggleReaction(messageId, btn.dataset.emoji);
+            modal.classList.remove('visible');
+            setTimeout(() => modal.remove(), 200);
+        });
+    });
+
+    // Tap outside to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('visible');
+            setTimeout(() => modal.remove(), 200);
+        }
+    });
+}
+
+function setupPickerDismiss() {
+    document.addEventListener('click', (e) => {
+        const bar = document.getElementById('quickReactionBar');
+        if (!bar) return;
+        if (!bar.contains(e.target) && !e.target.closest('.message-wrap')) {
+            closeReactionPicker();
+        }
+    });
+
+    // Scroll closes picker
+    const container = document.getElementById('messagesContainer');
+    if (container) {
+        container.addEventListener('scroll', () => {
+            if (document.getElementById('quickReactionBar')) {
+                closeReactionPicker();
+            }
+        }, { passive: true });
+    }
+}
+
+// ============================================================
+// REALTIME
+// ============================================================
 function setupRealtime(friendId) {
-    console.log('🔧 Setting up realtime for friend:', friendId);
-
     const userIds = [currentUser.id, friendId].sort();
     const channelName = `chat:${userIds[0]}:${userIds[1]}`;
 
-    console.log('📡 Creating channel:', channelName);
+    [chatChannel, statusChannel, typingChannel, reactionsChannel].forEach(ch => {
+        if (ch) supabase.removeChannel(ch);
+    });
+    chatChannel = statusChannel = typingChannel = reactionsChannel = null;
 
-    if (chatChannel) {
-        supabase.removeChannel(chatChannel);
-        chatChannel = null;
-    }
-    if (statusChannel) {
-        supabase.removeChannel(statusChannel);
-        statusChannel = null;
-    }
-    if (typingChannel) {
-        supabase.removeChannel(typingChannel);
-        typingChannel = null;
-    }
-
-    // 🔥 KEY FIX: No filter on `chat_id`. Receive every INSERT into
-    // direct_messages, then filter client-side. This catches BOTH
-    // directions reliably — the old chat_id filter only matched one way.
     chatChannel = supabase.channel(channelName)
         .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages'
+            event: 'INSERT', schema: 'public', table: 'direct_messages'
         }, (payload) => {
             const newMsg = payload.new;
-            console.log('📨 Realtime INSERT detected:', newMsg);
-
-            // Only handle messages in THIS conversation
             const isOurConversation =
                 (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
+            if (!isOurConversation) return;
+            if (document.querySelector(`[data-message-id="${newMsg.id}"]`)) return;
 
-            if (!isOurConversation) {
-                return;
-            }
-
-            // Skip if already rendered
-            if (document.querySelector(`[data-message-id="${newMsg.id}"]`)) {
-                return;
-            }
-
-            console.log('✅ Adding new message to UI (from realtime)');
             if (!currentMessages.some(msg => msg.id === newMsg.id)) {
                 currentMessages.push(newMsg);
                 window.currentMessages = currentMessages;
             }
             addMessageToUI(newMsg, true);
         })
-        .subscribe((status) => {
-            console.log('📡 Channel status:', status);
-            if (status === 'CHANNEL_ERROR') {
-                console.error('❌ Channel error, attempting to reconnect...');
-                setTimeout(() => setupRealtime(friendId), 3000);
-            }
-        });
+        .subscribe();
 
     window.chatChannel = chatChannel;
 
-    // Status channel — unchanged
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
+            event: 'UPDATE', schema: 'public', table: 'profiles',
             filter: `id=eq.${friendId}`
         }, (payload) => {
-            console.log('🔄 Friend status updated:', payload.new.status);
-            if (payload.new.id === friendId) {
-                if (chatFriend) {
-                    chatFriend.status = payload.new.status;
-                    window.chatFriend = chatFriend;
-                    updateFriendStatus(payload.new.status);
-                }
+            if (payload.new.id === friendId && chatFriend) {
+                chatFriend.status = payload.new.status;
+                window.chatFriend = chatFriend;
+                updateFriendStatus(payload.new.status);
 
-                if (payload.new.avatar_url && chatFriend && payload.new.avatar_url !== chatFriend.avatar_url) {
-                    if (chatFriend) {
-                        chatFriend.avatar_url = payload.new.avatar_url;
-                        window.chatFriend = chatFriend;
-                        const chatUserAvatar = document.getElementById('chatUserAvatar');
-                        if (chatUserAvatar) {
-                            chatUserAvatar.innerHTML = `<img src="${payload.new.avatar_url}" alt="${chatFriend?.username || 'User'}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-                        }
-                    }
-                }
-
-                if (payload.new.status === 'online') {
-                    showToast(`${chatFriend?.username || 'Friend'} is now online`, '🟢', 1500);
-                } else {
-                    showToast(`${chatFriend?.username || 'Friend'} is now offline`, '⚫', 1500);
+                if (payload.new.avatar_url && payload.new.avatar_url !== chatFriend.avatar_url) {
+                    chatFriend.avatar_url = payload.new.avatar_url;
+                    const el = document.getElementById('chatUserAvatar');
+                    if (el) el.innerHTML = `<img src="${payload.new.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
                 }
             }
         })
@@ -693,16 +841,58 @@ function setupRealtime(friendId) {
 
     window.statusChannel = statusChannel;
 
-    console.log('✅ Realtime active (no filter, client-side conversation check)');
+    // Reactions realtime
+    reactionsChannel = supabase.channel(`reactions:${userIds[0]}:${userIds[1]}`)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'message_reactions'
+        }, (payload) => {
+            handleReactionChange(payload.new, 'insert');
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'message_reactions'
+        }, (payload) => {
+            handleReactionChange(payload.new, 'update');
+        })
+        .on('postgres_changes', {
+            event: 'DELETE', schema: 'public', table: 'message_reactions'
+        }, (payload) => {
+            handleReactionDelete(payload.old);
+        })
+        .subscribe();
+
+    window.reactionsChannel = reactionsChannel;
 }
 
-// ====================
-// TYPING FUNCTIONS
-// ====================
+function handleReactionChange(row, kind) {
+    const messageId = row.message_id;
+    // Only care if we have this message rendered
+    if (!document.querySelector(`[data-message-id="${messageId}"]`)) return;
+
+    if (!messageReactions[messageId]) messageReactions[messageId] = [];
+
+    // Remove any existing entry by this user
+    messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== row.user_id);
+
+    // Add the new one
+    messageReactions[messageId].push({ user_id: row.user_id, emoji: row.emoji });
+
+    updateReactionPills(messageId);
+}
+
+function handleReactionDelete(row) {
+    const messageId = row.message_id;
+    if (!messageReactions[messageId]) return;
+
+    messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== row.user_id);
+    updateReactionPills(messageId);
+}
+
+// ============================================================
+// TYPING
+// ============================================================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
     if (!input) return;
-
     input.addEventListener('input', handleTyping);
 }
 
@@ -715,47 +905,28 @@ function handleTyping() {
         sendTypingStatus(true);
     }
 
-    if (typingTimeout) {
-        clearTimeout(typingTimeout);
-    }
+    if (typingTimeout) clearTimeout(typingTimeout);
 
     typingTimeout = setTimeout(() => {
-        if (isTyping) {
-            isTyping = false;
-            window.isTyping = false;
-            sendTypingStatus(false);
-        }
+        isTyping = false;
+        window.isTyping = false;
+        sendTypingStatus(false);
         typingTimeout = null;
-        window.typingTimeout = null;
     }, 2000);
 }
 
 async function sendTypingStatus(isTyping) {
     if (!chatFriend || !currentUser) return;
-
     try {
         const userIds = [currentUser.id, chatFriend.id].sort();
-        const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
-        const channel = supabase.channel(typingChannelName);
-
+        const channel = supabase.channel(`typing:${userIds[0]}:${userIds[1]}`);
         await channel.subscribe();
-
         await channel.send({
-            type: 'broadcast',
-            event: 'typing',
-            payload: {
-                userId: currentUser.id,
-                isTyping: isTyping,
-                username: currentUser.email?.split('@')[0] || 'Someone'
-            }
+            type: 'broadcast', event: 'typing',
+            payload: { userId: currentUser.id, isTyping }
         });
-
-        setTimeout(() => {
-            supabase.removeChannel(channel);
-        }, 5000);
-    } catch (error) {
-        console.log('Typing status error:', error);
-    }
+        setTimeout(() => supabase.removeChannel(channel), 5000);
+    } catch (e) { /* silent */ }
 }
 
 function setupTypingReceiver(friendId) {
@@ -765,33 +936,16 @@ function setupTypingReceiver(friendId) {
     }
 
     const userIds = [currentUser.id, friendId].sort();
-    const typingChannelName = `typing:${userIds[0]}:${userIds[1]}`;
-
-    typingChannel = supabase.channel(typingChannelName)
+    typingChannel = supabase.channel(`typing:${userIds[0]}:${userIds[1]}`)
         .on('broadcast', { event: 'typing' }, (payload) => {
-            console.log('✏️ Friend typing status:', payload.payload);
-
-            if (payload.payload && payload.payload.userId === friendId) {
+            if (payload.payload?.userId === friendId) {
                 if (payload.payload.isTyping) {
-                    const typingText = document.getElementById('typingText');
-                    if (typingText && chatFriend) {
-                        typingText.textContent = `${chatFriend.username} is typing...`;
-                    }
+                    const text = document.getElementById('typingText');
+                    if (text && chatFriend) text.textContent = `${chatFriend.username} is typing...`;
                     showTypingIndicator(true);
-
-                    if (friendTypingTimeout) {
-                        clearTimeout(friendTypingTimeout);
-                    }
-
-                    friendTypingTimeout = setTimeout(() => {
-                        showTypingIndicator(false);
-                        friendTypingTimeout = null;
-                    }, 3000);
+                    if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
+                    friendTypingTimeout = setTimeout(() => showTypingIndicator(false), 3000);
                 } else {
-                    if (friendTypingTimeout) {
-                        clearTimeout(friendTypingTimeout);
-                        friendTypingTimeout = null;
-                    }
                     showTypingIndicator(false);
                 }
             }
@@ -801,10 +955,12 @@ function setupTypingReceiver(friendId) {
     window.typingChannel = typingChannel;
 }
 
+// ============================================================
+// INPUT HANDLERS
+// ============================================================
 function updateInputListener() {
     const input = document.getElementById('messageInput');
     if (!input) return;
-
     input.addEventListener('keydown', handleKeyPress);
 }
 
@@ -822,67 +978,40 @@ function handleKeyPress(e) {
         }
 
         const input = document.getElementById('messageInput');
-        if (input && input.value === '/') {
-            return;
-        }
-
-        if (input && input.value.trim()) {
-            sendMessage();
-        }
+        if (input && input.value === '/') return;
+        if (input && input.value.trim()) sendMessage();
     }
 }
 
 function autoResize(textarea) {
     if (!textarea) return;
-
     textarea.style.height = 'auto';
-    const newHeight = Math.min(textarea.scrollHeight, 100);
-    textarea.style.height = newHeight + 'px';
-
+    textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) {
-        sendBtn.disabled = textarea.value.trim() === '';
-    }
+    if (sendBtn) sendBtn.disabled = textarea.value.trim() === '';
 }
 
-// ====================
+// ============================================================
 // NAVIGATION
-// ====================
+// ============================================================
 function goBack() {
     const backBtn = document.querySelector('.back-btn');
-    if (backBtn) {
-        backBtn.innerHTML = '<div class="loading-spinner-small"></div>';
-    }
+    if (backBtn) backBtn.innerHTML = '<div class="loading-spinner-small"></div>';
 
-    if (chatChannel) {
-        supabase.removeChannel(chatChannel);
-    }
-    if (statusChannel) {
-        supabase.removeChannel(statusChannel);
-    }
-    if (typingChannel) {
-        supabase.removeChannel(typingChannel);
-    }
-    if (typingTimeout) {
-        clearTimeout(typingTimeout);
-    }
-    if (friendTypingTimeout) {
-        clearTimeout(friendTypingTimeout);
-    }
+    [chatChannel, statusChannel, typingChannel, reactionsChannel].forEach(ch => {
+        if (ch) supabase.removeChannel(ch);
+    });
+    if (typingTimeout) clearTimeout(typingTimeout);
+    if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
 
-    setTimeout(() => {
-        window.location.href = '../home/index.html';
-    }, 50);
+    setTimeout(() => window.location.href = '../home/index.html', 50);
 }
 
-// ====================
+// ============================================================
 // USER INFO MODAL
-// ====================
+// ============================================================
 function showUserInfo() {
-    if (!chatFriend) {
-        showToast('User information not available', '⚠️', 1500);
-        return;
-    }
+    if (!chatFriend) return;
 
     const modal = document.getElementById('userInfoModal');
     const content = document.getElementById('userInfoContent');
@@ -890,11 +1019,10 @@ function showUserInfo() {
     const initial = chatFriend.username ? chatFriend.username.charAt(0).toUpperCase() : '?';
 
     content.innerHTML = `
-        <div class="user-info-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative; overflow: hidden;">
+        <div class="user-info-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
             ${chatFriend.avatar_url
-                ? `<img src="${chatFriend.avatar_url}" alt="${chatFriend.username}" style="width:100%; height:100%; object-fit:cover;">`
-                : `<span style="color:white; font-size: 2rem; font-weight: 600;">${initial}</span>`
-            }
+                ? `<img src="${chatFriend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`
+                : `<span style="color:white;font-size:2rem;font-weight:600;">${initial}</span>`}
         </div>
         <div class="user-info-details">
             <h3 class="user-info-name">${chatFriend.full_name || chatFriend.username}</h3>
@@ -916,17 +1044,14 @@ function closeModal() {
     const modal = document.getElementById('userInfoModal');
     if (modal) {
         modal.style.opacity = '0';
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 150);
+        setTimeout(() => modal.style.display = 'none', 150);
     }
 }
 
 function blockUserPrompt() {
     showConfirmAlert(
         `Are you sure you want to block ${chatFriend.username}?`,
-        '🚫',
-        'Block User',
+        '🚫', 'Block User',
         () => {
             showToast('User blocked!', '✅', 1500);
             setTimeout(goBack, 800);
@@ -934,14 +1059,13 @@ function blockUserPrompt() {
     );
 }
 
-// ====================
+// ============================================================
 // CLEAR CHAT
-// ====================
+// ============================================================
 async function clearChatPrompt() {
     showConfirmAlert(
         'Are you sure you want to clear all messages?',
-        '🗑️',
-        'Clear Chat',
+        '🗑️', 'Clear Chat',
         async () => {
             try {
                 const friendId = new URLSearchParams(window.location.search).get('friendId');
@@ -955,80 +1079,63 @@ async function clearChatPrompt() {
                 showToast('Chat cleared!', '✅', 1500);
                 currentMessages = [];
                 window.currentMessages = currentMessages;
-
+                messageReactions = {};
                 showMessages([]);
             } catch (error) {
-                console.error('Clear chat error:', error);
-                showCustomAlert('Error clearing chat', '❌', 'Error');
+                showToast('Error clearing chat', '❌', 1500);
             }
         }
     );
 }
 
-// ====================
-// SCROLL FUNCTIONS
-// ====================
+// ============================================================
+// SCROLL
+// ============================================================
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
+    if (container) container.scrollTop = container.scrollHeight;
 }
 
 function forceScrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
-
     container.scrollTop = container.scrollHeight;
-
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
-        const lastChild = container.lastElementChild;
-        if (lastChild) {
-            lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-        setTimeout(() => {
-            container.scrollTop = container.scrollHeight;
-        }, 50);
+        const last = container.lastElementChild;
+        if (last) last.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 50);
 }
 
-// ====================
-// LOADING FUNCTION
-// ====================
+// ============================================================
+// LOADING
+// ============================================================
 function showLoading(show, text = 'Sending...') {
-    let loadingOverlay = document.getElementById('loadingOverlay');
-
-    if (!loadingOverlay) {
-        const loadingHTML = `
+    let overlay = document.getElementById('loadingOverlay');
+    if (!overlay) {
+        document.body.insertAdjacentHTML('beforeend', `
             <div class="loading-overlay" id="loadingOverlay" style="display: none;">
                 <div class="loading-spinner"></div>
                 <p class="loading-text">${text}</p>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', loadingHTML);
-        loadingOverlay = document.getElementById('loadingOverlay');
+        `);
+        overlay = document.getElementById('loadingOverlay');
     }
-
     if (show) {
-        loadingOverlay.querySelector('.loading-text').textContent = text;
-        loadingOverlay.style.display = 'flex';
-        setTimeout(() => {
-            loadingOverlay.style.opacity = '1';
-        }, 10);
+        overlay.querySelector('.loading-text').textContent = text;
+        overlay.style.display = 'flex';
+        setTimeout(() => overlay.style.opacity = '1', 10);
     } else {
-        loadingOverlay.style.opacity = '0';
-        setTimeout(() => {
-            loadingOverlay.style.display = 'none';
-        }, 150);
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.style.display = 'none', 150);
     }
 }
 
-// ====================
-// REFRESH FUNCTIONS
-// ====================
+// ============================================================
+// REFRESH
+// ============================================================
 function refreshChat() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const friendId = urlParams.get('friendId');
+    const friendId = new URLSearchParams(window.location.search).get('friendId');
     if (friendId) {
         loadOldMessages(friendId);
         showToast('Chat refreshed', '🔄', 1500);
@@ -1036,54 +1143,43 @@ function refreshChat() {
 }
 
 function reconnectRealtime() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const friendId = urlParams.get('friendId');
+    const friendId = new URLSearchParams(window.location.search).get('friendId');
     if (friendId) {
         setupRealtime(friendId);
         showToast('Reconnected', '🔗', 1500);
     }
 }
 
-// ====================
-// SOUND FUNCTIONS
-// ====================
+// ============================================================
+// SOUNDS
+// ============================================================
 function playSentSound() {
     try {
-        const audio = new Audio('/pages/chats/sent.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Sound play failed:', e));
-    } catch (e) {
-        console.log('Sound play failed:', e);
-    }
+        const a = new Audio('/pages/chats/sent.mp3');
+        a.volume = 0.3;
+        a.play().catch(() => {});
+    } catch (e) {}
 }
 
 function playReceivedSound() {
     try {
-        const audio = new Audio('/pages/chats/recieve.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Sound play failed:', e));
-    } catch (e) {
-        console.log('Sound play failed:', e);
-    }
+        const a = new Audio('/pages/chats/recieve.mp3');
+        a.volume = 0.3;
+        a.play().catch(() => {});
+    } catch (e) {}
 }
 
-// ====================
-// ALERT FUNCTIONS
-// ====================
+// ============================================================
+// ALERTS
+// ============================================================
 function showCustomAlert(message, icon = '❌', title = 'Alert', callback = null) {
     const modal = document.getElementById('customAlert');
-    const titleEl = document.getElementById('alertTitle');
-    const iconEl = document.getElementById('alertIcon');
-    const messageEl = document.getElementById('alertMessage');
-    const confirmBtn = document.getElementById('alertConfirm');
-
-    titleEl.textContent = title;
-    iconEl.textContent = icon;
-    messageEl.textContent = message;
-
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertIcon').textContent = icon;
+    document.getElementById('alertMessage').textContent = message;
     modal.style.display = 'flex';
 
-    confirmBtn.onclick = () => {
+    document.getElementById('alertConfirm').onclick = () => {
         modal.style.display = 'none';
         if (callback) callback();
     };
@@ -1091,20 +1187,15 @@ function showCustomAlert(message, icon = '❌', title = 'Alert', callback = null
 
 function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm = null) {
     const modal = document.getElementById('customAlert');
-    const titleEl = document.getElementById('alertTitle');
-    const iconEl = document.getElementById('alertIcon');
-    const messageEl = document.getElementById('alertMessage');
-    const confirmBtn = document.getElementById('alertConfirm');
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertIcon').textContent = icon;
+    document.getElementById('alertMessage').textContent = message;
+
     const cancelBtn = document.getElementById('alertCancel');
-
-    titleEl.textContent = title;
-    iconEl.textContent = icon;
-    messageEl.textContent = message;
-
     cancelBtn.style.display = 'flex';
     modal.style.display = 'flex';
 
-    confirmBtn.onclick = () => {
+    document.getElementById('alertConfirm').onclick = () => {
         modal.style.display = 'none';
         cancelBtn.style.display = 'none';
         if (onConfirm) onConfirm();
@@ -1118,77 +1209,31 @@ function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm = 
 
 function showToast(message, icon = '✅', duration = 1500) {
     const toast = document.getElementById('customToast');
-    const toastMessage = document.getElementById('toastMessage');
-    const toastIcon = document.getElementById('toastIcon');
-
-    toastMessage.textContent = message;
-    toastIcon.textContent = icon;
-
+    document.getElementById('toastMessage').textContent = message;
+    document.getElementById('toastIcon').textContent = icon;
     toast.style.display = 'flex';
-
-    setTimeout(() => {
-        toast.style.display = 'none';
-    }, duration);
+    setTimeout(() => toast.style.display = 'none', duration);
 }
 
 function updateFriendStatus(status) {
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
     if (status === 'online') {
-        statusDot.className = 'status-dot';
-        statusText.textContent = 'Online';
+        dot.className = 'status-dot';
+        text.textContent = 'Online';
     } else {
-        statusDot.className = 'status-dot offline';
-        statusText.textContent = 'Offline';
+        dot.className = 'status-dot offline';
+        text.textContent = 'Offline';
     }
 }
 
-// ====================
-// CHROME SPECIFIC FIXES
-// ====================
-if (navigator.userAgent.includes('Chrome')) {
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => {
-            const container = document.getElementById('messagesContainer');
-            if (container) {
-                container.style.transform = 'translateZ(0)';
-            }
-        }, 300);
-    });
-}
-
-// ====================
-// CLEANUP ON UNLOAD
-// ====================
+// ============================================================
+// CLEANUP
+// ============================================================
 window.addEventListener('beforeunload', () => {
-    if (chatChannel) supabase.removeChannel(chatChannel);
-    if (statusChannel) supabase.removeChannel(statusChannel);
-    if (typingChannel) supabase.removeChannel(typingChannel);
-    if (typingTimeout) clearTimeout(typingTimeout);
-    if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
+    [chatChannel, statusChannel, typingChannel, reactionsChannel].forEach(ch => {
+        if (ch) supabase.removeChannel(ch);
+    });
 });
 
-// Add small loading spinner CSS for back button
-if (!document.querySelector('#loading-spinner-style')) {
-    const style = document.createElement('style');
-    style.id = 'loading-spinner-style';
-    style.textContent = `
-        .loading-spinner-small {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top: 2px solid white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-console.log('✅ Chat core functions exported');
+console.log('✅ Chat core ready');
