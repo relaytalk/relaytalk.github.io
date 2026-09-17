@@ -5,7 +5,7 @@ const CACHE_NAME = 'relaytalk-cache-v5-2';
 const APP_VERSION = '5.2.0';
 const OFFLINE_URL = '/offline/index.html';
 
-// ====== STATIC FILES ======
+// ====== STATIC FILES =====
 const CAR_GAME_FILES = [
     '/cargame/index.html',
     '/cargame/style.css',
