@@ -1,11 +1,9 @@
-// RelayTalk Service Worker - v5.2.0
-// Caching + Rich Push Notifications
+// RelayTalk Service Worker - v5.3.0
+// Caching + Rich Push (with image support)
 
-const CACHE_NAME = 'relaytalk-cache-v5-2';
-const APP_VERSION = '5.2.0';
-const OFFLINE_URL = '/offline/index.html';
+const CACHE_NAME = 'relaytalk-cache-v5-3';
+const APP_VERSION = '5.3.0';
 
-// ====== STATIC FILES =====
 const CAR_GAME_FILES = [
     '/cargame/index.html',
     '/cargame/style.css',
@@ -14,21 +12,6 @@ const CAR_GAME_FILES = [
     '/cargame/cargame192.png',
     '/cargame/cargame512.png'
 ];
-
-const FILES_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/offline/index.html',
-    '/relay.png',
-    ...CAR_GAME_FILES
-];
-
-let cacheProgress = {
-    total: FILES_TO_CACHE.length,
-    completed: 0,
-    currentFile: '',
-    isCaching: false
-};
 
 let isOnline = true;
 
@@ -63,7 +46,7 @@ self.addEventListener('activate', event => {
 });
 
 // ============================================================
-// PUSH — RICH RENDERING
+// PUSH — supports title, body, icon, badge, image, url, tag
 // ============================================================
 self.addEventListener('push', function (event) {
     console.log('📬 [SW] Push received');
@@ -89,7 +72,7 @@ self.addEventListener('push', function (event) {
         }
     }
 
-    console.log('📬 [SW] Rendering:', data.title, '/', data.body);
+    console.log('📬 [SW] Rendering:', data.title, '/', data.body, '/ img:', data.image || 'none');
 
     const options = {
         body: data.body,
@@ -104,12 +87,13 @@ self.addEventListener('push', function (event) {
         data: {
             url: data.url || '/pages/home/index.html',
             receivedAt: Date.now()
-        },
-        actions: [
-            { action: 'open', title: 'Open' },
-            { action: 'dismiss', title: 'Dismiss' }
-        ]
+        }
     };
+
+    // Large image — only if provided (Android Chrome/Firefox show it)
+    if (data.image) {
+        options.image = data.image;
+    }
 
     event.waitUntil(
         self.registration.showNotification(data.title, options)
@@ -143,7 +127,7 @@ self.addEventListener('notificationclick', function (event) {
 });
 
 // ============================================================
-// FETCH — network first, cache fallback
+// FETCH
 // ============================================================
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
@@ -151,7 +135,6 @@ self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     if (url.origin !== self.location.origin) return;
 
-    // Don't interfere with API calls
     if (url.pathname.startsWith('/api/') ||
         url.hostname.includes('supabase') ||
         url.hostname.includes('imgbb')) {
@@ -179,11 +162,8 @@ self.addEventListener('message', event => {
 
     switch (type) {
         case 'PING':
-            if (event.ports?.[0]) {
-                event.ports[0].postMessage({ pong: true, version: APP_VERSION });
-            }
+            if (event.ports?.[0]) event.ports[0].postMessage({ pong: true, version: APP_VERSION });
             break;
-
         case 'GET_STATUS':
             caches.open(CACHE_NAME).then(cache => cache.keys()).then(keys => {
                 if (event.ports?.[0]) {
@@ -195,44 +175,9 @@ self.addEventListener('message', event => {
                 }
             });
             break;
-
-        case 'AUTO_CACHE_GAME':
-            if (event.ports?.[0]) {
-                event.ports[0].postMessage({ success: true, message: 'Disabled' });
-            }
-            break;
-
-        case 'GET_GAME_STATUS':
-            if (event.ports?.[0]) {
-                event.ports[0].postMessage({
-                    gameCached: false,
-                    gameFilesCount: 0,
-                    totalGameFiles: CAR_GAME_FILES.length,
-                    version: APP_VERSION
-                });
-            }
-            break;
-
-        case 'GET_PROGRESS':
-            if (event.ports?.[0]) {
-                event.ports[0].postMessage({
-                    type: 'PROGRESS_UPDATE',
-                    progress: {
-                        total: cacheProgress.total,
-                        completed: cacheProgress.completed,
-                        percentage: 0,
-                        currentFile: '',
-                        isCaching: false
-                    }
-                });
-            }
-            break;
     }
 });
 
-// ============================================================
-// SUBSCRIPTION EXPIRED
-// ============================================================
 self.addEventListener('pushsubscriptionchange', () => {
     console.log('📬 [SW] Subscription expired');
 });
@@ -241,4 +186,3 @@ self.addEventListener('online', () => { isOnline = true; });
 self.addEventListener('offline', () => { isOnline = false; });
 
 console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded');
-console.log('🔔 Push notifications ready');
