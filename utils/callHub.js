@@ -1,14 +1,14 @@
 // utils/callHub.js
-// Universal incoming-call listener + outgoing-call launcher.
-// Provides:
-//   window.startCall(friendId, friendName)
-//   window.callHubReady
+// Universal incoming-call listener + outgoing-call launcher + presence.
+// Import once per page with:
+//   <script type="module" src="/utils/callHub.js"></script>
 
 import { initializeSupabase } from './supabase.js'
 
 const CALL_APP_PATH = '/pages/call-app/call/index.html'
 const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
+const PRESENCE_HEARTBEAT_MS = 30000
 
 let supabase = null
 let currentUser = null
@@ -16,10 +16,12 @@ let callChannel = null
 let incomingCallData = null
 let incomingCallTimeout = null
 let missedCallPollTimer = null
+let presenceTimer = null
 let ringtonePlayer = null
 let ringtoneInterval = null
 let bannerVisible = false
 let reconnectAttempts = 0
+let presenceStarted = false
 const MAX_RECONNECT_ATTEMPTS = 6
 
 window.callHubReady = false
@@ -45,6 +47,75 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
+// PRESENCE — online / offline / heartbeat
+// ============================================================
+async function setPresenceStatus(status) {
+    if (!supabase || !currentUser) return
+    try {
+        await supabase
+            .from('profiles')
+            .update({
+                status,
+                last_seen: new Date().toISOString()
+            })
+            .eq('id', currentUser.id)
+    } catch (e) {
+        // silent
+    }
+}
+
+function startPresence() {
+    if (presenceStarted || !currentUser) return
+    presenceStarted = true
+
+    // Mark online immediately
+    setPresenceStatus('online')
+
+    // Heartbeat
+    presenceTimer = setInterval(() => {
+        setPresenceStatus('online')
+    }, PRESENCE_HEARTBEAT_MS)
+
+    // Tab close → offline
+    window.addEventListener('beforeunload', () => {
+        try {
+            if (presenceTimer) clearInterval(presenceTimer)
+            // Use sendBeacon-style fire-and-forget if possible
+            if (supabase && currentUser) {
+                // Fire & forget — do not await
+                supabase
+                    .from('profiles')
+                    .update({
+                        status: 'offline',
+                        last_seen: new Date().toISOString()
+                    })
+                    .eq('id', currentUser.id)
+                    .then(() => {})
+                    .catch(() => {})
+            }
+        } catch (e) {}
+    })
+
+    // Visibility change → on/off
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            setPresenceStatus('online')
+        } else {
+            setPresenceStatus('offline')
+        }
+    })
+
+    // Mobile: pagehide is more reliable than beforeunload
+    window.addEventListener('pagehide', () => {
+        setPresenceStatus('offline')
+    })
+
+    window.addEventListener('pageshow', () => {
+        setPresenceStatus('online')
+    })
+}
+
+// ============================================================
 // INIT
 // ============================================================
 async function initCallHub() {
@@ -61,12 +132,15 @@ async function initCallHub() {
 
         const { data: { session } } = await supabase.auth.getSession()
         if (!session?.user) {
-            console.log('📞 [callHub] No session — user not logged in, skipping')
+            console.log('📞 [callHub] No session — skipping')
             return
         }
 
         currentUser = session.user
         console.log('📞 [callHub] Ready for user:', currentUser.email)
+
+        // Start presence first so online status is set immediately
+        startPresence()
 
         setupRingtone()
         setupCallChannel()
@@ -122,7 +196,6 @@ function setupRingtone() {
             }
         }
     } catch (e) {
-        console.warn('📞 [callHub] Ringtone unavailable:', e)
         ringtonePlayer = { play() {}, stop() {} }
     }
 }
@@ -131,7 +204,7 @@ function playRingtone() { ringtonePlayer?.play?.() }
 function stopRingtone() { ringtonePlayer?.stop?.() }
 
 // ============================================================
-// REALTIME CHANNEL
+// CALL CHANNEL
 // ============================================================
 function setupCallChannel() {
     if (!supabase || !currentUser) return
@@ -141,55 +214,35 @@ function setupCallChannel() {
         callChannel = null
     }
 
-    console.log('📞 [callHub] Subscribing to calls channel for', currentUser.id)
-
     callChannel = supabase
         .channel(`callHub:${currentUser.id}`)
-        .on(
-            'postgres_changes',
-            {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'calls',
-                filter: `callee_id=eq.${currentUser.id}`
-            },
-            (payload) => {
-                console.log('📞 [callHub] New call INSERT:', payload.new)
-                if (payload.new.status === 'ringing') {
-                    handleIncomingCall(payload.new)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'calls',
+            filter: `callee_id=eq.${currentUser.id}`
+        }, (payload) => {
+            if (payload.new.status === 'ringing') {
+                handleIncomingCall(payload.new)
+            }
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'calls',
+            filter: `callee_id=eq.${currentUser.id}`
+        }, (payload) => {
+            const status = payload.new.status
+            if (status === 'cancelled' || status === 'ended' || status === 'missed') {
+                const bannerEl = document.getElementById('callHubBanner')
+                if (bannerEl && bannerEl.dataset.callId === String(payload.new.id)) {
+                    dismissBanner()
                 }
             }
-        )
-        .on(
-            'postgres_changes',
-            {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'calls',
-                filter: `callee_id=eq.${currentUser.id}`
-            },
-            (payload) => {
-                const status = payload.new.status
-                console.log('📞 [callHub] Call updated:', status)
-
-                if (status === 'cancelled' || status === 'ended' || status === 'missed') {
-                    const bannerEl = document.getElementById('callHubBanner')
-                    if (bannerEl && bannerEl.dataset.callId === String(payload.new.id)) {
-                        dismissBanner()
-                    }
-                }
-            }
-        )
+        })
         .subscribe((status) => {
-            console.log('📞 [callHub] Channel status:', status)
             if (status === 'SUBSCRIBED') {
                 reconnectAttempts = 0
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts++
-                    const delay = Math.min(2000 * reconnectAttempts, 15000)
-                    console.log(`📞 [callHub] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`)
-                    setTimeout(setupCallChannel, delay)
+                    setTimeout(setupCallChannel, Math.min(2000 * reconnectAttempts, 15000))
                 }
             }
         })
@@ -202,14 +255,10 @@ async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
     if (callRow.callee_id !== currentUser.id) return
     if (callRow.status !== 'ringing') return
-
     if (window.location.pathname.includes('/call-app/call/')) return
 
     const existingBanner = document.getElementById('callHubBanner')
-    if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) {
-        console.log('📞 [callHub] Banner already showing for this call')
-        return
-    }
+    if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) return
 
     const caller = await getCallerProfile(callRow.caller_id)
 
@@ -225,11 +274,8 @@ async function handleIncomingCall(callRow) {
     playRingtone()
 
     incomingCallTimeout = setTimeout(() => {
-        console.log('📞 [callHub] Call timed out')
         const bannerEl = document.getElementById('callHubBanner')
-        if (bannerEl) {
-            markAsMissed(bannerEl.dataset.callId)
-        }
+        if (bannerEl) markAsMissed(bannerEl.dataset.callId)
         dismissBanner()
     }, 30000)
 }
@@ -255,12 +301,10 @@ function showBanner(call) {
     if (old) old.remove()
 
     bannerVisible = true
-
     const initial = (call.callerName || '?').charAt(0).toUpperCase()
 
     const banner = document.createElement('div')
     banner.id = 'callHubBanner'
-
     banner.dataset.callId = String(call.callId)
     banner.dataset.callerId = call.callerId
     banner.dataset.room = call.room
@@ -268,9 +312,7 @@ function showBanner(call) {
 
     banner.innerHTML = `
         <div class="callHub-avatar">
-            ${call.callerAvatar
-                ? `<img src="${call.callerAvatar}" alt="">`
-                : `<span>${initial}</span>`}
+            ${call.callerAvatar ? `<img src="${call.callerAvatar}" alt="">` : `<span>${initial}</span>`}
         </div>
         <div class="callHub-info">
             <div class="callHub-name">${escapeHtml(call.callerName)}</div>
@@ -280,12 +322,12 @@ function showBanner(call) {
             </div>
         </div>
         <div class="callHub-actions">
-            <button type="button" class="callHub-btn callHub-decline" data-action="decline" aria-label="Decline">
+            <button type="button" class="callHub-btn callHub-decline" data-action="decline">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
                 </svg>
             </button>
-            <button type="button" class="callHub-btn callHub-accept" data-action="accept" aria-label="Accept">
+            <button type="button" class="callHub-btn callHub-accept" data-action="accept">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                 </svg>
@@ -305,13 +347,8 @@ function showBanner(call) {
         e.stopPropagation()
 
         const action = target.getAttribute('data-action')
-        console.log('📞 [callHub] Button pressed:', action)
-
         const bannerEl = document.getElementById('callHubBanner')
-        if (!bannerEl) {
-            console.warn('📞 [callHub] Banner already gone')
-            return
-        }
+        if (!bannerEl) return
 
         const callData = {
             callId: bannerEl.dataset.callId,
@@ -320,18 +357,10 @@ function showBanner(call) {
             callerName: bannerEl.dataset.callerName
         }
 
-        console.log('📞 [callHub] Call data from banner:', callData)
+        if (!callData.callId || !callData.room) return
 
-        if (!callData.callId || !callData.room) {
-            console.warn('📞 [callHub] Banner has no call data — ignoring')
-            return
-        }
-
-        if (action === 'accept') {
-            acceptIncoming(callData)
-        } else if (action === 'decline') {
-            rejectIncoming(callData)
-        }
+        if (action === 'accept') acceptIncoming(callData)
+        else if (action === 'decline') rejectIncoming(callData)
     }
 
     btnContainer.addEventListener('click', onPress)
@@ -358,23 +387,13 @@ function dismissBanner() {
 // ACCEPT / REJECT
 // ============================================================
 async function acceptIncoming(callData) {
-    console.log('📞 [callHub] acceptIncoming called with:', callData)
+    if (!callData || !callData.callId) return
 
-    if (!callData || !callData.callId) {
-        console.warn('📞 [callHub] No call data — ignoring accept')
-        return
-    }
-
-    // Remember where we are so call page can return here
     const returnTo = rememberReturnUrl()
-    console.log('📞 [callHub] Return URL saved:', returnTo)
 
     bannerVisible = false
     stopRingtone()
-    if (incomingCallTimeout) {
-        clearTimeout(incomingCallTimeout)
-        incomingCallTimeout = null
-    }
+    if (incomingCallTimeout) { clearTimeout(incomingCallTimeout); incomingCallTimeout = null }
     const el = document.getElementById('callHubBanner')
     if (el) el.remove()
     incomingCallData = null
@@ -382,36 +401,20 @@ async function acceptIncoming(callData) {
     try {
         await supabase
             .from('calls')
-            .update({
-                status: 'active',
-                answered_at: new Date().toISOString(),
-                seen: true
-            })
+            .update({ status: 'active', answered_at: new Date().toISOString(), seen: true })
             .eq('id', callData.callId)
-        console.log('📞 [callHub] Marked call active')
-    } catch (e) {
-        console.warn('📞 [callHub] Failed to mark active:', e)
-    }
+    } catch (e) {}
 
     const url = `${CALL_APP_PATH}?incoming=true&room=${encodeURIComponent(callData.room)}&callerId=${callData.callerId}&callId=${callData.callId}&returnTo=${encodeURIComponent(returnTo)}`
-    console.log('📞 [callHub] Opening call page:', url)
     window.location.href = url
 }
 
 async function rejectIncoming(callData) {
-    console.log('📞 [callHub] rejectIncoming called with:', callData)
-
-    if (!callData || !callData.callId) {
-        console.warn('📞 [callHub] No call data — ignoring reject')
-        return
-    }
+    if (!callData || !callData.callId) return
 
     bannerVisible = false
     stopRingtone()
-    if (incomingCallTimeout) {
-        clearTimeout(incomingCallTimeout)
-        incomingCallTimeout = null
-    }
+    if (incomingCallTimeout) { clearTimeout(incomingCallTimeout); incomingCallTimeout = null }
     const el = document.getElementById('callHubBanner')
     if (el) el.remove()
     incomingCallData = null
@@ -419,16 +422,9 @@ async function rejectIncoming(callData) {
     try {
         await supabase
             .from('calls')
-            .update({
-                status: 'rejected',
-                ended_at: new Date().toISOString(),
-                seen: true
-            })
+            .update({ status: 'rejected', ended_at: new Date().toISOString(), seen: true })
             .eq('id', callData.callId)
-        console.log('📞 [callHub] Marked call rejected')
-    } catch (e) {
-        console.warn('📞 [callHub] Failed to mark rejected:', e)
-    }
+    } catch (e) {}
 }
 
 async function markAsMissed(callId) {
@@ -436,11 +432,7 @@ async function markAsMissed(callId) {
     try {
         await supabase
             .from('calls')
-            .update({
-                status: 'missed',
-                ended_at: new Date().toISOString(),
-                seen: false
-            })
+            .update({ status: 'missed', ended_at: new Date().toISOString(), seen: false })
             .eq('id', callId)
     } catch (e) {}
 }
@@ -450,24 +442,16 @@ async function markAsMissed(callId) {
 // ============================================================
 window.startCall = function (friendId, friendName) {
     if (!friendId) return
-
-    console.log(`📞 [callHub] Starting call to ${friendName || friendId}`)
-
     const returnTo = rememberReturnUrl()
-    console.log('📞 [callHub] Return URL saved:', returnTo)
-
     const url = `${CALL_APP_PATH}?friendId=${friendId}&friendName=${encodeURIComponent(friendName || '')}&returnTo=${encodeURIComponent(returnTo)}`
-
     const popup = window.open(url, '_blank', 'width=500,height=700')
-
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        console.warn('📞 [callHub] Popup blocked, navigating in same tab')
         window.location.href = url
     }
 }
 
 // ============================================================
-// MISSED CALLS BADGE
+// MISSED CALLS
 // ============================================================
 async function checkMissedCalls() {
     if (!supabase || !currentUser) return
@@ -519,7 +503,6 @@ function injectBannerStyles() {
             width: min(92%, 380px);
             background: rgba(20, 20, 30, 0.96);
             backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 18px;
             padding: 14px 16px;
@@ -528,7 +511,6 @@ function injectBannerStyles() {
             display: flex;
             align-items: center;
             gap: 12px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: opacity 0.18s ease, transform 0.18s ease;
             animation: callHubSlideDown 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
             pointer-events: auto !important;
@@ -555,16 +537,9 @@ function injectBannerStyles() {
             flex-shrink: 0;
         }
 
-        .callHub-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .callHub-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-        .callHub-info {
-            flex: 1;
-            min-width: 0;
-        }
+        .callHub-info { flex: 1; min-width: 0; }
 
         .callHub-name {
             color: white;
@@ -605,7 +580,6 @@ function injectBannerStyles() {
             flex-shrink: 0;
             position: relative;
             z-index: 10;
-            pointer-events: auto !important;
         }
 
         .callHub-btn {
@@ -619,11 +593,8 @@ function injectBannerStyles() {
             cursor: pointer;
             transition: transform 0.15s ease, background 0.2s ease;
             box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-            pointer-events: auto !important;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            position: relative;
-            z-index: 10;
         }
 
         .callHub-btn:hover { transform: scale(1.06); }
@@ -642,9 +613,7 @@ function injectBannerStyles() {
             100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
 
-        .callHub-btn svg {
-            pointer-events: none !important;
-        }
+        .callHub-btn svg { pointer-events: none !important; }
     `
     document.head.appendChild(style)
 }
@@ -654,12 +623,9 @@ function injectBannerStyles() {
 // ============================================================
 window.addEventListener('beforeunload', () => {
     stopRingtone()
-    if (callChannel && supabase) {
-        supabase.removeChannel(callChannel)
-    }
-    if (missedCallPollTimer) {
-        clearInterval(missedCallPollTimer)
-    }
+    if (callChannel && supabase) supabase.removeChannel(callChannel)
+    if (missedCallPollTimer) clearInterval(missedCallPollTimer)
+    if (presenceTimer) clearInterval(presenceTimer)
 })
 
 // ============================================================
