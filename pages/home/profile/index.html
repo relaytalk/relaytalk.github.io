@@ -6,7 +6,6 @@
     <title>Profile · RelayTalk</title>
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
 
-    <!-- Styles -->
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="profile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -67,30 +66,57 @@
                 </div>
             </div>
 
-            <!-- Actions -->
+            <!-- ============================================= -->
+            <!-- NOTIFICATION CONTROLS (3 buttons)             -->
+            <!-- ============================================= -->
+            <div class="notify-section">
+                <div class="notify-row">
+                    <button class="notify-btn-half" id="enableNotificationsBtn" onclick="enableNotifications()">
+                        <span class="notify-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </span>
+                        <span class="notify-label">Enable</span>
+                    </button>
+
+                    <button class="notify-btn-half" id="resetNotificationsBtn" onclick="resetNotifications()">
+                        <span class="notify-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/>
+                                <path d="M21 3v5h-5"/>
+                            </svg>
+                        </span>
+                        <span class="notify-label">Reset</span>
+                    </button>
+                </div>
+
+                <div class="notify-hint">
+                    Notifications aren't working? Reset and Re-enable now!
+                </div>
+
+                <button class="notify-btn-full" id="detailsToggleBtn" onclick="toggleDetails()">
+                    <span class="notify-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </span>
+                    <span class="notify-label" id="detailsToggleLabel">Show Details</span>
+                </button>
+            </div>
+
+            <!-- Regular Actions -->
             <div class="profile-actions">
                 <button class="action-btn" onclick="openImagePicker()">
                     <i class="fas fa-camera"></i>
                     Change Photo
                 </button>
-
                 <button class="action-btn" onclick="goToFriends()">
                     <i class="fas fa-users"></i>
                     Find Friends
                 </button>
-
-                <!-- NEW: Enable Notifications button -->
-                <button class="action-btn notify-btn" id="enableNotificationsBtn" onclick="enableNotifications()">
-                    <span class="notify-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                        </svg>
-                        <span class="notify-ping"></span>
-                    </span>
-                    <span class="notify-text">Enable Notifications</span>
-                </button>
-
                 <button class="action-btn logout" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
@@ -98,6 +124,24 @@
             </div>
         </div>
     </main>
+
+    <!-- Details Info Modal -->
+    <div class="modal-overlay" id="detailsInfoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="detailsInfoTitle"><i class="fas fa-eye" style="color:#007acc;"></i> Notification Details</h3>
+                <button class="modal-close" onclick="closeDetailsInfo()">×</button>
+            </div>
+            <div class="modal-body" id="detailsInfoBody">
+                <!-- filled by JS -->
+            </div>
+            <div class="modal-body" style="padding-top:0;">
+                <button class="btn-primary" style="width:100%; padding:12px; border-radius:12px;" onclick="confirmDetailsToggle()">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Image Picker Modal -->
     <div class="modal-overlay" id="imagePickerModal">
@@ -150,8 +194,6 @@
     <script type="module" src="../../../utils/supabase.js"></script>
     <script type="module" src="/utils/pushClient.js"></script>
     <script type="module" src="profile.js"></script>
-
-    <!-- Global call hub — incoming call banner on this page -->
     <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
