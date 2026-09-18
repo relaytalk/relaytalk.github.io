@@ -40,7 +40,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- CSP - cleaned, new Mumbai only -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self'
         https://kponqaktavkrchebmiwr.supabase.co
@@ -95,7 +94,6 @@
         frame-src 'none';
     ">
 
-    <!-- Session check: only redirect if NOT logged in -->
     <script>
         (function() {
             try {
@@ -124,91 +122,108 @@
     </script>
 </head>
 <body>
+    <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Loading -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
-        <div class="loading-text">✨ Loading Relay...</div>
+        <div class="loading-text">Loading Relay...</div>
     </div>
 
+    <!-- Top Header -->
     <header class="top-header">
-        <button class="search-btn" onclick="openSearch()">
-            <i class="fas fa-search"></i> Search Friends
-        </button>
-        <div class="logo-top">✨ Relay</div>
+        <div class="header-content">
+            <div class="header-greeting">
+                <div class="greeting-small" id="greetingSmall">Hello</div>
+                <div class="greeting-name" id="welcomeTitle">Welcome to RelayTalk!</div>
+            </div>
+            <button class="header-search-btn" onclick="openSearch()" aria-label="Search">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
     </header>
 
+    <!-- Main -->
     <main class="main-content">
-        <section class="welcome-section">
-            <div class="welcome-icon">👋</div>
-            <h1 class="welcome-title" id="welcomeTitle">Welcome to RelayTalk!</h1>
-            <p class="welcome-subtitle">Connect, chat, and stay close with your friends in real-time</p>
-            <div style="margin-top: 20px;">
-                <button class="search-btn" onclick="openSearch()" style="margin: 0 auto;">
-                    <i class="fas fa-user-plus"></i> Add New Friends
-                </button>
-            </div>
+        <!-- Quick Actions -->
+        <section class="quick-actions">
+            <button class="quick-action-card" onclick="openSearch()">
+                <span class="quick-action-icon">
+                    <i class="fas fa-user-plus"></i>
+                </span>
+                <span class="quick-action-body">
+                    <span class="quick-action-title">Find Friends</span>
+                    <span class="quick-action-desc">Search by username</span>
+                </span>
+            </button>
+
+            <button class="quick-action-card" onclick="viewFriendsPage()">
+                <span class="quick-action-icon">
+                    <i class="fas fa-users"></i>
+                </span>
+                <span class="quick-action-body">
+                    <span class="quick-action-title">All Friends</span>
+                    <span class="quick-action-desc">View your friends</span>
+                </span>
+            </button>
+
+            <button class="quick-action-card" onclick="openNotifications()">
+                <span class="quick-action-icon">
+                    <i class="fas fa-bell"></i>
+                </span>
+                <span class="quick-action-body">
+                    <span class="quick-action-title">Notifications</span>
+                    <span class="quick-action-desc">Latest updates</span>
+                </span>
+            </button>
         </section>
 
-        <div class="quick-actions">
-            <div class="action-card" onclick="openSearch()">
-                <div class="action-icon">🔍</div>
-                <h3 class="action-title">Find Friends</h3>
-                <p class="action-desc">Search by username or name</p>
-            </div>
-            <div class="action-card" onclick="viewFriendsPage()">
-                <div class="action-icon">👥</div>
-                <h3 class="action-title">All Friends</h3>
-                <p class="action-desc">View and manage your friends</p>
-            </div>
-            <div class="action-card" onclick="openNotifications()">
-                <div class="action-icon">🔔</div>
-                <h3 class="action-title">Notifications</h3>
-                <p class="action-desc">Check your latest updates</p>
-            </div>
-        </div>
-
+        <!-- Friends Section -->
         <section class="friends-section">
             <div class="section-header">
-                <h2 class="section-title">
-                    <span class="section-title-icon"><i class="fas fa-user-friends"></i></span>
-                    Your Friends
-                    <span class="online-counter" id="onlineCounter">0 Online</span>
-                </h2>
-                <button class="view-all-btn" onclick="viewFriendsPage()">
-                    View All <i class="fas fa-arrow-right"></i>
-                </button>
+                <h2 class="section-title">Your Friends</h2>
+                <div class="section-header-right">
+                    <span class="online-counter" id="onlineCounter">
+                        <span class="online-dot"></span>
+                        0 online
+                    </span>
+                    <button class="view-all-btn" onclick="viewFriendsPage()">
+                        View All
+                    </button>
+                </div>
             </div>
             <div class="friends-grid" id="friendsList"></div>
         </section>
     </main>
 
+    <!-- Bottom Navigation — same style as Profile page -->
     <nav class="bottom-nav">
-        <button class="nav-btn active" onclick="goToHome()">
-            <span class="nav-icon"><i class="fas fa-home"></i></span>
-            Home
-        </button>
-        <button class="nav-btn" onclick="openNotifications()">
-            <span class="nav-icon"><i class="fas fa-bell"></i></span>
-            Notifications
+        <a href="#" class="nav-item active" onclick="goToHome(); return false;">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="nav-item" onclick="openNotifications(); return false;">
+            <i class="fas fa-bell"></i>
+            <span>Notifications</span>
             <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-        </button>
-        <button class="nav-btn" onclick="viewFriendsPage()">
-            <span class="nav-icon"><i class="fas fa-users"></i></span>
-            Friends
-        </button>
-        <button class="nav-btn" onclick="window.location.href='profile/index.html'">
-            <span class="nav-icon"><i class="fas fa-user"></i></span>
-            Profile
-        </button>
+        </a>
+        <a href="#" class="nav-item" onclick="viewFriendsPage(); return false;">
+            <i class="fas fa-users"></i>
+            <span>Friends</span>
+        </a>
+        <a href="profile/index.html" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
     </nav>
 
     <!-- Search Modal -->
     <div class="modal-overlay" id="searchModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-search"></i> Search Users</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <h2 class="modal-title">Search Users</h2>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="search-container">
                 <i class="fas fa-search search-icon"></i>
@@ -218,15 +233,14 @@
         </div>
     </div>
 
-    <!-- Notifications Modal - WITH TWO TABS -->
+    <!-- Notifications Modal - Two Tabs -->
     <div class="modal-overlay" id="notificationsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <h2 class="modal-title">Notifications</h2>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
 
-            <!-- Two tabs: Main / Calls -->
             <div class="notif-tabs">
                 <button class="notif-tab active" id="notifTabMain" onclick="switchNotifTab('main')">
                     <i class="fas fa-bell"></i>
@@ -240,12 +254,10 @@
                 </button>
             </div>
 
-            <!-- Main tab content -->
             <div class="notif-tab-content active" id="notifMainContent">
                 <div id="notificationsList"></div>
             </div>
 
-            <!-- Calls tab content -->
             <div class="notif-tab-content" id="notifCallsContent">
                 <div id="callHistoryList"></div>
             </div>
@@ -255,8 +267,6 @@
     <!-- Scripts -->
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
-
-    <!-- Global call hub - incoming call banner on this page -->
     <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
