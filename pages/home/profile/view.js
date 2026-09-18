@@ -20,7 +20,7 @@ async function initViewPage() {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-            window.location.href = '../login/index.html';
+            window.location.href = '../../login/index.html';
             return;
         }
         currentUser = session.user;
@@ -34,7 +34,6 @@ async function initViewPage() {
         }
 
         if (userId === currentUser.id) {
-            // It's own profile — redirect to the editable profile
             window.location.href = 'index.html';
             return;
         }
@@ -90,7 +89,7 @@ async function loadFriendshipDate() {
 // ============================================================
 function renderPage() {
     document.getElementById('loadingIndicator').style.display = 'none';
-    document.getElementById('viewMain').style.display = 'block';
+    document.getElementById('viewMain').style.display = 'flex';
 
     const initial = viewedUser.username ? viewedUser.username.charAt(0).toUpperCase() : '?';
     const avatarImg = document.getElementById('viewAvatarImg');
@@ -147,9 +146,12 @@ function updateStatusUI(status, lastSeen) {
     if (status === 'online') {
         dot.classList.add('online');
         text.textContent = 'Online';
+        text.classList.add('online');
     } else {
         dot.classList.remove('online');
-        text.textContent = lastSeen ? `Last seen ${formatLastSeenShort(lastSeen)}` : 'Offline';
+        const label = lastSeen ? `Last seen ${formatLastSeenShort(lastSeen)}` : 'Offline';
+        text.textContent = label;
+        text.classList.remove('online');
     }
 }
 
@@ -195,7 +197,6 @@ function subscribeToStatus() {
 
                 updateStatusUI(payload.new.status, payload.new.last_seen);
 
-                // If avatar changed, update
                 if (payload.new.avatar_url) {
                     const img = document.getElementById('viewAvatarImg');
                     if (img && img.src !== payload.new.avatar_url) {
@@ -206,7 +207,6 @@ function subscribeToStatus() {
                     }
                 }
 
-                // If bio changed, update
                 const bioBox = document.getElementById('viewBioBox');
                 if (bioBox) {
                     if (payload.new.bio && payload.new.bio.trim()) {
@@ -229,27 +229,25 @@ window.closeView = function() {
     if (window.history.length > 1) {
         window.history.back();
     } else {
-        window.location.href = '../home/index.html';
+        window.location.href = '../../home/index.html';
     }
 };
 
 window.openChat = function() {
     if (!viewedUser) return;
-    window.location.href = `../chats/index.html?friendId=${viewedUser.id}`;
+    // Path from pages/home/profile/view.js → pages/chats/index.html
+    window.location.href = `../../chats/index.html?friendId=${viewedUser.id}`;
 };
 
 window.startCallFromView = function() {
     if (!viewedUser) return;
-    if (viewedUser.status !== 'online') {
-        showToast('User is offline', '⚠️');
-        return;
-    }
 
     if (typeof window.startCall !== 'function') {
         showToast('Calling not ready yet', '⚠️');
         return;
     }
 
+    // Allow calling regardless of online/offline — call page handles the rest
     window.startCall(viewedUser.id, viewedUser.username || 'Friend');
 };
 
