@@ -27,6 +27,7 @@ let longPressTarget = null;
 let selectedMessageId = null;
 let selectedMessageEl = null;
 let quickBarElement = null;
+let ignoreNextClickUntil = 0;
 
 // Global coordination
 window.colorPickerVisible = false;
@@ -66,7 +67,6 @@ window.reconnectRealtime = reconnectRealtime;
 window.openGuide = openGuide;
 window.closeGuide = closeGuide;
 window.openFriendProfile = openFriendProfile;
-window.closeTopActions = closeTopActions;
 
 window.getCurrentUser = () => currentUser;
 window.getChatFriend = () => chatFriend;
@@ -156,7 +156,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupBackButtonPrevention();
         setupLongPressHandlers();
         setupGlobalDismiss();
-        setupTopActionsHandlers();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -427,7 +426,6 @@ function showMessages(messages) {
 
     container.innerHTML = html;
     setupTypingIndicator();
-
     setTimeout(() => forceScrollToBottom(), 50);
 }
 
@@ -547,11 +545,8 @@ function updateReactionPills(messageId) {
     const newHTML = renderReactionPills(messageId);
 
     if (oldPills) {
-        if (newHTML) {
-            oldPills.outerHTML = newHTML;
-        } else {
-            oldPills.remove();
-        }
+        if (newHTML) oldPills.outerHTML = newHTML;
+        else oldPills.remove();
     } else if (newHTML) {
         wrap.insertAdjacentHTML('beforeend', newHTML);
     }
@@ -633,7 +628,7 @@ function handlePressStart(e) {
     const wrap = e.target.closest('.message-wrap');
     if (!wrap) return;
     if (e.target.closest('.reaction-pill')) return;
-    if (e.target.closest('.message-image-container')) return; // let image tap work
+    if (e.target.closest('.message-image-container')) return;
 
     longPressTarget = wrap;
     longPressTimer = setTimeout(() => {
@@ -655,6 +650,9 @@ function handlePressCancel() {
 }
 
 function selectMessage(wrap) {
+    // If already selected the same message, do nothing
+    if (selectedMessageId === parseInt(wrap.dataset.wrapId)) return;
+
     clearSelection();
     closeQuickBar();
     closeTopActions();
@@ -662,13 +660,13 @@ function selectMessage(wrap) {
     selectedMessageId = parseInt(wrap.dataset.wrapId);
     selectedMessageEl = wrap;
 
+    // Ignore the synthetic click that follows a long-press touch
+    ignoreNextClickUntil = Date.now() + 400;
+
     wrap.classList.add('selected');
     document.body.classList.add('selection-active');
 
-    // Show top actions bar
     buildTopActions();
-
-    // Show message-anchored quick reaction bar
     buildQuickBar(wrap);
 }
 
@@ -680,7 +678,7 @@ function clearSelection() {
 }
 
 // ============================================================
-// MESSAGE-ANCHORED QUICK REACTION BAR
+// QUICK REACTION BAR (anchored to message)
 // ============================================================
 function buildQuickBar(wrap) {
     closeQuickBar();
@@ -724,7 +722,7 @@ function closeQuickBar() {
 }
 
 // ============================================================
-// TOP ACTIONS BAR (WhatsApp style)
+// TOP ACTION BAR
 // ============================================================
 function buildTopActions() {
     const msg = currentMessages.find(m => m.id === selectedMessageId);
@@ -807,39 +805,39 @@ function closeTopActions() {
     }
 }
 
-function setupTopActionsHandlers() {
-    // Nothing special — buildTopActions attaches its own handlers
-}
-
+// ============================================================
+// GLOBAL DISMISS — closes on outside click only
+// ============================================================
 function setupGlobalDismiss() {
     document.addEventListener('click', (e) => {
         if (!selectedMessageId) return;
-        if (quickBarElement && quickBarElement.contains(e.target)) return;
-        const bar = document.getElementById('topActionBar');
-        if (bar && bar.contains(e.target)) return;
-        if (e.target.closest('.reaction-pill')) return;
-        if (selectedMessageEl && selectedMessageEl.contains(e.target) &&
-            !e.target.closest('.quick-reaction-bar')) {
-            // Tapping the selected message does nothing
+
+        // Ignore the synthetic click right after a long-press
+        if (Date.now() < ignoreNextClickUntil) {
+            e.stopPropagation();
             return;
         }
 
+        // Clicks inside the top bar → let its own handlers deal with it
+        const bar = document.getElementById('topActionBar');
+        if (bar && bar.contains(e.target)) return;
+
+        // Clicks inside the quick bar → let its own handlers deal
+        if (quickBarElement && quickBarElement.contains(e.target)) return;
+
+        // Clicks on reaction pills → let pill handler deal
+        if (e.target.closest('.reaction-pill')) return;
+
+        // Clicks on the currently selected message → keep it open
+        if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
+
+        // Anything else → close
         clearSelection();
         closeQuickBar();
         closeTopActions();
     }, true);
 
-    const container = document.getElementById('messagesContainer');
-    if (container) {
-        container.addEventListener('scroll', () => {
-            if (selectedMessageId) {
-                clearSelection();
-                closeQuickBar();
-                closeTopActions();
-            }
-        }, { passive: true });
-    }
-
+    // Escape key closes
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && selectedMessageId) {
             clearSelection();
@@ -864,7 +862,6 @@ async function handleCopy() {
             try {
                 const res = await fetch(msg.image_url);
                 const blob = await res.blob();
-
                 if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
                     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
                     showToast('Image copied', '📋', 1500);
@@ -1531,7 +1528,7 @@ function showToast(message, icon = '✅', duration = 1500) {
 }
 
 // ============================================================
-// STATUS (with last seen)
+// STATUS
 // ============================================================
 function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
