@@ -1,0 +1,486 @@
+/* pages/home/profile/view.css */
+/* Friend profile viewer */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+}
+
+:root {
+    --primary-color: #007acc;
+    --primary-dark: #005a9e;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --border-light: rgba(0, 122, 204, 0.2);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 8px 24px rgba(0, 122, 204, 0.15);
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 0;
+    margin: 0;
+}
+
+/* ============================================================ */
+/* LOADING                                                       */
+/* ============================================================ */
+
+.view-loading {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 5000;
+}
+
+.view-loading-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid rgba(0, 122, 204, 0.1);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.view-loading p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* ============================================================ */
+/* MAIN LAYOUT                                                   */
+/* ============================================================ */
+
+.view-main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 20px calc(40px + var(--safe-area-bottom));
+    padding-top: max(24px, var(--safe-area-top));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: viewFadeIn 0.4s var(--ease-out);
+}
+
+@keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================ */
+/* CLOSE BUTTON                                                  */
+/* ============================================================ */
+
+.view-close {
+    position: fixed;
+    top: calc(16px + var(--safe-area-top));
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    color: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    z-index: 100;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), background 0.25s var(--ease-out);
+}
+
+.view-close:hover {
+    transform: rotate(90deg) scale(1.05);
+    box-shadow: var(--shadow-md);
+    background: #f8fbff;
+}
+
+.view-close:active {
+    transform: rotate(90deg) scale(0.95);
+}
+
+/* ============================================================ */
+/* AVATAR                                                        */
+/* ============================================================ */
+
+.view-avatar-wrap {
+    position: relative;
+    margin-top: 40px;
+    margin-bottom: 20px;
+    animation: avatarPop 0.5s var(--ease-out);
+}
+
+@keyframes avatarPop {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.view-avatar {
+    width: 140px;
+    height: 140px;
+    min-width: 140px;
+    min-height: 140px;
+    aspect-ratio: 1 / 1;
+    background: linear-gradient(135deg, #007acc, #00b4d8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 122, 204, 0.25), 0 0 0 4px #ffffff;
+    position: relative;
+}
+
+.view-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 50%;
+    display: block;
+}
+
+.view-avatar-initial {
+    color: white;
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.view-status-dot {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #94a3b8;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: background 0.25s var(--ease-out);
+}
+
+.view-status-dot.online {
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+    animation: viewStatusPulse 1.8s infinite;
+}
+
+@keyframes viewStatusPulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* ============================================================ */
+/* NAME / USERNAME / STATUS                                      */
+/* ============================================================ */
+
+.view-name {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0 0 4px;
+    text-align: center;
+    word-break: break-word;
+}
+
+.view-username {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.view-status-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ============================================================ */
+/* ACTION BUTTONS                                                */
+/* ============================================================ */
+
+.view-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 360px;
+    margin-bottom: 28px;
+}
+
+.view-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background 0.2s var(--ease-out);
+    min-height: 52px;
+    border: 1px solid transparent;
+}
+
+.view-action-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.view-action-message {
+    background: #ffffff;
+    color: var(--primary-color);
+    border-color: var(--border-light);
+    box-shadow: var(--shadow-sm);
+}
+
+.view-action-message:hover {
+    background: #f8fbff;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.view-action-call {
+    background: linear-gradient(135deg, #007acc, #00b4d8);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(0, 122, 204, 0.25);
+}
+
+.view-action-call:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 122, 204, 0.35);
+}
+
+.view-action-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* ============================================================ */
+/* BIOGRAPHY                                                     */
+/* ============================================================ */
+
+.view-bio-section {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 24px;
+    animation: viewFadeIn 0.5s var(--ease-out) 0.1s backwards;
+}
+
+.view-bio-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.view-bio-box {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 18px;
+    min-height: 60px;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s var(--ease-out);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.view-bio-box:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.view-bio-box.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-bio-empty {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.92rem;
+}
+
+/* ============================================================ */
+/* FRIENDS SINCE                                                 */
+/* ============================================================ */
+
+.view-friends-since {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 12px;
+    font-style: italic;
+}
+
+/* ============================================================ */
+/* FALLBACK SCREEN                                               */
+/* ============================================================ */
+
+.view-fallback {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 5000;
+    background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
+}
+
+.fallback-card {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    padding: 36px 28px 28px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 122, 204, 0.15);
+    animation: viewFadeIn 0.35s var(--ease-out);
+}
+
+.fallback-emoji {
+    font-size: 3.5rem;
+    margin-bottom: 12px;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.fallback-title {
+    font-size: 1.4rem;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+}
+
+.fallback-message {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.fallback-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fallback-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 20px;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 48px;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+
+.fallback-btn.primary {
+    background: linear-gradient(135deg, #007acc, #00b4d8);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(0, 122, 204, 0.25);
+}
+
+.fallback-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 122, 204, 0.35);
+}
+
+/* ============================================================ */
+/* TOAST                                                         */
+/* ============================================================ */
+
+.view-toast {
+    position: fixed;
+    bottom: calc(24px + var(--safe-area-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20, 20, 30, 0.95);
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 9000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+    max-width: 90%;
+}
+
+.view-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.view-toast span:first-child {
+    font-size: 1.1rem;
+}
+
+/* ============================================================ */
+/* RESPONSIVE                                                    */
+/* ============================================================ */
+
+@media (max-width: 400px) {
+    .view-avatar {
+        width: 120px;
+        height: 120px;
+        min-width: 120px;
+        min-height: 120px;
+    }
+    .view-avatar-initial {
+        font-size: 3rem;
+    }
+    .view-name {
+        font-size: 1.5rem;
+    }
+    .view-actions {
+        max-width: 100%;
+    }
+}
