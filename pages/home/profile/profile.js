@@ -1,6 +1,6 @@
-// profile.js - Simple Profile with IMGBB Avatar Upload + Notifications + Bio
+// profile.js - Profile with IMGBB Avatar + Notifications + Bio
 
-import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
+import { initializeSupabase } from '../../../utils/supabase.js';
 
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
 
@@ -14,8 +14,6 @@ let currentBio = '';
 // INIT
 // ============================================================
 async function initProfilePage() {
-    console.log('Loading profile...');
-
     try {
         supabase = await initializeSupabase();
 
@@ -23,7 +21,7 @@ async function initProfilePage() {
         if (error) throw error;
 
         if (!session) {
-            window.location.href = '../../../pages/login/index.html';
+            window.location.href = '../../login/index.html';
             return;
         }
 
@@ -31,7 +29,7 @@ async function initProfilePage() {
 
         await Promise.all([
             loadProfile(),
-            new Promise(resolve => setTimeout(resolve, 500))
+            new Promise(resolve => setTimeout(resolve, 400))
         ]);
 
         const loader = document.getElementById('loadingIndicator');
@@ -39,13 +37,11 @@ async function initProfilePage() {
 
         updateNotifyButtonState();
         updateDetailsToggle();
-
     } catch (error) {
         console.error('Init error:', error);
         showToast('error', 'Failed to load profile');
-
         setTimeout(() => {
-            window.location.href = '../../../pages/login/index.html';
+            window.location.href = '../../login/index.html';
         }, 2000);
     }
 }
@@ -74,8 +70,7 @@ async function loadProfile() {
 
         renderProfile(currentProfile);
         renderBio(currentProfile.bio || '');
-        setTimeout(() => loadUserStats(), 100);
-
+        setTimeout(() => loadUserStats(), 80);
     } catch (error) {
         console.error('Profile load error:', error);
         renderProfile({ username: currentUser.email?.split('@')[0] || 'User' });
@@ -92,14 +87,14 @@ function renderProfile(profile) {
     const initialDiv = document.getElementById('avatarInitial');
 
     if (profile.avatar_url) {
-        const preloadImg = new Image();
-        preloadImg.src = profile.avatar_url;
-        preloadImg.onload = () => {
+        const preload = new Image();
+        preload.src = profile.avatar_url;
+        preload.onload = () => {
             img.src = profile.avatar_url;
             img.style.display = 'block';
             initialDiv.style.display = 'none';
         };
-        preloadImg.onerror = () => {
+        preload.onerror = () => {
             img.style.display = 'none';
             initialDiv.style.display = 'flex';
             initialDiv.textContent = username.charAt(0).toUpperCase();
@@ -120,7 +115,7 @@ async function loadUserStats() {
 
         document.getElementById('friendsCount').textContent = friendsCount || 0;
         document.getElementById('messagesCount').textContent = '0';
-    } catch (error) {
+    } catch {
         document.getElementById('friendsCount').textContent = '0';
         document.getElementById('messagesCount').textContent = '0';
     }
@@ -159,7 +154,7 @@ window.openBioEditor = function() {
 
     modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('visible'));
-    setTimeout(() => input.focus(), 100);
+    setTimeout(() => input.focus(), 120);
 };
 
 window.closeBioEditor = function() {
@@ -202,11 +197,19 @@ window.saveBio = async function() {
 // AVATAR
 // ============================================================
 window.openImagePicker = function() {
-    document.getElementById('imagePickerModal').style.display = 'flex';
+    const modal = document.getElementById('imagePickerModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
+    }
 };
 
 window.closeModal = function() {
-    document.getElementById('imagePickerModal').style.display = 'none';
+    const modal = document.getElementById('imagePickerModal');
+    if (modal) {
+        modal.classList.remove('visible');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
 };
 
 window.uploadFromCamera = function() {
@@ -304,9 +307,14 @@ window.enableNotifications = async function() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
 
+    if (!('Notification' in window)) {
+        showToast('error', 'Notifications not supported');
+        return;
+    }
+
     if (Notification.permission === 'granted') {
         if (window.relaytalkPush) await window.relaytalkPush.init();
-        showToast('success', 'Notifications already enabled');
+        showToast('success', 'Already enabled');
         return;
     }
 
@@ -322,7 +330,7 @@ window.enableNotifications = async function() {
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isStandalone = window.navigator.standalone === true;
         if (isIOS && !isStandalone) {
-            alert('On iPhone, please tap Share → Add to Home Screen first, then reopen and tap Enable again.');
+            alert('On iPhone, please tap Share → Add to Home Screen first, then reopen this page and tap Enable again.');
             btn.disabled = false;
             btn.classList.remove('loading');
             return;
@@ -364,13 +372,13 @@ window.resetNotifications = async function() {
             await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
         }
 
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 700));
 
         if (window.relaytalkPush) {
             const result = await window.relaytalkPush.request();
             if (result.success) {
                 markNotifyEnabled();
-                showToast('success', 'Notifications reset successfully!');
+                showToast('success', 'Notifications reset!');
             } else {
                 showToast('error', 'Reset failed: ' + (result.reason || 'unknown'));
             }
@@ -384,11 +392,63 @@ window.resetNotifications = async function() {
     }
 };
 
+// ============================================================
+// NOTIFICATIONS — Turn Off
+// ============================================================
+window.disableNotifications = async function() {
+    const btn = document.getElementById('disableNotificationsBtn');
+    if (!btn) return;
+
+    const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
+    if (!ok) return;
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    showToast('info', 'Turning off...');
+
+    try {
+        // Unsubscribe from push
+        if (window.relaytalkPush?.unsubscribe) {
+            await window.relaytalkPush.unsubscribe();
+        }
+
+        // Also delete any rows for this user in DB (best effort)
+        if (supabase && currentUser) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
+        }
+
+        // If we can, also clear the browser permission? No — cannot. But we can
+        // mark it visually by resetting button state.
+        setTimeout(() => {
+            resetNotifyButtons();
+            showToast('success', 'Notifications turned off');
+        }, 300);
+
+    } catch (e) {
+        console.error(e);
+        showToast('error', 'Could not turn off');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+};
+
 function markNotifyEnabled() {
     const btn = document.getElementById('enableNotificationsBtn');
+    const label = document.getElementById('enableBtnLabel');
     if (!btn) return;
+
     btn.classList.add('enabled');
-    btn.querySelector('.notify-label').textContent = 'Enabled';
+    if (label) label.textContent = 'Enabled';
+}
+
+function resetNotifyButtons() {
+    const btn = document.getElementById('enableNotificationsBtn');
+    const label = document.getElementById('enableBtnLabel');
+    if (!btn) return;
+
+    btn.classList.remove('enabled', 'denied', 'loading');
+    if (label) label.textContent = 'Enable';
 }
 
 function updateNotifyButtonState() {
@@ -404,7 +464,7 @@ function updateNotifyButtonState() {
         markNotifyEnabled();
     } else if (Notification.permission === 'denied') {
         btn.classList.add('denied');
-        btn.querySelector('.notify-label').textContent = 'Blocked';
+        document.getElementById('enableBtnLabel').textContent = 'Blocked';
     }
 }
 
@@ -421,7 +481,7 @@ function showDetailsInfo() {
     const bodyEl = document.getElementById('detailsInfoBody');
 
     if (isCurrentlyOn) {
-        titleEl.innerHTML = '<i class="fas fa-eye-slash" style="color:#d97706;"></i> Hide Details';
+        titleEl.textContent = 'Hide Details';
         bodyEl.innerHTML = `
             <p style="margin-bottom:12px;">By turning this <strong>off</strong>, notifications will be less detailed:</p>
             <ul style="padding-left:20px; line-height:1.8;">
@@ -433,12 +493,12 @@ function showDetailsInfo() {
             <p style="margin-top:14px;color:#666;font-size:0.9rem;">Useful for privacy when your phone screen is visible to others.</p>
         `;
     } else {
-        titleEl.innerHTML = '<i class="fas fa-eye" style="color:#007acc;"></i> Show Details';
+        titleEl.textContent = 'Show Details';
         bodyEl.innerHTML = `
             <p style="margin-bottom:12px;">By turning this <strong>on</strong>, notifications will include:</p>
             <ul style="padding-left:20px; line-height:1.8;">
-                <li>The <strong>sender's name</strong> (bold)</li>
-                <li>The <strong>sender's avatar</strong> as the notification icon</li>
+                <li>The <strong>sender's name</strong></li>
+                <li>The <strong>sender's avatar</strong> as the icon</li>
                 <li>The <strong>message content</strong></li>
                 <li>A <strong>preview image</strong> when a photo is sent</li>
             </ul>
@@ -487,18 +547,21 @@ async function applyDetailsToggle(newValue) {
 }
 
 function updateDetailsToggle() {
-    const btn = document.getElementById('detailsToggleBtn');
     const label = document.getElementById('detailsToggleLabel');
+    const toggleSwitch = document.getElementById('detailsToggleSwitch');
+    const btn = document.getElementById('detailsToggleBtn');
     if (!btn || !label) return;
 
     if (currentShowDetails) {
         btn.classList.add('active');
         btn.classList.remove('inactive');
         label.textContent = 'Details Visible';
+        if (toggleSwitch) toggleSwitch.classList.add('on');
     } else {
         btn.classList.add('inactive');
         btn.classList.remove('active');
         label.textContent = 'Details Hidden';
+        if (toggleSwitch) toggleSwitch.classList.remove('on');
     }
 }
 
@@ -513,19 +576,20 @@ function showToast(type, message) {
     toast.className = `toast ${type}`;
 
     const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-    const color = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007acc';
+    const color = type === 'success' ? '#22c55e' : type === 'error' ? '#dc3545' : '#007acc';
 
     toast.innerHTML = `
-        <i class="fas fa-${icon}" style="color: ${color}"></i>
+        <i class="fas fa-${icon}" style="color:${color}"></i>
         <span>${message}</span>
     `;
 
     container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+
     setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 320);
+    }, 2800);
 }
 
 // ============================================================
@@ -534,7 +598,7 @@ function showToast(type, message) {
 window.logout = async function() {
     try {
         document.getElementById('uploadLoading').style.display = 'flex';
-        document.querySelector('.loading-text').textContent = 'Logging out...';
+        document.querySelector('#uploadLoading .loading-text').textContent = 'Logging out...';
 
         try {
             if (window.relaytalkPush?.unsubscribe) {
@@ -551,9 +615,9 @@ window.logout = async function() {
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
 
-        window.location.href = '../../../pages/login/index.html';
+        window.location.href = '../../login/index.html';
     } catch (error) {
-        window.location.href = '../../../pages/login/index.html';
+        window.location.href = '../../login/index.html';
     }
 };
 
