@@ -2,58 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Profile · RelayTalk</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <meta name="theme-color" content="#007ACC">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
+
+    <title>Profile · RelayTalk</title>
 
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="profile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/relay.png">
 </head>
 <body>
+    <!-- Loading -->
     <div class="loading-overlay" id="loadingIndicator">
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading profile...</div>
     </div>
 
+    <!-- Upload Loading -->
     <div class="loading-overlay" id="uploadLoading">
         <div class="loading-spinner"></div>
         <div class="loading-text">Uploading...</div>
     </div>
 
+    <!-- Header -->
     <header class="profile-header">
         <div class="header-content">
-            <button class="back-btn" onclick="goToHome()">
-                <i class="fas fa-arrow-left"></i>
+            <button class="back-btn" onclick="goToHome()" aria-label="Back">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"/>
+                    <polyline points="12 19 5 12 12 5"/>
+                </svg>
             </button>
             <h1 class="header-title">Profile</h1>
         </div>
     </header>
 
+    <!-- Main -->
     <main class="profile-main">
-        <div class="profile-card">
+        <!-- Identity Card -->
+        <section class="profile-card">
             <div class="avatar-section">
                 <div class="profile-avatar" id="profileAvatar">
                     <img id="avatarImage" src="" alt="Profile" style="display: none;">
                     <div id="avatarInitial" class="avatar-initial">?</div>
-                    <span class="status-indicator"></span>
                 </div>
-                <button class="change-photo-btn" onclick="openImagePicker()">
-                    <i class="fas fa-camera"></i>
+                <button class="change-photo-btn" onclick="openImagePicker()" aria-label="Change photo">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
                 </button>
             </div>
 
-            <div class="user-info">
-                <h2 class="user-name" id="displayName">User</h2>
-                <div class="user-username" id="displayUsername">@username</div>
-            </div>
+            <h2 class="user-name" id="displayName">User</h2>
+            <div class="user-username" id="displayUsername">@username</div>
 
-            <!-- BIO SECTION -->
+            <!-- Bio -->
             <div class="bio-section">
                 <div class="bio-header">
-                    <span class="bio-label">BIOGRAPHY</span>
+                    <span class="bio-label">Biography</span>
                     <button class="bio-edit-btn" onclick="openBioEditor()" aria-label="Edit bio">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
@@ -64,78 +84,129 @@
                 </div>
             </div>
 
+            <!-- Stats -->
             <div class="profile-stats">
                 <div class="stat-item">
                     <div class="stat-value" id="friendsCount">0</div>
                     <div class="stat-label">Friends</div>
                 </div>
+                <div class="stat-divider"></div>
                 <div class="stat-item">
                     <div class="stat-value" id="messagesCount">0</div>
                     <div class="stat-label">Messages</div>
                 </div>
             </div>
+        </section>
 
-            <div class="notify-section">
-                <div class="notify-row">
-                    <button class="notify-btn-half" id="enableNotificationsBtn" onclick="enableNotifications()">
-                        <span class="notify-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                            </svg>
-                        </span>
-                        <span class="notify-label">Enable</span>
-                    </button>
-
-                    <button class="notify-btn-half" id="resetNotificationsBtn" onclick="resetNotifications()">
-                        <span class="notify-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/>
-                                <path d="M21 3v5h-5"/>
-                            </svg>
-                        </span>
-                        <span class="notify-label">Reset</span>
-                    </button>
+        <!-- Notifications Card -->
+        <section class="settings-card">
+            <div class="settings-header">
+                <div class="settings-icon">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
                 </div>
-
-                <div class="notify-hint">
-                    Notifications aren't working? Reset and Re-enable now!
+                <div>
+                    <div class="settings-title">Notifications</div>
+                    <div class="settings-subtitle">Control how RelayTalk reaches you</div>
                 </div>
+            </div>
 
-                <button class="notify-btn-full" id="detailsToggleBtn" onclick="toggleDetails()">
-                    <span class="notify-icon">
+            <!-- Three notification actions -->
+            <div class="notify-actions">
+                <button class="notify-btn" id="enableNotificationsBtn" onclick="enableNotifications()">
+                    <span class="notify-btn-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                         </svg>
                     </span>
-                    <span class="notify-label" id="detailsToggleLabel">Show Details</span>
+                    <span class="notify-btn-label" id="enableBtnLabel">Enable</span>
+                </button>
+
+                <button class="notify-btn" id="resetNotificationsBtn" onclick="resetNotifications()">
+                    <span class="notify-btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                        </svg>
+                    </span>
+                    <span class="notify-btn-label">Reset</span>
+                </button>
+
+                <button class="notify-btn notify-btn-danger" id="disableNotificationsBtn" onclick="disableNotifications()">
+                    <span class="notify-btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            <line x1="2" y1="2" x2="22" y2="22"/>
+                        </svg>
+                    </span>
+                    <span class="notify-btn-label">Turn Off</span>
                 </button>
             </div>
 
-            <div class="profile-actions">
-                <button class="action-btn" onclick="openImagePicker()">
-                    <i class="fas fa-camera"></i>
-                    Change Photo
-                </button>
-                <button class="action-btn" onclick="goToFriends()">
-                    <i class="fas fa-users"></i>
-                    Find Friends
-                </button>
-                <button class="action-btn logout" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </button>
+            <div class="notify-hint">
+                Notifications aren't working? Reset and Re-enable now!
             </div>
-        </div>
+
+            <!-- Details toggle -->
+            <button class="details-toggle" id="detailsToggleBtn" onclick="toggleDetails()">
+                <span class="details-toggle-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </span>
+                <span class="details-toggle-text" id="detailsToggleLabel">Show Details</span>
+                <span class="details-toggle-switch" id="detailsToggleSwitch" aria-hidden="true"></span>
+            </button>
+        </section>
+
+        <!-- Actions Card -->
+        <section class="actions-card">
+            <button class="action-row" onclick="openImagePicker()">
+                <span class="action-row-icon">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </span>
+                <span class="action-row-text">Change Photo</span>
+            </button>
+
+            <button class="action-row" onclick="goToFriends()">
+                <span class="action-row-icon">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </span>
+                <span class="action-row-text">Find Friends</span>
+            </button>
+
+            <button class="action-row action-row-danger" onclick="logout()">
+                <span class="action-row-icon">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </span>
+                <span class="action-row-text">Logout</span>
+            </button>
+        </section>
     </main>
 
     <!-- Bio Editor Modal -->
     <div class="modal-overlay" id="bioEditorModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">✏️ Edit Bio</h3>
-                <button class="modal-close" onclick="closeBioEditor()">×</button>
+                <h3 class="modal-title">Edit Bio</h3>
+                <button class="modal-close" onclick="closeBioEditor()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <textarea
@@ -148,7 +219,7 @@
                 <div class="bio-counter">
                     <span id="bioCharCount">0</span> / 50
                 </div>
-                <div class="bio-actions">
+                <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeBioEditor()">Cancel</button>
                     <button class="btn-primary" onclick="saveBio()">Save</button>
                 </div>
@@ -160,12 +231,12 @@
     <div class="modal-overlay" id="detailsInfoModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="detailsInfoTitle"><i class="fas fa-eye" style="color:#007acc;"></i> Notification Details</h3>
-                <button class="modal-close" onclick="closeDetailsInfo()">×</button>
+                <h3 class="modal-title" id="detailsInfoTitle">Notification Details</h3>
+                <button class="modal-close" onclick="closeDetailsInfo()" aria-label="Close">×</button>
             </div>
             <div class="modal-body" id="detailsInfoBody"></div>
-            <div class="modal-body" style="padding-top:0;">
-                <button class="btn-primary" style="width:100%; padding:12px; border-radius:12px;" onclick="confirmDetailsToggle()">
+            <div class="modal-body modal-body-actions">
+                <button class="btn-primary modal-full-btn" onclick="confirmDetailsToggle()">
                     Got it
                 </button>
             </div>
@@ -176,43 +247,80 @@
     <div class="modal-overlay" id="imagePickerModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-camera" style="color: #007acc;"></i> Change Photo</h3>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <h3 class="modal-title">Change Photo</h3>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageSelect(event)">
-                <div class="image-picker-option" onclick="uploadFromCamera()">
-                    <i class="fas fa-camera"></i>
-                    <span>Take Photo</span>
+                <div class="picker-option" onclick="uploadFromCamera()">
+                    <span class="picker-option-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                    </span>
+                    <span class="picker-option-text">Take Photo</span>
                 </div>
 
                 <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
-                <div class="image-picker-option" onclick="uploadFromGallery()">
-                    <i class="fas fa-image"></i>
-                    <span>Choose from Gallery</span>
+                <div class="picker-option" onclick="uploadFromGallery()">
+                    <span class="picker-option-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </span>
+                    <span class="picker-option-text">Choose from Gallery</span>
                 </div>
 
-                <div class="image-picker-option" onclick="removeAvatar()" style="border-color: rgba(220,53,69,0.2);">
-                    <i class="fas fa-trash" style="color: #dc3545;"></i>
-                    <span style="color: #dc3545;">Remove Current Photo</span>
+                <div class="picker-option picker-option-danger" onclick="removeAvatar()">
+                    <span class="picker-option-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6M14 11v6"/>
+                            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </span>
+                    <span class="picker-option-text">Remove Current Photo</span>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Bottom Nav -->
     <nav class="bottom-nav">
         <a href="../../home/index.html" class="nav-item">
-            <i class="fas fa-home"></i>
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </span>
             <span>Home</span>
         </a>
         <a href="../friends/index.html" class="nav-item">
-            <i class="fas fa-users"></i>
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </span>
             <span>Friends</span>
         </a>
         <a href="#" class="nav-item active">
-            <i class="fas fa-user"></i>
+            <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </span>
             <span>Profile</span>
         </a>
     </nav>
