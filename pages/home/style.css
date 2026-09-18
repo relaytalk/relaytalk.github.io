@@ -118,18 +118,13 @@ img { display: block; max-width: 100%; }
     user-select: none;
 }
 
-.brand-logo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+.brand-logo-img {
     width: 32px;
     height: 32px;
     border-radius: 9px;
-    background: linear-gradient(135deg, #1a73e8, #4285f4);
-    color: #fff;
-    font-weight: 700;
-    font-size: 1.05rem;
-    box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
 }
 
 .brand-name {
@@ -199,7 +194,7 @@ img { display: block; max-width: 100%; }
     gap: 28px;
 }
 
-/* Greeting — original structure preserved */
+/* Greeting */
 .greeting {
     padding: 4px 4px 0;
 }
@@ -335,7 +330,7 @@ img { display: block; max-width: 100%; }
 }
 
 /* ============================================================ */
-/* AVATARS — clean, no overlay, no hidden layers                 */
+/* AVATARS                                                       */
 /* ============================================================ */
 
 .friend-avatar,
@@ -413,7 +408,7 @@ img { display: block; max-width: 100%; }
 .friend-item:active,
 .friend-card:active { background: var(--bg-hover); }
 
-/* Status dot — original colors */
+/* Status dot */
 .friend-status-dot {
     position: absolute;
     right: -1px;
@@ -941,7 +936,7 @@ img { display: block; max-width: 100%; }
 .btn-small.btn-danger:hover { background: rgba(217, 48, 37, 0.16); }
 
 /* ============================================================ */
-/* CALL HISTORY — polished styling                               */
+/* CALL HISTORY                                                  */
 /* ============================================================ */
 
 .call-history-date {
@@ -1053,7 +1048,7 @@ img { display: block; max-width: 100%; }
     background: rgba(26, 115, 232, 0.08);
 }
 
-/* Status pill (kept for legacy support, now hidden by default) */
+/* Legacy status pill (hidden) */
 .call-history-status {
     display: none;
 }
@@ -1200,7 +1195,7 @@ button:focus-visible,
 @media (max-width: 480px) {
     .app-bar-inner { padding: 0 14px; height: 58px; }
     .brand-name { font-size: 1.1rem; }
-    .brand-logo { width: 30px; height: 30px; font-size: 1rem; }
+    .brand-logo-img { width: 30px; height: 30px; }
     .page { padding: 22px 14px 32px; gap: 24px; }
     .greeting-title { font-size: 1.55rem; }
     .primary-action { padding: 15px 16px; gap: 13px; }
