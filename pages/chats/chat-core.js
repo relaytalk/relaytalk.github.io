@@ -27,9 +27,8 @@ let longPressTarget = null;
 let selectedMessageId = null;
 let selectedMessageEl = null;
 let quickBarElement = null;
-let longPressJustFired = false;
+let justOpenedAt = 0;
 
-// Global coordination
 window.colorPickerVisible = false;
 window.currentMessages = currentMessages;
 window.currentUser = null;
@@ -155,6 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateInputListener();
         setupBackButtonPrevention();
         setupLongPressHandlers();
+        setupGlobalDismiss();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -591,32 +591,28 @@ async function toggleReaction(messageId, emoji) {
 }
 
 // ============================================================
-// LONG PRESS + SELECTION
+// LONG PRESS
 // ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
-    // Touch: long press
     container.addEventListener('touchstart', handlePressStart, { passive: true });
     container.addEventListener('touchend', handlePressEnd);
     container.addEventListener('touchmove', handlePressCancel, { passive: true });
 
-    // Mouse: long press
     container.addEventListener('mousedown', handlePressStart);
     container.addEventListener('mouseup', handlePressEnd);
     container.addEventListener('mouseleave', handlePressCancel);
 
-    // Right-click on desktop
     container.addEventListener('contextmenu', (e) => {
         const wrap = e.target.closest('.message-wrap');
         if (wrap) {
             e.preventDefault();
-            selectMessage(wrap);
+            openActionBar(wrap);
         }
     });
 
-    // Tap on pill = toggle reaction (does NOT close the toolbar)
     container.addEventListener('click', (e) => {
         const pill = e.target.closest('.reaction-pill');
         if (pill) {
@@ -632,18 +628,13 @@ function handlePressStart(e) {
     if (!wrap) return;
     if (e.target.closest('.reaction-pill')) return;
     if (e.target.closest('.message-image-container')) return;
+    if (e.target.closest('.quick-reaction-bar')) return;
 
     longPressTarget = wrap;
     longPressTimer = setTimeout(() => {
         if (longPressTarget === wrap) {
-            longPressJustFired = true;
-            selectMessage(wrap);
+            openActionBar(wrap);
             if (navigator.vibrate) navigator.vibrate(25);
-
-            // Reset the flag shortly after, so that a genuine
-            // follow-up tap can dismiss later — but the synthetic
-            // click right after this long-press is swallowed.
-            setTimeout(() => { longPressJustFired = false; }, 900);
         }
     }, 420);
 }
@@ -658,63 +649,116 @@ function handlePressCancel() {
     longPressTarget = null;
 }
 
-function selectMessage(wrap) {
-    // If already selected, do nothing
-    if (selectedMessageId === parseInt(wrap.dataset.wrapId)) return;
+// ============================================================
+// ACTION BAR (anchored to message, contains both rows)
+// ============================================================
+function openActionBar(wrap) {
+    const messageId = parseInt(wrap.dataset.wrapId);
 
-    clearSelection();
+    // If the same bar is already open, do nothing
+    if (selectedMessageId === messageId && quickBarElement) return;
+
     closeQuickBar();
-    closeTopActions();
+    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
 
-    selectedMessageId = parseInt(wrap.dataset.wrapId);
+    selectedMessageId = messageId;
     selectedMessageEl = wrap;
+
+    // Swallow the synthetic click that fires right after a long-press
+    justOpenedAt = Date.now() + 500;
 
     wrap.classList.add('selected');
     document.body.classList.add('selection-active');
 
-    buildTopActions();
     buildQuickBar(wrap);
 }
 
-function clearSelection() {
-    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
-    selectedMessageId = null;
-    selectedMessageEl = null;
-    document.body.classList.remove('selection-active');
-}
-
-// ============================================================
-// QUICK REACTION BAR
-// ============================================================
 function buildQuickBar(wrap) {
     closeQuickBar();
 
     const messageId = parseInt(wrap.dataset.wrapId);
+    const msg = currentMessages.find(m => m.id === messageId);
+    if (!msg) return;
+
+    const isMine = msg.sender_id === currentUser.id;
+    const isImage = !!msg.image_url;
+    const isText = !isImage && (msg.content || '').trim().length > 0;
     const myEmoji = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+
+    const editBtnHTML = (isMine && isText) ? `
+        <button class="action-btn-icon" data-action="edit" title="Edit">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+        </button>
+    ` : '';
+
+    const deleteBtnHTML = isMine ? `
+        <button class="action-btn-icon action-btn-danger" data-action="delete" title="Delete">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+            </svg>
+        </button>
+    ` : '';
 
     quickBarElement = document.createElement('div');
     quickBarElement.className = 'quick-reaction-bar';
     quickBarElement.id = 'quickReactionBar';
     quickBarElement.innerHTML = `
-        ${QUICK_REACTIONS.map(e => `
-            <button class="quick-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
-        `).join('')}
-        <button class="quick-emoji quick-more" data-action="more">＋</button>
+        <div class="action-bar-row action-bar-top">
+            <button class="action-btn-icon" data-action="copy" title="Copy">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+            </button>
+            ${editBtnHTML}
+            ${deleteBtnHTML}
+            <div class="action-bar-spacer"></div>
+            <button class="action-btn-icon action-btn-close" data-action="close" title="Close">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="action-bar-row action-bar-emojis">
+            ${QUICK_REACTIONS.map(e => `
+                <button class="quick-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
+            `).join('')}
+            <button class="quick-emoji quick-more" data-action="more">＋</button>
+        </div>
     `;
 
     wrap.appendChild(quickBarElement);
     requestAnimationFrame(() => quickBarElement.classList.add('visible'));
 
-    quickBarElement.querySelectorAll('.quick-emoji').forEach(btn => {
+    // Button handlers
+    quickBarElement.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            e.preventDefault();
-            if (btn.dataset.action === 'more') {
-                openEmojiGridForSelected();
-            } else {
-                toggleReaction(messageId, btn.dataset.emoji);
-                closeQuickBar();
-            }
+            const action = btn.dataset.action;
+            if (action === 'copy') handleCopy();
+            else if (action === 'edit') handleEdit();
+            else if (action === 'delete') handleDelete();
+            else if (action === 'close') closeAll();
+            else if (action === 'more') openEmojiGridForSelected();
+        });
+    });
+
+    // Quick reaction buttons
+    quickBarElement.querySelectorAll('.quick-emoji').forEach(btn => {
+        if (btn.dataset.action) return;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleReaction(messageId, btn.dataset.emoji);
+            // Update highlighted state
+            quickBarElement.querySelectorAll('.quick-emoji').forEach(o => o.classList.remove('selected'));
+            btn.classList.add('selected');
         });
     });
 }
@@ -724,135 +768,45 @@ function closeQuickBar() {
         quickBarElement.classList.remove('visible');
         const el = quickBarElement;
         quickBarElement = null;
-        setTimeout(() => el.remove(), 200);
+        setTimeout(() => el.remove(), 180);
     }
 }
 
-// ============================================================
-// TOP ACTION BAR
-// ============================================================
-function buildTopActions() {
-    const msg = currentMessages.find(m => m.id === selectedMessageId);
-    if (!msg) return;
-
-    const isMine = msg.sender_id === currentUser.id;
-    const isImage = !!msg.image_url;
-    const isText = !isImage && (msg.content || '').trim().length > 0;
-
-    const bar = document.getElementById('topActionBar');
-    if (!bar) return;
-
-    const editBtnHTML = (isMine && isText) ? `
-        <button class="top-action-btn" data-action="edit" title="Edit">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-        </button>
-    ` : '';
-
-    const deleteBtnHTML = isMine ? `
-        <button class="top-action-btn top-action-danger" data-action="delete" title="Delete">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-            </svg>
-        </button>
-    ` : '';
-
-    bar.innerHTML = `
-        <button class="top-action-close" id="topActionClose" aria-label="Close">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-        </button>
-        <div class="top-action-spacer"></div>
-        <button class="top-action-btn" data-action="copy" title="Copy">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-        </button>
-        ${editBtnHTML}
-        ${deleteBtnHTML}
-    `;
-
-    document.getElementById('topActionClose').addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        clearSelection();
-        closeQuickBar();
-        closeTopActions();
-    });
-
-    bar.querySelectorAll('.top-action-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const action = btn.dataset.action;
-            if (action === 'copy') handleCopy();
-            else if (action === 'edit') handleEdit();
-            else if (action === 'delete') handleDelete();
-        });
-    });
-
-    bar.style.display = 'flex';
-    requestAnimationFrame(() => bar.classList.add('visible'));
-}
-
-function closeTopActions() {
-    const bar = document.getElementById('topActionBar');
-    if (bar) {
-        bar.classList.remove('visible');
-        setTimeout(() => {
-            bar.style.display = 'none';
-            bar.innerHTML = '';
-        }, 200);
-    }
-}
-
-// ============================================================
-// BACKGROUND TAP → CLOSE
-// This is the ONLY place that closes the toolbar from outside.
-// It explicitly ignores:
-//   - Any tap that happens within 900ms of the long-press
-//   - Any tap inside the toolbar, quick bar, or the selected message
-//   - Any tap on a reaction pill
-// ============================================================
-document.addEventListener('click', (e) => {
-    if (!selectedMessageId) return;
-    if (longPressJustFired) return;
-
-    // Tap inside top action bar
-    const bar = document.getElementById('topActionBar');
-    if (bar && bar.contains(e.target)) return;
-
-    // Tap inside quick reaction bar
-    if (quickBarElement && quickBarElement.contains(e.target)) return;
-
-    // Tap on reaction pill
-    if (e.target.closest('.reaction-pill')) return;
-
-    // Tap on the selected message itself
-    if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
-
-    // Anywhere else → close
-    clearSelection();
+function closeAll() {
+    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
+    selectedMessageId = null;
+    selectedMessageEl = null;
+    document.body.classList.remove('selection-active');
     closeQuickBar();
-    closeTopActions();
-}, true);
+}
 
-// Escape key closes
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && selectedMessageId) {
-        clearSelection();
-        closeQuickBar();
-        closeTopActions();
-    }
-});
+// ============================================================
+// GLOBAL DISMISS
+// ============================================================
+function setupGlobalDismiss() {
+    document.addEventListener('pointerdown', (e) => {
+        if (!selectedMessageId) return;
+
+        // Ignore the initial synthetic tap after a long-press
+        if (Date.now() < justOpenedAt) return;
+
+        // Inside the bar → let the bar handle it
+        if (quickBarElement && quickBarElement.contains(e.target)) return;
+
+        // On the currently selected message → keep it open
+        if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
+
+        // On a reaction pill → handled separately
+        if (e.target.closest('.reaction-pill')) return;
+
+        // Anywhere else → close
+        closeAll();
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && selectedMessageId) closeAll();
+    });
+}
 
 // ============================================================
 // COPY / EDIT / DELETE
@@ -872,7 +826,7 @@ async function handleCopy() {
                 if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
                     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
                     showToast('Image copied', '📋', 1500);
-                    clearSelection(); closeQuickBar(); closeTopActions();
+                    closeAll();
                     return;
                 }
             } catch (imgErr) {}
@@ -881,7 +835,7 @@ async function handleCopy() {
             const text = (msg.content || '').trim();
             if (!text) {
                 showToast('Nothing to copy', '⚠️', 1500);
-                clearSelection(); closeQuickBar(); closeTopActions();
+                closeAll();
                 return;
             }
             await navigator.clipboard.writeText(text);
@@ -892,7 +846,7 @@ async function handleCopy() {
         showToast('Could not copy', '❌', 1500);
     }
 
-    clearSelection(); closeQuickBar(); closeTopActions();
+    closeAll();
 }
 
 function handleEdit() {
@@ -901,10 +855,9 @@ function handleEdit() {
     if (!msg || msg.sender_id !== currentUser.id) return;
     if (msg.image_url) return;
 
-    closeQuickBar();
-    closeTopActions();
     const msgId = msg.id;
-    setTimeout(() => showEditModal(msgId), 200);
+    closeAll();
+    setTimeout(() => showEditModal(msgId), 220);
 }
 
 function handleDelete() {
@@ -912,9 +865,8 @@ function handleDelete() {
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg || msg.sender_id !== currentUser.id) return;
 
-    closeQuickBar();
-    closeTopActions();
     const msgId = msg.id;
+    closeAll();
 
     setTimeout(() => {
         showConfirmAlert(
@@ -935,7 +887,6 @@ function handleDelete() {
                         wrap.classList.add('removing');
                         setTimeout(() => wrap.remove(), 220);
                     }
-                    clearSelection();
                     showToast('Message deleted', '✅', 1500);
                 } catch (error) {
                     console.error('Delete failed:', error);
@@ -943,7 +894,7 @@ function handleDelete() {
                 }
             }
         );
-    }, 200);
+    }, 220);
 }
 
 function showEditModal(msgId) {
@@ -1023,8 +974,6 @@ function showEditModal(msgId) {
 function openEmojiGridForSelected() {
     if (!selectedMessageId) return;
     const messageId = selectedMessageId;
-
-    closeQuickBar();
 
     const modal = document.createElement('div');
     modal.className = 'emoji-picker-overlay';
