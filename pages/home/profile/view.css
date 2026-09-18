@@ -22,6 +22,10 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+html, body {
+    min-height: 100%;
+}
+
 body {
     min-height: 100vh;
     background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
@@ -29,6 +33,7 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     padding: 0;
     margin: 0;
+    overflow-x: hidden;
 }
 
 /* ============================================================ */
@@ -70,10 +75,11 @@ body {
 /* ============================================================ */
 
 .view-main {
-    max-width: 480px;
+    max-width: 520px;
     margin: 0 auto;
-    padding: 24px 20px calc(40px + var(--safe-area-bottom));
-    padding-top: max(24px, var(--safe-area-top));
+    min-height: 100vh;
+    padding: 24px 24px calc(48px + var(--safe-area-bottom));
+    padding-top: max(72px, calc(72px + var(--safe-area-top)));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -93,8 +99,8 @@ body {
     position: fixed;
     top: calc(16px + var(--safe-area-top));
     left: 16px;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     background: #ffffff;
     border: 1px solid var(--border-light);
     color: var(--primary-color);
@@ -124,8 +130,10 @@ body {
 
 .view-avatar-wrap {
     position: relative;
-    margin-top: 40px;
-    margin-bottom: 20px;
+    margin-top: 12px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: center;
     animation: avatarPop 0.5s var(--ease-out);
 }
 
@@ -135,10 +143,10 @@ body {
 }
 
 .view-avatar {
-    width: 140px;
-    height: 140px;
-    min-width: 140px;
-    min-height: 140px;
+    width: 180px;
+    height: 180px;
+    min-width: 180px;
+    min-height: 180px;
     aspect-ratio: 1 / 1;
     background: linear-gradient(135deg, #007acc, #00b4d8);
     border-radius: 50%;
@@ -146,7 +154,7 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    box-shadow: 0 12px 32px rgba(0, 122, 204, 0.25), 0 0 0 4px #ffffff;
+    box-shadow: 0 20px 50px rgba(0, 122, 204, 0.28), 0 0 0 6px #ffffff, 0 0 0 8px rgba(0, 122, 204, 0.15);
     position: relative;
 }
 
@@ -161,22 +169,55 @@ body {
 
 .view-avatar-initial {
     color: white;
-    font-size: 3.5rem;
+    font-size: 4.5rem;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
 }
 
+/* ============================================================ */
+/* NAME / USERNAME / STATUS                                      */
+/* ============================================================ */
+
+.view-name {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0 0 4px;
+    text-align: center;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+.view-username {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.view-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+}
+
 .view-status-dot {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    width: 20px;
-    height: 20px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #94a3b8;
-    border: 3px solid #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
     transition: background 0.25s var(--ease-out);
 }
 
@@ -192,35 +233,17 @@ body {
     100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
-/* ============================================================ */
-/* NAME / USERNAME / STATUS                                      */
-/* ============================================================ */
-
-.view-name {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--primary-dark);
-    margin: 0 0 4px;
-    text-align: center;
-    word-break: break-word;
-}
-
-.view-username {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    margin-bottom: 6px;
-    text-align: center;
-}
-
 .view-status-text {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 24px;
-    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
+    max-width: 240px;
+    line-height: 1;
+}
+
+.view-status-text.online {
+    color: #16a34a;
+    font-weight: 600;
 }
 
 /* ============================================================ */
@@ -232,8 +255,8 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     width: 100%;
-    max-width: 360px;
-    margin-bottom: 28px;
+    max-width: 380px;
+    margin-bottom: 32px;
 }
 
 .view-action-btn {
@@ -241,19 +264,20 @@ body {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 14px 16px;
+    padding: 15px 18px;
     border-radius: 14px;
-    font-size: 1rem;
+    font-size: 1.02rem;
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background 0.2s var(--ease-out);
-    min-height: 52px;
+    min-height: 54px;
     border: 1px solid transparent;
 }
 
 .view-action-btn svg {
     width: 20px;
     height: 20px;
+    flex-shrink: 0;
 }
 
 .view-action-message {
@@ -272,12 +296,12 @@ body {
 .view-action-call {
     background: linear-gradient(135deg, #007acc, #00b4d8);
     color: #ffffff;
-    box-shadow: 0 6px 18px rgba(0, 122, 204, 0.25);
+    box-shadow: 0 6px 18px rgba(0, 122, 204, 0.28);
 }
 
 .view-action-call:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(0, 122, 204, 0.35);
+    box-shadow: 0 12px 28px rgba(0, 122, 204, 0.4);
 }
 
 .view-action-btn:active {
@@ -290,38 +314,40 @@ body {
 
 .view-bio-section {
     width: 100%;
-    max-width: 400px;
-    margin-bottom: 24px;
+    max-width: 420px;
+    margin-bottom: 20px;
     animation: viewFadeIn 0.5s var(--ease-out) 0.1s backwards;
 }
 
 .view-bio-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 1.2px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
     color: #94a3b8;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     padding-left: 4px;
 }
 
 .view-bio-box {
     background: #ffffff;
     border: 1px solid var(--border-light);
-    border-radius: 16px;
-    padding: 18px;
-    min-height: 60px;
-    font-size: 0.98rem;
-    line-height: 1.55;
+    border-radius: 18px;
+    padding: 20px;
+    min-height: 72px;
+    font-size: 1rem;
+    line-height: 1.6;
     color: var(--text-primary);
     box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.25s var(--ease-out);
+    transition: box-shadow 0.25s var(--ease-out), transform 0.25s var(--ease-out);
     word-break: break-word;
     overflow-wrap: anywhere;
+    text-align: center;
 }
 
 .view-bio-box:hover {
     box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 .view-bio-box.empty {
@@ -333,7 +359,7 @@ body {
 .view-bio-empty {
     color: #94a3b8;
     font-style: italic;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
 }
 
 /* ============================================================ */
@@ -341,11 +367,13 @@ body {
 /* ============================================================ */
 
 .view-friends-since {
-    font-size: 0.85rem;
+    font-size: 0.87rem;
     color: var(--text-secondary);
     text-align: center;
-    padding: 12px;
+    padding: 14px;
     font-style: italic;
+    opacity: 0.9;
+    max-width: 360px;
 }
 
 /* ============================================================ */
@@ -467,20 +495,29 @@ body {
 /* RESPONSIVE                                                    */
 /* ============================================================ */
 
-@media (max-width: 400px) {
+@media (max-width: 420px) {
+    .view-main {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
     .view-avatar {
-        width: 120px;
-        height: 120px;
-        min-width: 120px;
-        min-height: 120px;
+        width: 150px;
+        height: 150px;
+        min-width: 150px;
+        min-height: 150px;
+        box-shadow: 0 14px 36px rgba(0, 122, 204, 0.28), 0 0 0 5px #ffffff, 0 0 0 7px rgba(0, 122, 204, 0.15);
     }
     .view-avatar-initial {
-        font-size: 3rem;
+        font-size: 3.6rem;
     }
     .view-name {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
     }
     .view-actions {
         max-width: 100%;
+    }
+    .view-action-btn {
+        font-size: 0.95rem;
+        padding: 13px 14px;
     }
 }
