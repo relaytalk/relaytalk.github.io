@@ -93,7 +93,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            showLoginScreen();
+            // Not logged in → show friendly fallback
+            showFallbackPage(
+                'You need to sign in',
+                'Please login or create a new account to start chatting.',
+                '🔐'
+            );
             return;
         }
 
@@ -112,9 +117,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const friendId = urlParams.get('friendId');
 
         if (!friendId) {
-            showCustomAlert('No friend selected!', '😕', 'Error', () => {
-                window.location.href = '../home/index.html';
-            });
+            showFallbackPage(
+                'No chat selected',
+                'This link is missing the person you wanted to chat with.',
+                '💬'
+            );
             return;
         }
 
@@ -122,9 +129,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             .from('profiles')
             .select('*')
             .eq('id', friendId)
-            .single();
+            .maybeSingle();
 
-        if (friendError) throw friendError;
+        if (friendError || !friend) {
+            showFallbackPage(
+                'Account not found',
+                'This account does not exist or may have been removed.',
+                '🔎'
+            );
+            return;
+        }
+
+        if (friend.id === currentUser.id) {
+            showFallbackPage(
+                'This is you',
+                'You cannot start a chat with yourself.',
+                '🤔'
+            );
+            return;
+        }
 
         chatFriend = friend;
         window.chatFriend = friend;
@@ -133,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const friendInitial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
 
         if (friend.avatar_url) {
-            chatUserAvatar.innerHTML = `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+            chatUserAvatar.innerHTML = `<img src="${friend.avatar_url}" alt="${friend.username}">`;
         } else {
             chatUserAvatar.textContent = friendInitial;
         }
@@ -168,22 +191,89 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ Chat ready');
     } catch (error) {
         console.error('Init error:', error);
-        showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
-            window.location.href = '../home/index.html';
-        });
+        showFallbackPage(
+            'Something went wrong',
+            'We could not load this chat. Please try again.',
+            '⚠️'
+        );
     }
 });
 
 // ============================================================
-// LOGIN SCREEN
+// FALLBACK PAGE (missing user / no login / invalid link)
+// Uses relative paths so it works on both Vercel and GitHub Pages
+// ============================================================
+function showFallbackPage(title, message, emoji = '💬') {
+    // Hide normal chat UI
+    const loginEl = document.getElementById('login');
+    const chatEl = document.getElementById('chat');
+    if (loginEl) loginEl.style.display = 'none';
+    if (chatEl) chatEl.style.display = 'none';
+
+    // Compute relative base from current page URL
+    // Current page: /pages/chats/index.html → we need to reach:
+    //   - login:   ../login/index.html
+    //   - auth:    ../auth/index.html
+    //   - home:    ../home/index.html
+    // All are siblings of "chats" folder inside "pages".
+    const LOGIN_URL = '../login/index.html';
+    const SIGNUP_URL = '../auth/index.html';
+    const HOME_URL = '../home/index.html';
+
+    // If some other page already rendered the fallback, remove it
+    const existing = document.getElementById('rtFallbackScreen');
+    if (existing) existing.remove();
+
+    const screen = document.createElement('div');
+    screen.id = 'rtFallbackScreen';
+    screen.innerHTML = `
+        <div class="fallback-card">
+            <div class="fallback-emoji">${emoji}</div>
+            <h1 class="fallback-title">${escapeHtml(title)}</h1>
+            <p class="fallback-message">${escapeHtml(message)}</p>
+            <div class="fallback-actions">
+                <a href="${LOGIN_URL}" class="fallback-btn fallback-btn-primary">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    Login
+                </a>
+                <a href="${HOME_URL}" class="fallback-btn fallback-btn-secondary">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    Home
+                </a>
+                <a href="${SIGNUP_URL}" class="fallback-btn fallback-btn-secondary">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="8.5" cy="7" r="4"/>
+                        <line x1="20" y1="8" x2="20" y2="14"/>
+                        <line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                    Sign Up
+                </a>
+            </div>
+            <div class="fallback-footer">RelayTalk</div>
+        </div>
+    `;
+
+    document.body.appendChild(screen);
+    document.body.classList.add('fallback-active');
+}
+
+// ============================================================
+// LOGIN SCREEN (kept for compatibility but rarely used now)
 // ============================================================
 function showLoginScreen() {
-    document.getElementById("login").style.display = "block";
-    document.getElementById("chat").style.display = "none";
-    const loginBtn = document.getElementById('loginBtn');
-    const signupBtn = document.getElementById('signupBtn');
-    if (loginBtn) loginBtn.onclick = () => window.location.href = '../login/index.html';
-    if (signupBtn) signupBtn.onclick = () => window.location.href = '../auth/index.html';
+    showFallbackPage(
+        'You need to sign in',
+        'Please login or create a new account to start chatting.',
+        '🔐'
+    );
 }
 
 // ============================================================
@@ -365,6 +455,13 @@ async function loadReactionsForMessages(messageIds) {
 // ============================================================
 // RENDER MESSAGES
 // ============================================================
+function isDeletedMessage(msg) {
+    if (!msg) return false;
+    if (msg.deleted === true || msg.deleted_at) return true;
+    if (typeof msg.content === 'string' && msg.content === '__DELETED__') return true;
+    return false;
+}
+
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -395,37 +492,53 @@ function showMessages(messages) {
             lastDate = date;
         }
 
-        const color = msg.color || null;
-        const colorAttr = color ? `data-color="${color}"` : '';
-        const editedMark = msg.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
-
-        let messageHTML = '';
-        if (msg.image_url) {
-            if (typeof window.createImageMessageHTML === 'function') {
-                messageHTML = window.createImageMessageHTML(msg, isSent, colorAttr, time);
-            } else {
-                messageHTML = `
-                    <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-                        <div class="message-content">📸 Image shared</div>
-                        <div class="message-time">${time}${editedMark}</div>
-                    </div>
-                `;
-            }
-        } else {
-            messageHTML = `
-                <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-                    <div class="message-content">${escapeHtml(msg.content || '')}</div>
-                    <div class="message-time">${time}${editedMark}</div>
-                </div>
-            `;
-        }
-
-        html += `<div class="message-wrap ${isSent ? 'sent' : 'received'}" data-wrap-id="${msg.id}">${messageHTML}${renderReactionPills(msg.id)}</div>`;
+        html += `<div class="message-wrap ${isSent ? 'sent' : 'received'}" data-wrap-id="${msg.id}">${renderSingleMessage(msg, isSent, time)}${renderReactionPills(msg.id)}</div>`;
     });
 
     container.innerHTML = html;
     setupTypingIndicator();
     setTimeout(() => forceScrollToBottom(), 50);
+}
+
+function renderSingleMessage(msg, isSent, time) {
+    const color = msg.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+    const editedMark = msg.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
+    const deleted = isDeletedMessage(msg);
+
+    if (deleted) {
+        return `
+            <div class="message ${isSent ? 'sent' : 'received'} deleted-message" data-message-id="${msg.id}">
+                <div class="message-content deleted-content">
+                    <svg class="deleted-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                    </svg>
+                    <span>This message was deleted</span>
+                </div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+    }
+
+    if (msg.image_url) {
+        if (typeof window.createImageMessageHTML === 'function') {
+            return window.createImageMessageHTML(msg, isSent, colorAttr, time);
+        }
+        return `
+            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+                <div class="message-content">📸 Image shared</div>
+                <div class="message-time">${time}${editedMark}</div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+            <div class="message-content">${escapeHtml(msg.content || '')}</div>
+            <div class="message-time">${time}${editedMark}</div>
+        </div>
+    `;
 }
 
 function addMessageToUI(message, isFromRealtime = false) {
@@ -439,38 +552,13 @@ function addMessageToUI(message, isFromRealtime = false) {
     const isSent = message.sender_id === currentUser.id;
     const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const color = message.color || null;
-    const colorAttr = color ? `data-color="${color}"` : '';
-    const editedMark = message.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
-
-    let messageHTML = '';
-    if (message.image_url) {
-        if (typeof window.createImageMessageHTML === 'function') {
-            messageHTML = window.createImageMessageHTML(message, isSent, colorAttr, time);
-        } else {
-            messageHTML = `
-                <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
-                    <div class="message-content">📸 Image shared</div>
-                    <div class="message-time">${time}${editedMark}</div>
-                </div>
-            `;
-        }
-    } else {
-        messageHTML = `
-            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
-                <div class="message-content">${escapeHtml(message.content || '')}</div>
-                <div class="message-time">${time}${editedMark}</div>
-            </div>
-        `;
-    }
-
     const typingIndicator = document.getElementById('typingIndicator');
     if (typingIndicator) typingIndicator.remove();
 
     const wrap = document.createElement('div');
     wrap.className = `message-wrap ${isSent ? 'sent' : 'received'}`;
     wrap.dataset.wrapId = message.id;
-    wrap.innerHTML = messageHTML + renderReactionPills(message.id);
+    wrap.innerHTML = renderSingleMessage(message, isSent, time) + renderReactionPills(message.id);
     container.appendChild(wrap);
 
     setupTypingIndicator();
@@ -503,6 +591,32 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 }
 
+// ============================================================
+// RE-RENDER ONE MESSAGE IN PLACE
+// ============================================================
+function refreshMessageBubble(messageId) {
+    const msg = currentMessages.find(m => m.id === messageId);
+    const wrap = document.querySelector(`.message-wrap[data-wrap-id="${messageId}"]`);
+    if (!msg || !wrap) return;
+
+    const isSent = msg.sender_id === currentUser.id;
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const bubbleHTML = renderSingleMessage(msg, isSent, time);
+    const oldBubble = wrap.querySelector('.message');
+    if (oldBubble) {
+        oldBubble.outerHTML = bubbleHTML;
+    } else {
+        wrap.insertAdjacentHTML('afterbegin', bubbleHTML);
+    }
+
+    // If deleted → remove reaction pills too
+    if (isDeletedMessage(msg)) {
+        const pills = wrap.querySelector('.reaction-pills');
+        if (pills) pills.remove();
+    }
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -513,6 +627,9 @@ function escapeHtml(text) {
 // REACTION PILLS
 // ============================================================
 function renderReactionPills(messageId) {
+    const msg = currentMessages.find(m => m.id === messageId);
+    if (msg && isDeletedMessage(msg)) return '';
+
     const reactions = messageReactions[messageId] || [];
     if (reactions.length === 0) return '';
 
@@ -555,6 +672,12 @@ function updateReactionPills(messageId) {
 // TOGGLE REACTION
 // ============================================================
 async function toggleReaction(messageId, emoji) {
+    const target = currentMessages.find(m => m.id === messageId);
+    if (target && isDeletedMessage(target)) {
+        showToast('Cannot react to deleted messages', '⚠️', 1500);
+        return;
+    }
+
     try {
         const existing = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id);
 
@@ -650,12 +773,18 @@ function handlePressCancel() {
 }
 
 // ============================================================
-// ACTION BAR (anchored to message, contains both rows)
+// ACTION BAR
 // ============================================================
 function openActionBar(wrap) {
     const messageId = parseInt(wrap.dataset.wrapId);
+    const msg = currentMessages.find(m => m.id === messageId);
 
-    // If the same bar is already open, do nothing
+    if (msg && isDeletedMessage(msg)) {
+        // Deleted messages: no action bar
+        showToast('This message was deleted', '🚫', 1500);
+        return;
+    }
+
     if (selectedMessageId === messageId && quickBarElement) return;
 
     closeQuickBar();
@@ -664,7 +793,6 @@ function openActionBar(wrap) {
     selectedMessageId = messageId;
     selectedMessageEl = wrap;
 
-    // Swallow the synthetic click that fires right after a long-press
     justOpenedAt = Date.now() + 500;
 
     wrap.classList.add('selected');
@@ -697,10 +825,11 @@ function buildQuickBar(wrap) {
     const deleteBtnHTML = isMine ? `
         <button class="action-btn-icon action-btn-danger" data-action="delete" title="Delete">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                <path d="M3 6h18"/>
+                <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+                <path d="M19 6l-.9 13.1A2 2 0 0 1 16.1 21H7.9a2 2 0 0 1-2-1.9L5 6"/>
+                <path d="M10 11v6"/>
+                <path d="M14 11v6"/>
             </svg>
         </button>
     ` : '';
@@ -737,7 +866,6 @@ function buildQuickBar(wrap) {
     wrap.appendChild(quickBarElement);
     requestAnimationFrame(() => quickBarElement.classList.add('visible'));
 
-    // Button handlers
     quickBarElement.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -750,13 +878,11 @@ function buildQuickBar(wrap) {
         });
     });
 
-    // Quick reaction buttons
     quickBarElement.querySelectorAll('.quick-emoji').forEach(btn => {
         if (btn.dataset.action) return;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleReaction(messageId, btn.dataset.emoji);
-            // Update highlighted state
             quickBarElement.querySelectorAll('.quick-emoji').forEach(o => o.classList.remove('selected'));
             btn.classList.add('selected');
         });
@@ -786,20 +912,11 @@ function closeAll() {
 function setupGlobalDismiss() {
     document.addEventListener('pointerdown', (e) => {
         if (!selectedMessageId) return;
-
-        // Ignore the initial synthetic tap after a long-press
         if (Date.now() < justOpenedAt) return;
-
-        // Inside the bar → let the bar handle it
         if (quickBarElement && quickBarElement.contains(e.target)) return;
-
-        // On the currently selected message → keep it open
         if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
-
-        // On a reaction pill → handled separately
         if (e.target.closest('.reaction-pill')) return;
 
-        // Anywhere else → close
         closeAll();
     }, true);
 
@@ -854,6 +971,7 @@ function handleEdit() {
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg || msg.sender_id !== currentUser.id) return;
     if (msg.image_url) return;
+    if (isDeletedMessage(msg)) return;
 
     const msgId = msg.id;
     closeAll();
@@ -873,28 +991,84 @@ function handleDelete() {
             'Delete this message?',
             '🗑️', 'Delete Message',
             async () => {
-                try {
-                    await supabase.from('message_reactions').delete().eq('message_id', msgId);
-                    const { error } = await supabase.from('direct_messages').delete().eq('id', msgId);
-                    if (error) throw error;
-
-                    currentMessages = currentMessages.filter(m => m.id !== msgId);
-                    window.currentMessages = currentMessages;
-                    delete messageReactions[msgId];
-
-                    const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msgId}"]`);
-                    if (wrap) {
-                        wrap.classList.add('removing');
-                        setTimeout(() => wrap.remove(), 220);
-                    }
-                    showToast('Message deleted', '✅', 1500);
-                } catch (error) {
-                    console.error('Delete failed:', error);
-                    showToast('Could not delete message', '❌', 1500);
-                }
+                await performDelete(msgId);
             }
         );
     }, 220);
+}
+
+async function performDelete(msgId) {
+    try {
+        const deletedAt = new Date().toISOString();
+
+        // Clear reactions first
+        await supabase.from('message_reactions').delete().eq('message_id', msgId);
+
+        // Soft-delete the message: keep row, wipe content/image, mark deleted
+        const updatePayload = {
+            content: '__DELETED__',
+            image_url: null,
+            thumbnail_url: null,
+            color: null,
+            edited_at: deletedAt
+        };
+
+        let { error } = await supabase
+            .from('direct_messages')
+            .update(updatePayload)
+            .eq('id', msgId);
+
+        // If the DB has a `deleted` column, also set it. Ignore errors if not.
+        if (!error) {
+            await supabase
+                .from('direct_messages')
+                .update({ deleted: true })
+                .eq('id', msgId)
+                .then(() => {}).catch(() => {});
+        }
+
+        // If update fails (e.g., RLS), fall back to hard delete
+        if (error) {
+            console.warn('Soft-delete failed, falling back to hard delete:', error.message);
+            const { error: delErr } = await supabase.from('direct_messages').delete().eq('id', msgId);
+            if (delErr) throw delErr;
+
+            currentMessages = currentMessages.filter(m => m.id !== msgId);
+            window.currentMessages = currentMessages;
+            delete messageReactions[msgId];
+
+            const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msgId}"]`);
+            if (wrap) {
+                wrap.classList.add('removing');
+                setTimeout(() => wrap.remove(), 220);
+            }
+            showToast('Message deleted', '✅', 1500);
+            return;
+        }
+
+        // Update local state
+        const idx = currentMessages.findIndex(m => m.id === msgId);
+        if (idx >= 0) {
+            currentMessages[idx] = {
+                ...currentMessages[idx],
+                content: '__DELETED__',
+                image_url: null,
+                thumbnail_url: null,
+                color: null,
+                edited_at: deletedAt
+            };
+            window.currentMessages = currentMessages;
+        }
+        delete messageReactions[msgId];
+
+        // Re-render the bubble in place
+        refreshMessageBubble(msgId);
+
+        showToast('Message deleted', '✅', 1500);
+    } catch (error) {
+        console.error('Delete failed:', error);
+        showToast('Could not delete message', '❌', 1500);
+    }
 }
 
 function showEditModal(msgId) {
@@ -949,15 +1123,7 @@ function showEditModal(msgId) {
             msg.content = newText;
             msg.edited_at = editedAt;
 
-            const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"]`);
-            if (wrap) {
-                const contentEl = wrap.querySelector('.message-content');
-                if (contentEl) contentEl.textContent = newText;
-                const timeEl = wrap.querySelector('.message-time');
-                if (timeEl && !timeEl.querySelector('.edited-mark')) {
-                    timeEl.insertAdjacentHTML('beforeend', '<span class="edited-mark"> (edited)</span>');
-                }
-            }
+            refreshMessageBubble(msg.id);
 
             showToast('Message updated', '✅', 1500);
             close();
@@ -1048,16 +1214,14 @@ function setupRealtime(friendId) {
             const idx = currentMessages.findIndex(m => m.id === updated.id);
             if (idx >= 0) {
                 currentMessages[idx] = { ...currentMessages[idx], ...updated };
-                const wrap = document.querySelector(`.message-wrap[data-wrap-id="${updated.id}"]`);
-                if (wrap) {
-                    const contentEl = wrap.querySelector('.message-content');
-                    if (contentEl && updated.content !== undefined) contentEl.textContent = updated.content || '';
-                    const timeEl = wrap.querySelector('.message-time');
-                    if (timeEl && updated.edited_at && !timeEl.querySelector('.edited-mark')) {
-                        timeEl.insertAdjacentHTML('beforeend', '<span class="edited-mark"> (edited)</span>');
-                    }
-                }
+                window.currentMessages = currentMessages;
             }
+            // If message is deleted via soft-delete → clear reactions locally
+            if (isDeletedMessage(updated)) {
+                delete messageReactions[updated.id];
+            }
+            refreshMessageBubble(updated.id);
+            updateReactionPills(updated.id);
         })
         .on('postgres_changes', {
             event: 'DELETE', schema: 'public', table: 'direct_messages'
@@ -1071,6 +1235,7 @@ function setupRealtime(friendId) {
             }
             currentMessages = currentMessages.filter(m => m.id !== deleted.id);
             window.currentMessages = currentMessages;
+            delete messageReactions[deleted.id];
         })
         .subscribe();
 
@@ -1090,7 +1255,7 @@ function setupRealtime(friendId) {
                 if (payload.new.avatar_url && payload.new.avatar_url !== chatFriend.avatar_url) {
                     chatFriend.avatar_url = payload.new.avatar_url;
                     const el = document.getElementById('chatUserAvatar');
-                    if (el) el.innerHTML = `<img src="${payload.new.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                    if (el) el.innerHTML = `<img src="${payload.new.avatar_url}" alt="${chatFriend.username}">`;
                 }
             }
         })
@@ -1112,6 +1277,9 @@ function setupRealtime(friendId) {
 
 function handleReactionChange(row) {
     const messageId = row.message_id;
+    const msg = currentMessages.find(m => m.id === messageId);
+    if (msg && isDeletedMessage(msg)) return;
+
     if (!document.querySelector(`[data-message-id="${messageId}"]`)) return;
     if (!messageReactions[messageId]) messageReactions[messageId] = [];
     messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== row.user_id);
@@ -1335,6 +1503,91 @@ async function clearChatPrompt() {
 function openGuide() {
     const modal = document.getElementById('guideModal');
     if (!modal) return;
+
+    // Replace body content so it stays up-to-date
+    const bodyEl = modal.querySelector('.guide-body');
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <div class="guide-item">
+                <div class="guide-icon">💬</div>
+                <div>
+                    <strong>Send a message</strong>
+                    <p>Type in the box at the bottom and tap the send button.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">🖼️</div>
+                <div>
+                    <strong>Share images</strong>
+                    <p>Tap the paperclip icon, then choose Camera or Gallery. You can send up to 10 images at once.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">🎨</div>
+                <div>
+                    <strong>Color your message</strong>
+                    <p>Type <code>/</code> in the message box → pick a color → your next message uses it.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">😀</div>
+                <div>
+                    <strong>React to messages</strong>
+                    <p>Long-press any message → pick an emoji. Tap the same emoji to remove it. Tap <strong>＋</strong> for more options.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">📋</div>
+                <div>
+                    <strong>Copy a message</strong>
+                    <p>Long-press → tap the copy icon in the top of the bar.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">✏️</div>
+                <div>
+                    <strong>Edit your message</strong>
+                    <p>Long-press your own message → tap the pencil icon. Edited messages show a small <em>(edited)</em> label.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">🗑️</div>
+                <div>
+                    <strong>Delete your message</strong>
+                    <p>Long-press your own message → tap the trash icon. Deleted messages show as <em>“This message was deleted”</em> for both people.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">👤</div>
+                <div>
+                    <strong>Open friend's profile</strong>
+                    <p>Tap your friend's name or avatar at the top of the chat to see their profile.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">📞</div>
+                <div>
+                    <strong>Voice / video call</strong>
+                    <p>Tap the phone icon in the top-right corner.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">🟢</div>
+                <div>
+                    <strong>Online status</strong>
+                    <p>Green dot = online. “Last seen” shows when they were last active.</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">🔔</div>
+                <div>
+                    <strong>Notifications</strong>
+                    <p>Enable in Profile → Enable Notifications to get alerts even when the app is closed.</p>
+                </div>
+            </div>
+        `;
+    }
+
     modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('visible'));
 }
