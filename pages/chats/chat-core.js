@@ -1388,7 +1388,7 @@ function goBack() {
 
 function openFriendProfile(friendId) {
     if (!friendId) return;
-    window.location.href = `../profile/view.html?userId=${friendId}`;
+    window.location.href = `..home/profile/view.html?userId=${friendId}`;
 }
 
 // ============================================================
