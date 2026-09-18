@@ -57,7 +57,6 @@ button, input, textarea {
 
 *:focus { outline: none; }
 
-/* Prevent text selection inside chat while long-pressing */
 body.selection-active {
     user-select: none;
     -webkit-user-select: none;
@@ -81,10 +80,6 @@ body.selection-active {
     box-shadow: var(--shadow-sm);
     gap: 12px;
     transition: box-shadow 0.25s var(--ease-out);
-}
-
-.chat-header:has(.top-action-bar.visible) {
-    box-shadow: 0 6px 24px rgba(0, 122, 204, 0.18);
 }
 
 .back-btn {
@@ -182,7 +177,6 @@ body.selection-active {
     gap: 8px;
     flex-shrink: 0;
     align-items: center;
-    transition: opacity 0.25s var(--ease-out);
 }
 
 .guide-btn {
@@ -224,79 +218,8 @@ body.selection-active {
 .call-btn:active { transform: scale(0.95); }
 .call-btn i { font-size: 1.05rem; color: white; }
 
-/* ============================================================ */
-/* TOP ACTION BAR (overlays the header)                          */
-/* ============================================================ */
-
-.top-action-bar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 100%;
-    background: #ffffff;
-    padding: 0 16px;
-    padding-top: max(0px, var(--safe-area-top));
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    z-index: 200;
-    opacity: 0;
-    transform: translateY(-12px);
-    pointer-events: none;
-    transition: opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
-}
-
-.top-action-bar.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.top-action-close {
-    background: transparent;
-    border: none;
-    color: var(--primary-dark);
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.22s var(--ease-out), transform 0.22s var(--ease-out);
-    flex-shrink: 0;
-}
-
-.top-action-close:hover {
-    background: rgba(0, 122, 204, 0.08);
-    transform: rotate(90deg);
-}
-
-.top-action-spacer { flex: 1; }
-
-.top-action-btn {
-    background: transparent;
-    border: none;
-    color: var(--primary-color);
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.22s var(--ease-out), transform 0.22s var(--ease-out);
-    flex-shrink: 0;
-}
-
-.top-action-btn:hover {
-    background: rgba(0, 122, 204, 0.1);
-    transform: scale(1.06);
-}
-
-.top-action-btn:active { transform: scale(0.94); }
-
-.top-action-danger { color: #dc2626; }
-.top-action-danger:hover { background: rgba(220, 38, 38, 0.1); }
+/* Legacy — kept so index.html doesn't break if it still has #topActionBar */
+.top-action-bar { display: none !important; }
 
 /* ============================================================ */
 /* MAIN CHAT AREA                                                */
@@ -338,6 +261,7 @@ body.selection-active {
     position: relative;
     animation: fadeIn 0.25s var(--ease-out);
     transition: opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+    overflow: visible;
 }
 
 .message-wrap.sent { align-items: flex-end; }
@@ -361,7 +285,6 @@ body.selection-active {
     box-shadow: var(--shadow-sm);
     transition: box-shadow 0.25s var(--ease-out), transform 0.2s var(--ease-out);
 
-    /* Prevent text selection on long-press */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
@@ -548,7 +471,7 @@ body.selection-active {
 .reaction-pill.mine .reaction-count { color: var(--primary-dark); }
 
 /* ============================================================ */
-/* QUICK REACTION BAR (anchored to the message)                  */
+/* ACTION BAR (two rows: Copy/Edit/Delete + Emojis)              */
 /* ============================================================ */
 
 .quick-reaction-bar {
@@ -556,11 +479,12 @@ body.selection-active {
     bottom: calc(100% + 8px);
     left: 0;
     display: flex;
-    gap: 6px;
-    padding: 6px 8px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
     background: #ffffff;
     border: 1px solid var(--border-light);
-    border-radius: 30px;
+    border-radius: 20px;
     box-shadow: 0 8px 24px rgba(0, 122, 204, 0.22);
     z-index: 500;
     white-space: nowrap;
@@ -568,6 +492,7 @@ body.selection-active {
     transform: translateY(8px) scale(0.94);
     pointer-events: none;
     transition: opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+    min-width: 210px;
 }
 
 .quick-reaction-bar.visible {
@@ -578,12 +503,64 @@ body.selection-active {
 
 .message-wrap.sent .quick-reaction-bar { left: auto; right: 0; }
 
-.quick-emoji {
+.action-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.action-bar-top {
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
+    width: 100%;
+}
+
+.action-bar-emojis {
+    justify-content: space-between;
+    padding-top: 2px;
+}
+
+.action-bar-spacer { flex: 1; }
+
+.action-btn-icon {
     background: transparent;
     border: none;
-    font-size: 1.4rem;
+    color: var(--primary-color);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
     cursor: pointer;
-    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+    flex-shrink: 0;
+    min-height: auto;
+    min-width: auto;
+}
+
+.action-btn-icon:hover {
+    background: rgba(0, 122, 204, 0.1);
+    transform: scale(1.08);
+}
+
+.action-btn-icon:active { transform: scale(0.94); }
+
+.action-btn-danger { color: #dc2626; }
+.action-btn-danger:hover { background: rgba(220, 38, 38, 0.1); }
+
+.action-btn-close { color: var(--text-secondary); }
+.action-btn-close:hover {
+    background: rgba(0, 0, 0, 0.06);
+    transform: rotate(90deg);
+}
+
+.quick-reaction-bar .quick-emoji {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    cursor: pointer;
+    padding: 5px 6px;
     border-radius: 50%;
     line-height: 1;
     transition: transform 0.2s var(--ease-out), background 0.2s var(--ease-out);
@@ -591,20 +568,23 @@ body.selection-active {
     min-width: auto;
 }
 
-.quick-emoji:hover { transform: scale(1.25); background: rgba(0, 122, 204, 0.1); }
+.quick-reaction-bar .quick-emoji:hover {
+    transform: scale(1.25);
+    background: rgba(0, 122, 204, 0.1);
+}
 
-.quick-emoji.selected {
+.quick-reaction-bar .quick-emoji.selected {
     background: rgba(0, 122, 204, 0.15);
     border: 1px solid rgba(0, 122, 204, 0.4);
 }
 
-.quick-more {
+.quick-reaction-bar .quick-more {
     color: var(--primary-color);
-    font-weight: bold;
-    border-left: 1px solid var(--border-light);
-    padding-left: 10px;
-    margin-left: 2px;
-    border-radius: 0 30px 30px 0;
+    font-weight: 700;
+    border-left: none;
+    padding-left: 6px;
+    margin-left: 0;
+    border-radius: 50%;
 }
 
 /* ============================================================ */
@@ -1003,7 +983,7 @@ body.selection-active {
 .color-clear-btn:hover { background: rgba(0, 122, 204, 0.2); }
 
 /* ============================================================ */
-/* IMAGE VIEWER / PICKER / PREVIEW                               */
+/* IMAGE VIEWER                                                  */
 /* ============================================================ */
 
 .image-viewer-overlay {
@@ -1093,6 +1073,10 @@ body.selection-active {
 
 .viewer-action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .viewer-action-btn svg { width: 20px; height: 20px; fill: var(--primary-color); }
+
+/* ============================================================ */
+/* IMAGE PICKER / PREVIEW                                        */
+/* ============================================================ */
 
 .image-picker-overlay {
     position: fixed;
@@ -1584,12 +1568,15 @@ body.selection-active {
     .message { max-width: 85%; padding: 8px 12px; }
     .main-content { top: calc(74px + var(--safe-area-top)); }
     .guide-btn, .call-btn { width: 40px; height: 40px; }
-    .top-action-btn, .top-action-close { width: 40px; height: 40px; }
+    .action-btn-icon { width: 32px; height: 32px; }
+    .quick-reaction-bar { min-width: 190px; padding: 6px 8px; }
+    .quick-reaction-bar .quick-emoji { font-size: 1.25rem; padding: 4px 5px; }
 }
 
 @media (max-width: 480px) {
     .chat-user-details h3 { font-size: 1rem; }
     .message { max-width: 90%; font-size: 0.95rem; }
+    .quick-reaction-bar { min-width: 180px; }
 }
 
 /* ============================================================ */
@@ -1599,7 +1586,6 @@ body.selection-active {
 @supports (padding: max(0px)) {
     .chat-header { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
     .message-input-wrapper { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
-    .top-action-bar { padding-top: max(0px, env(safe-area-inset-top, 0px)); }
 }
 
 body { overscroll-behavior-y: contain; }
