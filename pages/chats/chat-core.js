@@ -26,7 +26,7 @@ let longPressTimer = null;
 let longPressTarget = null;
 let selectedMessageId = null;
 let selectedMessageEl = null;
-let toolbarElement = null;
+let quickBarElement = null;
 
 // Global coordination
 window.colorPickerVisible = false;
@@ -66,17 +66,16 @@ window.reconnectRealtime = reconnectRealtime;
 window.openGuide = openGuide;
 window.closeGuide = closeGuide;
 window.openFriendProfile = openFriendProfile;
+window.closeTopActions = closeTopActions;
 
 window.getCurrentUser = () => currentUser;
 window.getChatFriend = () => chatFriend;
 window.getSupabaseClient = () => supabase;
 
-if (window.chatModules) {
-    window.chatModules.coreLoaded = true;
-}
+if (window.chatModules) window.chatModules.coreLoaded = true;
 
 // ============================================================
-// REACTION CONSTANTS
+// CONSTANTS
 // ============================================================
 const QUICK_REACTIONS = ['🥀', '💕', '🫂', '😭'];
 
@@ -141,9 +140,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         document.getElementById('chatUserName').textContent = friend.username;
-        updateFriendStatus(friend.status);
+        updateFriendStatus(friend.status, friend.last_seen);
 
-        // Clickable header → friend profile
         const clickableHeader = document.getElementById('chatHeaderProfile');
         if (clickableHeader) {
             clickableHeader.addEventListener('click', () => openFriendProfile(friend.id));
@@ -158,6 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupBackButtonPrevention();
         setupLongPressHandlers();
         setupGlobalDismiss();
+        setupTopActionsHandlers();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -183,7 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 function showLoginScreen() {
     document.getElementById("login").style.display = "block";
     document.getElementById("chat").style.display = "none";
-
     const loginBtn = document.getElementById('loginBtn');
     const signupBtn = document.getElementById('signupBtn');
     if (loginBtn) loginBtn.onclick = () => window.location.href = '../login/index.html';
@@ -317,7 +315,7 @@ async function sendMessage() {
 }
 
 // ============================================================
-// LOAD OLD MESSAGES
+// LOAD MESSAGES
 // ============================================================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
@@ -336,7 +334,6 @@ async function loadOldMessages(friendId) {
         window.currentMessages = currentMessages;
 
         await loadReactionsForMessages(currentMessages.map(m => m.id));
-
         showMessages(currentMessages);
     } catch (error) {
         console.error('Load error:', error);
@@ -402,6 +399,7 @@ function showMessages(messages) {
 
         const color = msg.color || null;
         const colorAttr = color ? `data-color="${color}"` : '';
+        const editedMark = msg.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
 
         let messageHTML = '';
         if (msg.image_url) {
@@ -411,7 +409,7 @@ function showMessages(messages) {
                 messageHTML = `
                     <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
                         <div class="message-content">📸 Image shared</div>
-                        <div class="message-time">${time}</div>
+                        <div class="message-time">${time}${editedMark}</div>
                     </div>
                 `;
             }
@@ -419,7 +417,7 @@ function showMessages(messages) {
             messageHTML = `
                 <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
                     <div class="message-content">${escapeHtml(msg.content || '')}</div>
-                    <div class="message-time">${time}</div>
+                    <div class="message-time">${time}${editedMark}</div>
                 </div>
             `;
         }
@@ -446,6 +444,7 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     const color = message.color || null;
     const colorAttr = color ? `data-color="${color}"` : '';
+    const editedMark = message.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
 
     let messageHTML = '';
     if (message.image_url) {
@@ -455,7 +454,7 @@ function addMessageToUI(message, isFromRealtime = false) {
             messageHTML = `
                 <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
                     <div class="message-content">📸 Image shared</div>
-                    <div class="message-time">${time}</div>
+                    <div class="message-time">${time}${editedMark}</div>
                 </div>
             `;
         }
@@ -463,7 +462,7 @@ function addMessageToUI(message, isFromRealtime = false) {
         messageHTML = `
             <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
                 <div class="message-content">${escapeHtml(message.content || '')}</div>
-                <div class="message-time">${time}</div>
+                <div class="message-time">${time}${editedMark}</div>
             </div>
         `;
     }
@@ -489,7 +488,7 @@ function addMessageToUI(message, isFromRealtime = false) {
         bubble.style.opacity = '0';
         bubble.style.transform = 'translateY(10px)';
         setTimeout(() => {
-            bubble.style.transition = 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+            bubble.style.transition = 'all 0.25s cubic-bezier(0.22, 1, 0.36, 1)';
             bubble.style.opacity = '1';
             bubble.style.transform = 'translateY(0)';
         }, 10);
@@ -598,7 +597,7 @@ async function toggleReaction(messageId, emoji) {
 }
 
 // ============================================================
-// LONG PRESS + SELECTION + TOOLBAR
+// LONG PRESS + SELECTION
 // ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
@@ -620,7 +619,6 @@ function setupLongPressHandlers() {
         }
     });
 
-    // Tap on pill = toggle
     container.addEventListener('click', (e) => {
         const pill = e.target.closest('.reaction-pill');
         if (pill) {
@@ -634,9 +632,8 @@ function setupLongPressHandlers() {
 function handlePressStart(e) {
     const wrap = e.target.closest('.message-wrap');
     if (!wrap) return;
-
-    // Don't interfere if user tapped a pill or interactive element inside image
     if (e.target.closest('.reaction-pill')) return;
+    if (e.target.closest('.message-image-container')) return; // let image tap work
 
     longPressTarget = wrap;
     longPressTimer = setTimeout(() => {
@@ -659,25 +656,77 @@ function handlePressCancel() {
 
 function selectMessage(wrap) {
     clearSelection();
-    closeToolbar();
+    closeQuickBar();
+    closeTopActions();
 
     selectedMessageId = parseInt(wrap.dataset.wrapId);
     selectedMessageEl = wrap;
 
     wrap.classList.add('selected');
+    document.body.classList.add('selection-active');
 
-    buildTopToolbar();
+    // Show top actions bar
+    buildTopActions();
+
+    // Show message-anchored quick reaction bar
+    buildQuickBar(wrap);
 }
 
 function clearSelection() {
-    if (selectedMessageEl) {
-        selectedMessageEl.classList.remove('selected');
-    }
+    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
     selectedMessageId = null;
     selectedMessageEl = null;
+    document.body.classList.remove('selection-active');
 }
 
-function buildTopToolbar() {
+// ============================================================
+// MESSAGE-ANCHORED QUICK REACTION BAR
+// ============================================================
+function buildQuickBar(wrap) {
+    closeQuickBar();
+
+    const messageId = parseInt(wrap.dataset.wrapId);
+    const myEmoji = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+
+    quickBarElement = document.createElement('div');
+    quickBarElement.className = 'quick-reaction-bar';
+    quickBarElement.id = 'quickReactionBar';
+    quickBarElement.innerHTML = `
+        ${QUICK_REACTIONS.map(e => `
+            <button class="quick-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
+        `).join('')}
+        <button class="quick-emoji quick-more" data-action="more">＋</button>
+    `;
+
+    wrap.appendChild(quickBarElement);
+    requestAnimationFrame(() => quickBarElement.classList.add('visible'));
+
+    quickBarElement.querySelectorAll('.quick-emoji').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (btn.dataset.action === 'more') {
+                openEmojiGridForSelected();
+            } else {
+                toggleReaction(messageId, btn.dataset.emoji);
+                closeQuickBar();
+            }
+        });
+    });
+}
+
+function closeQuickBar() {
+    if (quickBarElement) {
+        quickBarElement.classList.remove('visible');
+        const el = quickBarElement;
+        quickBarElement = null;
+        setTimeout(() => el.remove(), 200);
+    }
+}
+
+// ============================================================
+// TOP ACTIONS BAR (WhatsApp style)
+// ============================================================
+function buildTopActions() {
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg) return;
 
@@ -685,56 +734,55 @@ function buildTopToolbar() {
     const isImage = !!msg.image_url;
     const isText = !isImage && (msg.content || '').trim().length > 0;
 
-    const myEmoji = (messageReactions[selectedMessageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+    const bar = document.getElementById('topActionBar');
+    if (!bar) return;
 
-    toolbarElement = document.createElement('div');
-    toolbarElement.className = 'message-context-menu';
-    toolbarElement.id = 'messageContextMenu';
+    const editBtnHTML = (isMine && isText) ? `
+        <button class="top-action-btn" data-action="edit" title="Edit">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+        </button>
+    ` : '';
 
-    toolbarElement.innerHTML = `
-        <div class="context-toolbar">
-            <button class="context-btn" data-action="copy" title="Copy">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-            </button>
-            ${isMine && isText ? `
-            <button class="context-btn" data-action="edit" title="Edit">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-            </button>
-            ` : ''}
-            ${isMine ? `
-            <button class="context-btn context-btn-danger" data-action="delete" title="Delete">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6M14 11v6"/>
-                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-                </svg>
-            </button>
-            ` : ''}
-        </div>
-        <div class="context-reactions">
-            ${QUICK_REACTIONS.map(e => `
-                <button class="context-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
-            `).join('')}
-            <button class="context-emoji context-more" data-action="more">＋</button>
-        </div>
+    const deleteBtnHTML = isMine ? `
+        <button class="top-action-btn top-action-danger" data-action="delete" title="Delete">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+            </svg>
+        </button>
+    ` : '';
+
+    bar.innerHTML = `
+        <button class="top-action-close" id="topActionClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+        <div class="top-action-spacer"></div>
+        <button class="top-action-btn" data-action="copy" title="Copy">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+        </button>
+        ${editBtnHTML}
+        ${deleteBtnHTML}
     `;
 
-    document.body.appendChild(toolbarElement);
-
-    // Animate in
-    requestAnimationFrame(() => {
-        toolbarElement.classList.add('visible');
+    document.getElementById('topActionClose').addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearSelection();
+        closeQuickBar();
+        closeTopActions();
     });
 
-    // Handle button clicks
-    toolbarElement.querySelectorAll('.context-btn').forEach(btn => {
+    bar.querySelectorAll('.top-action-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const action = btn.dataset.action;
@@ -744,49 +792,50 @@ function buildTopToolbar() {
         });
     });
 
-    toolbarElement.querySelectorAll('.context-emoji').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (btn.dataset.action === 'more') {
-                openEmojiGridForSelected();
-            } else {
-                toggleReaction(selectedMessageId, btn.dataset.emoji);
-                closeToolbar();
-            }
-        });
-    });
+    bar.style.display = 'flex';
+    requestAnimationFrame(() => bar.classList.add('visible'));
 }
 
-function closeToolbar() {
-    if (toolbarElement) {
-        toolbarElement.classList.remove('visible');
-        const el = toolbarElement;
-        toolbarElement = null;
-        setTimeout(() => el.remove(), 200);
+function closeTopActions() {
+    const bar = document.getElementById('topActionBar');
+    if (bar) {
+        bar.classList.remove('visible');
+        setTimeout(() => {
+            bar.style.display = 'none';
+            bar.innerHTML = '';
+        }, 200);
     }
+}
+
+function setupTopActionsHandlers() {
+    // Nothing special — buildTopActions attaches its own handlers
 }
 
 function setupGlobalDismiss() {
     document.addEventListener('click', (e) => {
         if (!selectedMessageId) return;
-        // Tap inside toolbar — ignore
-        if (toolbarElement && toolbarElement.contains(e.target)) return;
-        // Tap on a pill — handled separately
+        if (quickBarElement && quickBarElement.contains(e.target)) return;
+        const bar = document.getElementById('topActionBar');
+        if (bar && bar.contains(e.target)) return;
         if (e.target.closest('.reaction-pill')) return;
-        // Tap on selected message — ignore
-        if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
+        if (selectedMessageEl && selectedMessageEl.contains(e.target) &&
+            !e.target.closest('.quick-reaction-bar')) {
+            // Tapping the selected message does nothing
+            return;
+        }
 
         clearSelection();
-        closeToolbar();
+        closeQuickBar();
+        closeTopActions();
     }, true);
 
-    // Scroll closes
     const container = document.getElementById('messagesContainer');
     if (container) {
         container.addEventListener('scroll', () => {
             if (selectedMessageId) {
                 clearSelection();
-                closeToolbar();
+                closeQuickBar();
+                closeTopActions();
             }
         }, { passive: true });
     }
@@ -794,7 +843,8 @@ function setupGlobalDismiss() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && selectedMessageId) {
             clearSelection();
-            closeToolbar();
+            closeQuickBar();
+            closeTopActions();
         }
     });
 }
@@ -811,32 +861,23 @@ async function handleCopy() {
 
     try {
         if (isImage) {
-            // Try to copy the image itself
             try {
                 const res = await fetch(msg.image_url);
                 const blob = await res.blob();
 
-                // Only proceed if ClipboardItem is supported
                 if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({ [blob.type]: blob })
-                    ]);
+                    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
                     showToast('Image copied', '📋', 1500);
-                    clearSelection();
-                    closeToolbar();
+                    clearSelection(); closeQuickBar(); closeTopActions();
                     return;
                 }
-            } catch (imgErr) {
-                // Silent — don't fall back to URL, per user's request
-            }
-            // If image copy failed, do nothing
+            } catch (imgErr) {}
             showToast('Copy not supported for images', '⚠️', 1500);
         } else {
             const text = (msg.content || '').trim();
             if (!text) {
                 showToast('Nothing to copy', '⚠️', 1500);
-                clearSelection();
-                closeToolbar();
+                clearSelection(); closeQuickBar(); closeTopActions();
                 return;
             }
             await navigator.clipboard.writeText(text);
@@ -847,8 +888,7 @@ async function handleCopy() {
         showToast('Could not copy', '❌', 1500);
     }
 
-    clearSelection();
-    closeToolbar();
+    clearSelection(); closeQuickBar(); closeTopActions();
 }
 
 function handleEdit() {
@@ -857,8 +897,10 @@ function handleEdit() {
     if (!msg || msg.sender_id !== currentUser.id) return;
     if (msg.image_url) return;
 
-    closeToolbar();
-    showEditModal(msg);
+    closeQuickBar();
+    closeTopActions();
+    const msgId = msg.id;
+    setTimeout(() => showEditModal(msgId), 200);
 }
 
 function handleDelete() {
@@ -866,36 +908,44 @@ function handleDelete() {
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg || msg.sender_id !== currentUser.id) return;
 
-    closeToolbar();
-    showConfirmAlert(
-        'Delete this message?',
-        '🗑️', 'Delete Message',
-        async () => {
-            try {
-                await supabase.from('message_reactions').delete().eq('message_id', msg.id);
-                const { error } = await supabase.from('direct_messages').delete().eq('id', msg.id);
-                if (error) throw error;
+    closeQuickBar();
+    closeTopActions();
+    const msgId = msg.id;
 
-                currentMessages = currentMessages.filter(m => m.id !== msg.id);
-                window.currentMessages = currentMessages;
-                delete messageReactions[msg.id];
+    setTimeout(() => {
+        showConfirmAlert(
+            'Delete this message?',
+            '🗑️', 'Delete Message',
+            async () => {
+                try {
+                    await supabase.from('message_reactions').delete().eq('message_id', msgId);
+                    const { error } = await supabase.from('direct_messages').delete().eq('id', msgId);
+                    if (error) throw error;
 
-                const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"]`);
-                if (wrap) {
-                    wrap.classList.add('removing');
-                    setTimeout(() => wrap.remove(), 200);
+                    currentMessages = currentMessages.filter(m => m.id !== msgId);
+                    window.currentMessages = currentMessages;
+                    delete messageReactions[msgId];
+
+                    const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msgId}"]`);
+                    if (wrap) {
+                        wrap.classList.add('removing');
+                        setTimeout(() => wrap.remove(), 220);
+                    }
+                    clearSelection();
+                    showToast('Message deleted', '✅', 1500);
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    showToast('Could not delete message', '❌', 1500);
                 }
-                clearSelection();
-                showToast('Message deleted', '✅', 1500);
-            } catch (error) {
-                console.error('Delete failed:', error);
-                showToast('Could not delete message', '❌', 1500);
             }
-        }
-    );
+        );
+    }, 200);
 }
 
-function showEditModal(msg) {
+function showEditModal(msgId) {
+    const msg = currentMessages.find(m => m.id === msgId);
+    if (!msg) return;
+
     const modal = document.createElement('div');
     modal.className = 'edit-modal-overlay';
     modal.id = 'editModalOverlay';
@@ -922,7 +972,7 @@ function showEditModal(msg) {
 
     const close = () => {
         modal.classList.remove('visible');
-        setTimeout(() => modal.remove(), 200);
+        setTimeout(() => modal.remove(), 220);
     };
 
     document.getElementById('editModalClose').onclick = close;
@@ -930,27 +980,29 @@ function showEditModal(msg) {
 
     document.getElementById('editModalSave').onclick = async () => {
         const newText = input.value.trim();
-        if (!newText) {
-            showToast('Message cannot be empty', '⚠️', 1500);
-            return;
-        }
-        if (newText === msg.content) {
-            close();
-            return;
-        }
+        if (!newText) { showToast('Message cannot be empty', '⚠️', 1500); return; }
+        if (newText === msg.content) { close(); return; }
 
         try {
+            const editedAt = new Date().toISOString();
             const { error } = await supabase
                 .from('direct_messages')
-                .update({ content: newText, edited_at: new Date().toISOString() })
+                .update({ content: newText, edited_at: editedAt })
                 .eq('id', msg.id);
             if (error) throw error;
 
             msg.content = newText;
-            msg.edited_at = new Date().toISOString();
+            msg.edited_at = editedAt;
 
-            const bubble = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"] .message-content`);
-            if (bubble) bubble.textContent = newText;
+            const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"]`);
+            if (wrap) {
+                const contentEl = wrap.querySelector('.message-content');
+                if (contentEl) contentEl.textContent = newText;
+                const timeEl = wrap.querySelector('.message-time');
+                if (timeEl && !timeEl.querySelector('.edited-mark')) {
+                    timeEl.insertAdjacentHTML('beforeend', '<span class="edited-mark"> (edited)</span>');
+                }
+            }
 
             showToast('Message updated', '✅', 1500);
             close();
@@ -962,17 +1014,13 @@ function showEditModal(msg) {
 }
 
 // ============================================================
-// EMOJI PICKER (for "+" in toolbar)
+// EMOJI PICKER
 // ============================================================
 function openEmojiGridForSelected() {
     if (!selectedMessageId) return;
-
     const messageId = selectedMessageId;
-    closeToolbar();
-    // Keep selection for context, but hide menu
-    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
-    selectedMessageId = null;
-    selectedMessageEl = null;
+
+    closeQuickBar();
 
     const modal = document.createElement('div');
     modal.className = 'emoji-picker-overlay';
@@ -1047,8 +1095,15 @@ function setupRealtime(friendId) {
             const idx = currentMessages.findIndex(m => m.id === updated.id);
             if (idx >= 0) {
                 currentMessages[idx] = { ...currentMessages[idx], ...updated };
-                const bubble = document.querySelector(`.message-wrap[data-wrap-id="${updated.id}"] .message-content`);
-                if (bubble) bubble.textContent = updated.content || '';
+                const wrap = document.querySelector(`.message-wrap[data-wrap-id="${updated.id}"]`);
+                if (wrap) {
+                    const contentEl = wrap.querySelector('.message-content');
+                    if (contentEl && updated.content !== undefined) contentEl.textContent = updated.content || '';
+                    const timeEl = wrap.querySelector('.message-time');
+                    if (timeEl && updated.edited_at && !timeEl.querySelector('.edited-mark')) {
+                        timeEl.insertAdjacentHTML('beforeend', '<span class="edited-mark"> (edited)</span>');
+                    }
+                }
             }
         })
         .on('postgres_changes', {
@@ -1059,7 +1114,7 @@ function setupRealtime(friendId) {
             const wrap = document.querySelector(`.message-wrap[data-wrap-id="${deleted.id}"]`);
             if (wrap) {
                 wrap.classList.add('removing');
-                setTimeout(() => wrap.remove(), 200);
+                setTimeout(() => wrap.remove(), 220);
             }
             currentMessages = currentMessages.filter(m => m.id !== deleted.id);
             window.currentMessages = currentMessages;
@@ -1077,7 +1132,7 @@ function setupRealtime(friendId) {
                 chatFriend.status = payload.new.status;
                 chatFriend.last_seen = payload.new.last_seen || chatFriend.last_seen;
                 window.chatFriend = chatFriend;
-                updateFriendStatus(payload.new.status);
+                updateFriendStatus(payload.new.status, payload.new.last_seen);
 
                 if (payload.new.avatar_url && payload.new.avatar_url !== chatFriend.avatar_url) {
                     chatFriend.avatar_url = payload.new.avatar_url;
@@ -1220,7 +1275,7 @@ function autoResize(textarea) {
 }
 
 // ============================================================
-// NAVIGATION
+// NAV
 // ============================================================
 function goBack() {
     const backBtn = document.querySelector('.back-btn');
@@ -1241,11 +1296,10 @@ function openFriendProfile(friendId) {
 }
 
 // ============================================================
-// USER INFO / MODALS
+// USER INFO MODAL
 // ============================================================
 function showUserInfo() {
     if (!chatFriend) return;
-
     const modal = document.getElementById('userInfoModal');
     const content = document.getElementById('userInfoContent');
     const isOnline = chatFriend.status === 'online';
@@ -1266,21 +1320,20 @@ function showUserInfo() {
             </div>
         </div>
         <div class="user-info-actions">
-            <button class="info-action-btn" onclick="openFriendProfile('${chatFriend.id}')">
-                👤 View Profile
-            </button>
+            <button class="info-action-btn" onclick="openFriendProfile('${chatFriend.id}')">👤 View Profile</button>
             <button class="info-action-btn danger" onclick="blockUserPrompt()">🚫 Block User</button>
         </div>
     `;
 
     modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
 }
 
 function closeModal() {
     const modal = document.getElementById('userInfoModal');
     if (modal) {
-        modal.style.opacity = '0';
-        setTimeout(() => modal.style.display = 'none', 150);
+        modal.classList.remove('visible');
+        setTimeout(() => modal.style.display = 'none', 200);
     }
 }
 
@@ -1337,7 +1390,7 @@ function closeGuide() {
     const modal = document.getElementById('guideModal');
     if (!modal) return;
     modal.classList.remove('visible');
-    setTimeout(() => modal.style.display = 'none', 200);
+    setTimeout(() => modal.style.display = 'none', 220);
 }
 
 // ============================================================
@@ -1352,9 +1405,7 @@ function forceScrollToBottom() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
     container.scrollTop = container.scrollHeight;
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-    }, 50);
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 }
 
 // ============================================================
@@ -1401,7 +1452,7 @@ function reconnectRealtime() {
 }
 
 // ============================================================
-// SOUNDS (cached to avoid repeat fetches)
+// SOUNDS
 // ============================================================
 let sentAudio = null;
 let receivedAudio = null;
@@ -1437,9 +1488,11 @@ function showCustomAlert(message, icon = '❌', title = 'Alert', callback = null
     document.getElementById('alertIcon').textContent = icon;
     document.getElementById('alertMessage').textContent = message;
     modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
 
     document.getElementById('alertConfirm').onclick = () => {
-        modal.style.display = 'none';
+        modal.classList.remove('visible');
+        setTimeout(() => modal.style.display = 'none', 200);
         if (callback) callback();
     };
 }
@@ -1453,16 +1506,19 @@ function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm = 
     const cancelBtn = document.getElementById('alertCancel');
     cancelBtn.style.display = 'flex';
     modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
 
     document.getElementById('alertConfirm').onclick = () => {
-        modal.style.display = 'none';
+        modal.classList.remove('visible');
         cancelBtn.style.display = 'none';
+        setTimeout(() => modal.style.display = 'none', 200);
         if (onConfirm) onConfirm();
     };
 
     cancelBtn.onclick = () => {
-        modal.style.display = 'none';
+        modal.classList.remove('visible');
         cancelBtn.style.display = 'none';
+        setTimeout(() => modal.style.display = 'none', 200);
     };
 }
 
@@ -1474,15 +1530,40 @@ function showToast(message, icon = '✅', duration = 1500) {
     setTimeout(() => toast.style.display = 'none', duration);
 }
 
-function updateFriendStatus(status) {
+// ============================================================
+// STATUS (with last seen)
+// ============================================================
+function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
+
     if (status === 'online') {
         dot.className = 'status-dot';
         text.textContent = 'Online';
     } else {
         dot.className = 'status-dot offline';
-        text.textContent = 'Offline';
+        text.textContent = lastSeen ? `Last seen ${formatLastSeen(lastSeen)}` : 'Offline';
+    }
+}
+
+function formatLastSeen(ts) {
+    try {
+        const now = new Date();
+        const t = new Date(ts);
+        const diffMs = now - t;
+        const sec = Math.floor(diffMs / 1000);
+        const min = Math.floor(sec / 60);
+        const hr = Math.floor(min / 60);
+        const day = Math.floor(hr / 24);
+
+        if (sec < 60) return 'just now';
+        if (min < 60) return `${min}m ago`;
+        if (hr < 24) return `${hr}h ago`;
+        if (day === 1) return 'yesterday';
+        if (day < 7) return `${day}d ago`;
+        return t.toLocaleDateString();
+    } catch {
+        return 'a while ago';
     }
 }
 
