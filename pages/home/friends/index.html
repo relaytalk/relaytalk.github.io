@@ -60,349 +60,141 @@
         frame-src 'none';
     ">
 
-    <link rel="preload" href="friends.css" as="style">
-    <link rel="preload" href="../style.css" as="style">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
-
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="friends.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        /* Connection status */
-        .connection-status {
-            position: fixed;
-            top: 60px;
-            right: 10px;
-            z-index: 1000;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            pointer-events: none;
-            animation: slideIn 0.3s ease;
-        }
-
-        .connection-status.connected {
-            background: rgba(0, 200, 0, 0.2);
-            border-color: rgba(0, 255, 0, 0.3);
-        }
-
-        .connection-status.error {
-            background: rgba(255, 0, 0, 0.2);
-            border-color: rgba(255, 0, 0, 0.3);
-        }
-
-        .status-dot-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .status-dot-indicator.connected {
-            background: #00ff00;
-            box-shadow: 0 0 10px #00ff00;
-        }
-
-        .status-dot-indicator.error {
-            background: #ff0000;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        /* ============================================ */
-        /* NOTIFICATIONS MODAL - TWO TABS               */
-        /* ============================================ */
-        .notif-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 18px;
-            padding: 6px;
-            background: rgba(0, 122, 204, 0.06);
-            border-radius: 14px;
-            border: 1px solid rgba(0, 122, 204, 0.15);
-        }
-
-        .notif-tab {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 16px;
-            background: transparent;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #64748b;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .notif-tab i { font-size: 1rem; }
-
-        .notif-tab:hover {
-            color: #007acc;
-            background: rgba(0, 122, 204, 0.05);
-        }
-
-        .notif-tab.active {
-            background: white;
-            color: #007acc;
-            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.15);
-        }
-
-        .notif-tab-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
-            background: linear-gradient(135deg, #ff6b8b, #ff8e53);
-            color: white;
-            font-size: 0.7rem;
-            font-weight: 700;
-            border-radius: 10px;
-            margin-left: 4px;
-            border: 1.5px solid white;
-        }
-
-        .notif-tab-content { display: none; }
-        .notif-tab-content.active { display: block; animation: fadeIn 0.2s ease; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Call history items */
-        .call-history-date {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #64748b;
-            margin: 16px 0 8px;
-            padding-left: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .call-history-date:first-child { margin-top: 0; }
-
-        .call-history-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px;
-            background: white;
-            border-radius: 14px;
-            margin-bottom: 8px;
-            border: 1px solid rgba(0, 122, 204, 0.12);
-            transition: all 0.15s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .call-history-item::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: #94a3b8;
-        }
-
-        .call-history-item.status-answered::before { background: #22c55e; }
-        .call-history-item.status-missed::before { background: #ef4444; }
-        .call-history-item.status-rejected::before { background: #f59e0b; }
-        .call-history-item.status-cancelled::before { background: #94a3b8; }
-        .call-history-item.status-ringing::before { background: #f59e0b; }
-
-        .call-history-avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #007acc, #00b4d8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            overflow: hidden;
-            color: white;
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-
-        .call-history-avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-        .call-history-info { flex: 1; min-width: 0; }
-
-        .call-history-name {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 3px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .call-history-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.8rem;
-            color: #64748b;
-        }
-
-        .call-history-status {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 5px 10px;
-            border-radius: 20px;
-            flex-shrink: 0;
-        }
-
-        .call-history-status.status-answered { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
-        .call-history-status.status-missed { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
-        .call-history-status.status-rejected { background: rgba(245, 158, 11, 0.12); color: #d97706; }
-        .call-history-status.status-cancelled { background: rgba(148, 163, 184, 0.15); color: #64748b; }
-        .call-history-status.status-ringing { background: rgba(245, 158, 11, 0.12); color: #d97706; }
-    </style>
+    <link rel="stylesheet" href="friends.css">
 </head>
 <body>
-    <div id="connectionStatus" class="connection-status" style="display: none;">
-        <span class="status-dot-indicator"></span>
-        <span class="status-text">Connecting...</span>
-    </div>
+    <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Loading screen with creative animation -->
     <div class="loading-indicator" id="loadingIndicator">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Connecting to server...</div>
-        <div class="loading-subtext">This will just take a moment</div>
+        <div class="loading-visual">
+            <div class="loading-ring ring-1"></div>
+            <div class="loading-ring ring-2"></div>
+            <div class="loading-ring ring-3"></div>
+            <div class="loading-core"></div>
+        </div>
+        <div class="loading-text">Loading<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
     </div>
 
-    <header class="friends-header">
-        <div class="header-content">
-            <div class="header-left">
-                <button class="back-btn" onclick="goToHome()">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <h1 class="header-title">Friends</h1>
+    <!-- Top App Bar (matches home) -->
+    <header class="app-bar">
+        <div class="app-bar-inner">
+            <button class="icon-btn back-btn" onclick="goToHome()" aria-label="Back">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="app-bar-brand">
+                <img src="/relay.png" alt="RelayTalk" class="brand-logo-img">
+                <span class="brand-name">Friends</span>
             </div>
-            <div class="header-actions"></div>
+            <div class="app-bar-actions"></div>
         </div>
     </header>
 
-    <div class="search-container">
-        <div class="search-box">
-            <i class="fas fa-search search-icon"></i>
-            <input type="text"
-                   id="searchInput"
-                   class="search-input"
-                   placeholder="Search friends..."
-                   autocomplete="off"
-                   oninput="searchFriends()">
-            <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">
-                <i class="fas fa-times"></i>
-            </button>
+    <!-- Search bar -->
+    <div class="search-bar-wrap">
+        <div class="search-bar-inner">
+            <div class="search-wrap">
+                <i class="fas fa-search search-svg"></i>
+                <input type="text"
+                       id="searchInput"
+                       class="search-input"
+                       placeholder="Search friends..."
+                       autocomplete="off"
+                       oninput="searchFriends()">
+                <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;" aria-label="Clear">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
     </div>
 
-    <main class="friends-list" id="friendsList"></main>
+    <!-- Main -->
+    <main class="page">
+        <section class="section">
+            <div class="section-head">
+                <h2 class="section-title">All friends</h2>
+            </div>
+            <div class="list" id="friendsList"></div>
+        </section>
+    </main>
 
-    <!-- Bottom Navigation - with Notifications between Home and Friends -->
+    <!-- Bottom Navigation (matches home) -->
     <nav class="bottom-nav">
-        <a href="../../home/index.html" class="nav-item">
+        <a href="#" class="nav-item" onclick="goToHome(); return false;">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
-
-        <a href="#" class="nav-item" onclick="openNotifications(event)">
+        <a href="#" class="nav-item" onclick="openNotifications(event); return false;">
             <i class="fas fa-bell"></i>
-            <span>Notifications</span>
-            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+            <span>Alerts</span>
+            <span class="nav-badge" id="notificationBadge" style="display: none;">0</span>
         </a>
-
         <a href="#" class="nav-item active">
-            <i class="fas fa-users"></i>
+            <i class="fas fa-user-friends"></i>
             <span>Friends</span>
         </a>
-
-        <a href="../profile/index.html" class="nav-item">
+        <a href="profile/index.html" class="nav-item">
             <i class="fas fa-user"></i>
-            <span>Profile</span>
+            <span>You</span>
         </a>
     </nav>
 
-    <!-- Notifications Modal with Two Tabs -->
-    <div class="modal-overlay" id="notificationsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-bell"></i> Notifications</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
-            </div>
-
-            <div class="notif-tabs">
-                <button class="notif-tab active" id="notifTabMain" onclick="switchNotifTab('main')">
-                    <i class="fas fa-bell"></i>
-                    Main
-                    <span class="notif-tab-badge" id="mainTabBadge" style="display: none;">0</span>
-                </button>
-                <button class="notif-tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
-                    <i class="fas fa-phone"></i>
-                    Calls
-                    <span class="notif-tab-badge" id="callsTabBadge" style="display: none;">0</span>
+    <!-- Notifications Modal (identical to home) -->
+    <div class="modal" id="notificationsModal">
+        <div class="modal-panel">
+            <div class="modal-head">
+                <h2 class="modal-title">Notifications</h2>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
+            <div class="modal-body">
+                <div class="tabs" role="tablist">
+                    <button class="tab active" id="notifTabMain" onclick="switchNotifTab('main')">
+                        <i class="fas fa-user-plus tab-icon"></i>
+                        Requests
+                        <span class="tab-badge" id="mainTabBadge" style="display: none;">0</span>
+                    </button>
+                    <button class="tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
+                        <i class="fas fa-comment-dots tab-icon"></i>
+                        Calls
+                        <span class="tab-badge" id="callsTabBadge" style="display: none;">0</span>
+                    </button>
+                </div>
 
-            <div class="notif-tab-content active" id="notifMainContent">
-                <div id="notificationsList"></div>
-            </div>
+                <div class="tab-content active" id="notifMainContent">
+                    <div id="notificationsList"></div>
+                </div>
 
-            <div class="notif-tab-content" id="notifCallsContent">
-                <div id="callHistoryList"></div>
+                <div class="tab-content" id="notifCallsContent">
+                    <div id="callHistoryList"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Friends modal (kept for compat) -->
-    <div class="modal-overlay" id="searchModal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-user-plus" style="color:#007acc;"></i> Add Friends</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+    <!-- Search modal (hidden — kept for JS compat only) -->
+    <div class="modal" id="searchModal" style="display:none;">
+        <div class="modal-panel">
+            <div class="modal-head">
+                <h2 class="modal-title">Find people</h2>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <div class="search-input-container">
-                    <i class="fas fa-search"></i>
-                    <input type="text"
-                           id="userSearchInput"
-                           placeholder="Search by username..."
-                           autocomplete="off"
-                           oninput="searchUsers()">
+                <div class="search-wrap">
+                    <i class="fas fa-search search-svg"></i>
+                    <input type="text" id="userSearchInput" class="search-input" placeholder="Search by username" autocomplete="off" oninput="searchUsers()">
                 </div>
                 <div id="searchResults" class="search-results"></div>
             </div>
         </div>
     </div>
-
-    <div id="toastContainer" class="toast-container"></div>
 
     <audio id="incomingRingtone" loop preload="auto" style="display: none;">
         <source src="../../../assets/ringtones/incoming.mp3" type="audio/mpeg">
@@ -411,31 +203,14 @@
         <source src="../../../assets/ringtones/ringing.mp3" type="audio/mpeg">
     </audio>
 
-    <link rel="modulepreload" href="../../../utils/supabase.js">
-    <link rel="modulepreload" href="friends.js">
-    <script type="module" src="../../../utils/supabase.js"></script>
-    <script type="module" src="friends.js"></script>
-
-    <!-- Global call hub - incoming call banner -->
-    <script type="module" src="/utils/callHub.js"></script>
-
     <script>
         window.goToHome = function() {
             window.location.href = '../../home/index.html';
         };
-
-        window.openChat = function(friendId, friendName) {
-            sessionStorage.setItem('currentChatFriend', JSON.stringify({
-                id: friendId,
-                username: friendName
-            }));
-            window.location.href = `../../chats/index.html?friendId=${friendId}`;
-        };
-
-        window.closeModal = function() {
-            document.getElementById('searchModal').style.display = 'none';
-            document.getElementById('notificationsModal').style.display = 'none';
-        };
     </script>
+
+    <script type="module" src="../../../utils/supabase.js"></script>
+    <script type="module" src="friends.js"></script>
+    <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
