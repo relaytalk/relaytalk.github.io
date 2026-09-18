@@ -110,7 +110,6 @@ let currentProfile = null;
 let currentNotifTab = 'main';
 let friendsRealtimeChannel = null;
 
-// Track seen notification IDs locally to properly clear badges
 const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
 const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
 
@@ -129,7 +128,6 @@ function addSeenIds(key, ids) {
     try {
         const set = getSeenIds(key);
         ids.forEach(id => set.add(id));
-        // Keep only last 200 to avoid unbounded growth
         const arr = Array.from(set).slice(-200);
         localStorage.setItem(key, JSON.stringify(arr));
     } catch (e) {}
@@ -237,7 +235,7 @@ async function initHomePage() {
 }
 
 // ============================================
-// REALTIME FRIENDS LISTENER
+// REALTIME
 // ============================================
 function setupFriendsRealtime() {
     if (!currentUser || !window.supabase) return;
@@ -256,7 +254,7 @@ function setupFriendsRealtime() {
             schema: 'public',
             table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
-        }, (payload) => {
+        }, () => {
             console.log('🟢 Realtime: new friend added!');
             loadFriends();
             toast.info("New Friend!", "Someone just accepted your friend request");
@@ -332,11 +330,12 @@ async function loadUserProfile() {
     }
 }
 
+// Greeting — original structure: small = greeting, title = username
 function updateWelcomeMessage() {
     if (!currentProfile) return;
 
-    const titleEl = document.getElementById('greetingTitle');
-    const subEl = document.getElementById('greetingSub');
+    const nameEl = document.getElementById('welcomeTitle');
+    const smallEl = document.getElementById('greetingSmall');
 
     const hour = new Date().getHours();
     let greeting = 'Hello';
@@ -345,26 +344,21 @@ function updateWelcomeMessage() {
     else if (hour < 21) greeting = 'Good evening';
     else greeting = 'Good night';
 
-    const username = currentProfile.username || 'Friend';
-
-    if (titleEl) titleEl.textContent = `${greeting}, ${username}`;
-    if (subEl) subEl.textContent = 'Welcome back to RelayTalk';
+    if (smallEl) smallEl.textContent = greeting;
+    if (nameEl) nameEl.textContent = currentProfile.username || 'Friend';
 }
 
 // ============================================
-// AVATAR HELPERS (fix broken images gracefully)
+// AVATAR HTML — image OR initial. No layers.
 // ============================================
-function buildAvatarHTML(profile, size = '44') {
+function buildAvatarHTML(profile) {
     const username = (profile && profile.username) ? profile.username : '?';
     const firstLetter = username.charAt(0).toUpperCase();
     const avatarUrl = profile && profile.avatar_url ? profile.avatar_url : '';
 
     if (avatarUrl) {
-        // Use onerror to fall back to initials if image fails to load
-        return `<img src="${escapeAttr(avatarUrl)}" alt="${escapeAttr(username)}"
-                    onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='flex';}"
-                    style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">
-                <span style="display:none;">${escapeHtml(firstLetter)}</span>`;
+        // Only the <img>, nothing behind or in front of it.
+        return `<img src="${escapeAttr(avatarUrl)}" alt="${escapeAttr(username)}">`;
     }
     return `<span>${escapeHtml(firstLetter)}</span>`;
 }
@@ -443,12 +437,6 @@ async function loadFriends() {
         }
 
         container.innerHTML = html;
-
-        const onlineCounter = document.getElementById('onlineCounter');
-        if (onlineCounter) {
-            onlineCounter.innerHTML = `<span class="online-dot"></span>${onlineCount} online`;
-        }
-
     } catch (error) {
         console.error('Load friends error:', error);
         showEmptyFriends();
@@ -461,22 +449,15 @@ function showEmptyFriends() {
     container.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
+                <i class="fas fa-user-friends"></i>
             </div>
             <h3 class="empty-title">No friends yet</h3>
             <p class="empty-desc">Search for friends to start chatting</p>
-            <button class="empty-cta" onclick="openSearch()">Find Friends</button>
+            <button class="empty-cta" onclick="openSearch()">
+                <i class="fas fa-search"></i> Find Friends
+            </button>
         </div>
     `;
-    const onlineCounter = document.getElementById('onlineCounter');
-    if (onlineCounter) {
-        onlineCounter.innerHTML = `<span class="online-dot"></span>0 online`;
-    }
 }
 
 function getTimeAgo(date) {
@@ -513,7 +494,7 @@ async function loadSearchResults() {
 
     try {
         if (!currentUser || !window.supabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><p>Cannot search right now</p></div>`;
+            container.innerHTML = `<div class="empty-state"><p>Cannot search right now</p></div>`;
             return;
         }
 
@@ -524,9 +505,7 @@ async function loadSearchResults() {
             .limit(50);
 
         if (error || !allUsers || allUsers.length === 0) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            </div><p>No other users found</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-users"></i></div><p>No other users found</p></div>`;
             return;
         }
 
@@ -548,7 +527,7 @@ async function loadSearchResults() {
             searchInput.focus();
         }
     } catch (error) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><p>Search failed</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>Search failed</p></div>`;
     }
 }
 
@@ -557,9 +536,7 @@ async function displaySearchResults(users) {
     if (!container) return;
 
     if (!users || users.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </div><p>No users found</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>No users found</p></div>`;
         return;
     }
 
@@ -699,10 +676,10 @@ async function loadNotifications() {
                     </div>
                     <div class="notification-actions">
                         <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${escapeAttr(senderName)}', this)" aria-label="Accept">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            <i class="fas fa-check"></i>
                         </button>
                         <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)" aria-label="Decline">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
@@ -719,10 +696,7 @@ function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
+                <i class="fas fa-bell-slash"></i>
             </div>
             <p class="empty-desc">No notifications yet</p>
         </div>
@@ -730,7 +704,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// CALL HISTORY
+// CALL HISTORY — new professional layout with call-back buttons
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -753,10 +727,7 @@ async function loadCallHistory() {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">
-                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                            <line x1="23" y1="1" x2="17" y2="7"/>
-                        </svg>
+                        <i class="fas fa-phone-slash"></i>
                     </div>
                     <h3 class="empty-title">No calls yet</h3>
                     <p class="empty-desc">Your call history will appear here</p>
@@ -795,23 +766,30 @@ async function loadCallHistory() {
             const otherUserId = isOutgoing ? (call.receiver_id || call.callee_id) : (call.caller_id || call.callee_id);
             const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
 
-            let statusClass = 'status-missed';
-            let statusText = 'Missed';
-            let statusIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6"/></svg>`;
+            // Determine type / status
+            let metaIcon = 'fa-arrow-down';
+            let metaClass = 'meta-incoming';
+            let metaText = 'Incoming';
+            let isMissed = false;
 
-            if (call.status === 'active' || call.status === 'ended') {
-                statusClass = 'status-answered';
-                statusText = 'Answered';
-                statusIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
-            } else if (call.status === 'rejected') {
-                statusClass = 'status-rejected';
-                statusText = 'Rejected';
-            } else if (call.status === 'cancelled') {
-                statusClass = 'status-cancelled';
-                statusText = isOutgoing ? 'Cancelled' : 'Missed';
-            } else if (call.status === 'ringing') {
-                statusClass = 'status-ringing';
-                statusText = isOutgoing ? 'No answer' : 'Missed';
+            if (isOutgoing) {
+                metaIcon = 'fa-arrow-up';
+                metaClass = 'meta-outgoing';
+                metaText = 'Outgoing';
+            }
+
+            if (call.status === 'missed' || call.status === 'cancelled' || call.status === 'rejected') {
+                if (!isOutgoing || call.status === 'rejected') {
+                    metaIcon = 'fa-phone-slash';
+                    metaClass = 'meta-missed';
+                    metaText = 'Missed';
+                    isMissed = true;
+                }
+            } else if (call.status === 'ringing' && !isOutgoing) {
+                metaIcon = 'fa-phone-slash';
+                metaClass = 'meta-missed';
+                metaText = 'Missed';
+                isMissed = true;
             }
 
             const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -822,16 +800,18 @@ async function loadCallHistory() {
                         ${buildAvatarHTML(otherUser)}
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name">${escapeHtml(otherUser.username || 'Unknown')}</div>
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
                         <div class="call-history-meta">
-                            <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
+                            <i class="fas ${metaIcon} ${metaClass}"></i>
+                            <span>${metaText}</span>
                             <span class="dot">•</span>
                             <span>${time}</span>
                         </div>
                     </div>
-                    <div class="call-history-status ${statusClass}">
-                        ${statusIcon}
-                        <span>${statusText}</span>
+                    <div class="call-history-actions">
+                        <button class="call-back-btn" onclick="event.stopPropagation(); callBack('${otherUserId}', '${escapeAttr(otherUser.username || 'Friend')}')" aria-label="Call back" title="Call back">
+                            <i class="fas fa-phone"></i>
+                        </button>
                     </div>
                 </div>
             `;
@@ -839,11 +819,10 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // Mark all these calls as seen, so badge clears
+        // Mark calls as seen
         const seenIds = calls.map(c => String(c.id)).filter(Boolean);
         if (seenIds.length > 0) {
             addSeenIds(SEEN_CALLS_KEY, seenIds);
-            // Optionally persist to server if 'seen' column exists:
             if (currentUser && window.supabase) {
                 try {
                     await window.supabase
@@ -851,9 +830,8 @@ async function loadCallHistory() {
                         .update({ seen: true })
                         .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
                         .eq('seen', false);
-                } catch (e) { /* ignore if column doesn't exist */ }
+                } catch (e) { /* ignore if no seen column */ }
             }
-            // Clear calls badge visually
             const callsBadge = document.getElementById('callsTabBadge');
             if (callsBadge) callsBadge.style.display = 'none';
             await updateCallsTabBadge();
@@ -862,6 +840,17 @@ async function loadCallHistory() {
         console.error('Call history error:', error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
+}
+
+// Call back — routes to your chat page (or dedicated call page if you have one)
+function callBack(userId, username) {
+    if (!userId) return;
+    sessionStorage.setItem('currentChatFriend', JSON.stringify({
+        id: userId,
+        username: username
+    }));
+    // Change this to your real call route if different
+    window.location.href = `../chats/index.html?friendId=${userId}&call=1`;
 }
 
 // ============================================
@@ -887,7 +876,6 @@ window.switchNotifTab = function(tab) {
         callsContent.classList.add('active');
         mainContent.classList.remove('active');
         loadCallHistory().then(() => {
-            // after loading calls (marking them seen), clear badge
             updateCallsTabBadge();
         });
     }
@@ -922,7 +910,6 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             created_at: new Date().toISOString()
         });
 
-        // Track as seen so badge clears immediately
         addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
 
         await loadNotifications();
@@ -932,14 +919,14 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
         toast.success("New Friend!", `You are now connected with ${senderName}!`);
 
         if (button) {
-            button.innerHTML = '✓';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.style.background = 'rgba(40, 167, 69, 0.3)';
         }
     } catch (error) {
         console.error('Accept error:', error);
         toast.error("Connection Failed", "Could not accept friend request");
         if (button) {
-            button.innerHTML = '✓';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.disabled = false;
         }
     }
@@ -967,12 +954,12 @@ async function declineFriendRequest(requestId, button = null) {
         toast.info("Request Declined", "Friend request has been declined");
 
         if (button) {
-            button.innerHTML = '×';
+            button.innerHTML = '<i class="fas fa-times"></i>';
             button.style.background = 'rgba(220, 53, 69, 0.3)';
         }
     } catch (error) {
         if (button) {
-            button.innerHTML = '×';
+            button.innerHTML = '<i class="fas fa-times"></i>';
             button.disabled = false;
         }
     }
@@ -997,7 +984,6 @@ async function updateNotificationsBadge() {
         const seenIds = getSeenIds(SEEN_STORAGE_KEY);
         const unreadCount = (notifications || []).filter(n => !seenIds.has(String(n.id))).length;
 
-        // Update top badge
         const badge = document.getElementById('notificationBadge');
         if (badge) {
             if (unreadCount > 0) {
@@ -1008,7 +994,6 @@ async function updateNotificationsBadge() {
             }
         }
 
-        // Update nav badge
         const navBadge = document.getElementById('navNotificationBadge');
         if (navBadge) {
             if (unreadCount > 0) {
@@ -1019,7 +1004,6 @@ async function updateNotificationsBadge() {
             }
         }
 
-        // Update main tab badge
         const mainTabBadge = document.getElementById('mainTabBadge');
         if (mainTabBadge) {
             if (unreadCount > 0) {
@@ -1062,7 +1046,6 @@ async function updateCallsTabBadge() {
             }
         }
 
-        // Also update top-right notification badge total
         const notifBadge = document.getElementById('notificationBadge');
         if (notifBadge) {
             const { data: fr } = await window.supabase
@@ -1154,12 +1137,10 @@ window.openNotifications = function() {
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
-        // IMPORTANT: mark friend request notifications as seen, clear badge
         markCurrentNotificationsAsSeen();
     }
 };
 
-// Mark currently visible friend request notifications as "seen" so the badge clears
 async function markCurrentNotificationsAsSeen() {
     try {
         if (!currentUser || !window.supabase) return;
@@ -1175,7 +1156,6 @@ async function markCurrentNotificationsAsSeen() {
             addSeenIds(SEEN_STORAGE_KEY, ids);
         }
 
-        // Also mark calls as seen once user opens notifications modal
         const { data: calls } = await window.supabase
             .from('calls')
             .select('id')
@@ -1215,6 +1195,7 @@ window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptFriendRequest = acceptFriendRequest;
 window.declineFriendRequest = declineFriendRequest;
+window.callBack = callBack;
 window.goToHome = goToHome;
 window.openSettings = openSettings;
 window.viewFriendsPage = viewFriendsPage;
