@@ -27,7 +27,7 @@ let longPressTarget = null;
 let selectedMessageId = null;
 let selectedMessageEl = null;
 let quickBarElement = null;
-let ignoreNextClickUntil = 0;
+let longPressJustFired = false;
 
 // Global coordination
 window.colorPickerVisible = false;
@@ -155,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateInputListener();
         setupBackButtonPrevention();
         setupLongPressHandlers();
-        setupGlobalDismiss();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -598,14 +597,17 @@ function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
+    // Touch: long press
     container.addEventListener('touchstart', handlePressStart, { passive: true });
     container.addEventListener('touchend', handlePressEnd);
     container.addEventListener('touchmove', handlePressCancel, { passive: true });
 
+    // Mouse: long press
     container.addEventListener('mousedown', handlePressStart);
     container.addEventListener('mouseup', handlePressEnd);
     container.addEventListener('mouseleave', handlePressCancel);
 
+    // Right-click on desktop
     container.addEventListener('contextmenu', (e) => {
         const wrap = e.target.closest('.message-wrap');
         if (wrap) {
@@ -614,6 +616,7 @@ function setupLongPressHandlers() {
         }
     });
 
+    // Tap on pill = toggle reaction (does NOT close the toolbar)
     container.addEventListener('click', (e) => {
         const pill = e.target.closest('.reaction-pill');
         if (pill) {
@@ -633,8 +636,14 @@ function handlePressStart(e) {
     longPressTarget = wrap;
     longPressTimer = setTimeout(() => {
         if (longPressTarget === wrap) {
+            longPressJustFired = true;
             selectMessage(wrap);
             if (navigator.vibrate) navigator.vibrate(25);
+
+            // Reset the flag shortly after, so that a genuine
+            // follow-up tap can dismiss later — but the synthetic
+            // click right after this long-press is swallowed.
+            setTimeout(() => { longPressJustFired = false; }, 900);
         }
     }, 420);
 }
@@ -650,7 +659,7 @@ function handlePressCancel() {
 }
 
 function selectMessage(wrap) {
-    // If already selected the same message, do nothing
+    // If already selected, do nothing
     if (selectedMessageId === parseInt(wrap.dataset.wrapId)) return;
 
     clearSelection();
@@ -659,9 +668,6 @@ function selectMessage(wrap) {
 
     selectedMessageId = parseInt(wrap.dataset.wrapId);
     selectedMessageEl = wrap;
-
-    // Ignore the synthetic click that follows a long-press touch
-    ignoreNextClickUntil = Date.now() + 400;
 
     wrap.classList.add('selected');
     document.body.classList.add('selection-active');
@@ -678,7 +684,7 @@ function clearSelection() {
 }
 
 // ============================================================
-// QUICK REACTION BAR (anchored to message)
+// QUICK REACTION BAR
 // ============================================================
 function buildQuickBar(wrap) {
     closeQuickBar();
@@ -702,6 +708,7 @@ function buildQuickBar(wrap) {
     quickBarElement.querySelectorAll('.quick-emoji').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
+            e.preventDefault();
             if (btn.dataset.action === 'more') {
                 openEmojiGridForSelected();
             } else {
@@ -775,6 +782,7 @@ function buildTopActions() {
 
     document.getElementById('topActionClose').addEventListener('click', (e) => {
         e.stopPropagation();
+        e.preventDefault();
         clearSelection();
         closeQuickBar();
         closeTopActions();
@@ -783,6 +791,7 @@ function buildTopActions() {
     bar.querySelectorAll('.top-action-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
+            e.preventDefault();
             const action = btn.dataset.action;
             if (action === 'copy') handleCopy();
             else if (action === 'edit') handleEdit();
@@ -806,46 +815,44 @@ function closeTopActions() {
 }
 
 // ============================================================
-// GLOBAL DISMISS — closes on outside click only
+// BACKGROUND TAP → CLOSE
+// This is the ONLY place that closes the toolbar from outside.
+// It explicitly ignores:
+//   - Any tap that happens within 900ms of the long-press
+//   - Any tap inside the toolbar, quick bar, or the selected message
+//   - Any tap on a reaction pill
 // ============================================================
-function setupGlobalDismiss() {
-    document.addEventListener('click', (e) => {
-        if (!selectedMessageId) return;
+document.addEventListener('click', (e) => {
+    if (!selectedMessageId) return;
+    if (longPressJustFired) return;
 
-        // Ignore the synthetic click right after a long-press
-        if (Date.now() < ignoreNextClickUntil) {
-            e.stopPropagation();
-            return;
-        }
+    // Tap inside top action bar
+    const bar = document.getElementById('topActionBar');
+    if (bar && bar.contains(e.target)) return;
 
-        // Clicks inside the top bar → let its own handlers deal with it
-        const bar = document.getElementById('topActionBar');
-        if (bar && bar.contains(e.target)) return;
+    // Tap inside quick reaction bar
+    if (quickBarElement && quickBarElement.contains(e.target)) return;
 
-        // Clicks inside the quick bar → let its own handlers deal
-        if (quickBarElement && quickBarElement.contains(e.target)) return;
+    // Tap on reaction pill
+    if (e.target.closest('.reaction-pill')) return;
 
-        // Clicks on reaction pills → let pill handler deal
-        if (e.target.closest('.reaction-pill')) return;
+    // Tap on the selected message itself
+    if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
 
-        // Clicks on the currently selected message → keep it open
-        if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
+    // Anywhere else → close
+    clearSelection();
+    closeQuickBar();
+    closeTopActions();
+}, true);
 
-        // Anything else → close
+// Escape key closes
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && selectedMessageId) {
         clearSelection();
         closeQuickBar();
         closeTopActions();
-    }, true);
-
-    // Escape key closes
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && selectedMessageId) {
-            clearSelection();
-            closeQuickBar();
-            closeTopActions();
-        }
-    });
-}
+    }
+});
 
 // ============================================================
 // COPY / EDIT / DELETE
