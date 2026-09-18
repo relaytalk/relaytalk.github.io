@@ -1,4 +1,4 @@
-// profile.js - Profile with notifications & details toggle
+// profile.js - Simple Profile with IMGBB Avatar Upload + Notifications + Bio
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 
@@ -8,6 +8,7 @@ let supabase = null;
 let currentUser = null;
 let currentProfile = null;
 let currentShowDetails = true;
+let currentBio = '';
 
 // ============================================================
 // INIT
@@ -56,7 +57,7 @@ async function loadProfile() {
     try {
         const { data: profile, error } = await supabase
             .from('profiles')
-            .select('id, username, avatar_url, status, last_seen, show_message_preview')
+            .select('id, username, avatar_url, status, last_seen, show_message_preview, bio')
             .eq('id', currentUser.id)
             .maybeSingle();
 
@@ -65,17 +66,20 @@ async function loadProfile() {
         currentProfile = profile || {
             id: currentUser.id,
             username: currentUser.email?.split('@')[0] || 'User',
-            show_message_preview: true
+            show_message_preview: true,
+            bio: ''
         };
 
         currentShowDetails = currentProfile.show_message_preview !== false;
 
         renderProfile(currentProfile);
+        renderBio(currentProfile.bio || '');
         setTimeout(() => loadUserStats(), 100);
 
     } catch (error) {
         console.error('Profile load error:', error);
         renderProfile({ username: currentUser.email?.split('@')[0] || 'User' });
+        renderBio('');
     }
 }
 
@@ -121,6 +125,78 @@ async function loadUserStats() {
         document.getElementById('messagesCount').textContent = '0';
     }
 }
+
+// ============================================================
+// BIO
+// ============================================================
+function renderBio(bio) {
+    currentBio = bio || '';
+    const box = document.getElementById('bioBox');
+    if (!box) return;
+
+    if (currentBio.trim()) {
+        box.textContent = currentBio.trim();
+        box.classList.remove('empty');
+    } else {
+        box.innerHTML = '<span class="bio-empty">Tap the pencil to write something about you (max 50 chars)</span>';
+        box.classList.add('empty');
+    }
+}
+
+window.openBioEditor = function() {
+    const modal = document.getElementById('bioEditorModal');
+    const input = document.getElementById('bioInput');
+    const counter = document.getElementById('bioCharCount');
+
+    if (!modal || !input) return;
+
+    input.value = currentBio || '';
+    counter.textContent = input.value.length;
+
+    input.oninput = () => {
+        counter.textContent = input.value.length;
+    };
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
+    setTimeout(() => input.focus(), 100);
+};
+
+window.closeBioEditor = function() {
+    const modal = document.getElementById('bioEditorModal');
+    if (modal) {
+        modal.classList.remove('visible');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+};
+
+window.saveBio = async function() {
+    const input = document.getElementById('bioInput');
+    if (!input) return;
+
+    const newBio = input.value.trim();
+
+    if (newBio.length > 50) {
+        showToast('error', 'Bio must be 50 characters or less');
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ bio: newBio, updated_at: new Date().toISOString() })
+            .eq('id', currentUser.id);
+
+        if (error) throw error;
+
+        renderBio(newBio);
+        closeBioEditor();
+        showToast('success', 'Bio updated!');
+    } catch (error) {
+        console.error('Save bio error:', error);
+        showToast('error', 'Could not save bio');
+    }
+};
 
 // ============================================================
 // AVATAR
@@ -229,10 +305,7 @@ window.enableNotifications = async function() {
     if (!btn) return;
 
     if (Notification.permission === 'granted') {
-        // Re-subscribe silently in case they deleted the SW subscription
-        if (window.relaytalkPush) {
-            await window.relaytalkPush.init();
-        }
+        if (window.relaytalkPush) await window.relaytalkPush.init();
         showToast('success', 'Notifications already enabled');
         return;
     }
@@ -278,7 +351,7 @@ window.resetNotifications = async function() {
     const btn = document.getElementById('resetNotificationsBtn');
     if (!btn) return;
 
-    const ok = confirm('Reset notifications?\n\nThis will unsubscribe this device and create a fresh subscription. Any duplicate/broken ones will be cleaned up.');
+    const ok = confirm('Reset notifications?\n\nThis will unsubscribe this device and create a fresh subscription.');
     if (!ok) return;
 
     btn.disabled = true;
@@ -286,20 +359,13 @@ window.resetNotifications = async function() {
     showToast('info', 'Resetting...');
 
     try {
-        // 1. Unsubscribe from browser push
-        if (window.relaytalkPush) {
-            await window.relaytalkPush.unsubscribe();
-        }
-
-        // 2. Also delete all rows for this user (in case of stale subscriptions)
+        if (window.relaytalkPush) await window.relaytalkPush.unsubscribe();
         if (supabase && currentUser) {
             await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
         }
 
-        // 3. Brief wait so the browser finishes unsubscribing
         await new Promise(r => setTimeout(r, 800));
 
-        // 4. Re-subscribe (permission is already granted, so no new prompt)
         if (window.relaytalkPush) {
             const result = await window.relaytalkPush.request();
             if (result.success) {
@@ -318,13 +384,9 @@ window.resetNotifications = async function() {
     }
 };
 
-// ============================================================
-// NOTIFY BUTTON STATE
-// ============================================================
 function markNotifyEnabled() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
-
     btn.classList.add('enabled');
     btn.querySelector('.notify-label').textContent = 'Enabled';
 }
@@ -350,7 +412,6 @@ function updateNotifyButtonState() {
 // DETAILS TOGGLE
 // ============================================================
 window.toggleDetails = function() {
-    // Show info popup explaining the change
     showDetailsInfo();
 };
 
@@ -360,12 +421,11 @@ function showDetailsInfo() {
     const bodyEl = document.getElementById('detailsInfoBody');
 
     if (isCurrentlyOn) {
-        // Currently ON → will turn OFF
         titleEl.innerHTML = '<i class="fas fa-eye-slash" style="color:#d97706;"></i> Hide Details';
         bodyEl.innerHTML = `
             <p style="margin-bottom:12px;">By turning this <strong>off</strong>, notifications will be less detailed:</p>
             <ul style="padding-left:20px; line-height:1.8;">
-                <li>You'll only see <em>"There Is a New Message On RelayTalk"</em></li>
+                <li>You'll only see <em>"There is a new message on RelayTalk"</em></li>
                 <li><strong>No sender name</strong> will be shown</li>
                 <li><strong>No avatar</strong> will be shown</li>
                 <li><strong>No message content</strong> or images</li>
@@ -373,7 +433,6 @@ function showDetailsInfo() {
             <p style="margin-top:14px;color:#666;font-size:0.9rem;">Useful for privacy when your phone screen is visible to others.</p>
         `;
     } else {
-        // Currently OFF → will turn ON
         titleEl.innerHTML = '<i class="fas fa-eye" style="color:#007acc;"></i> Show Details';
         bodyEl.innerHTML = `
             <p style="margin-bottom:12px;">By turning this <strong>on</strong>, notifications will include:</p>
@@ -387,11 +446,18 @@ function showDetailsInfo() {
         `;
     }
 
-    document.getElementById('detailsInfoModal').style.display = 'flex';
+    const modal = document.getElementById('detailsInfoModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
+    }
 }
 
 window.closeDetailsInfo = function() {
-    document.getElementById('detailsInfoModal').style.display = 'none';
+    const modal = document.getElementById('detailsInfoModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => modal.style.display = 'none', 200);
 };
 
 window.confirmDetailsToggle = async function() {
