@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <meta name="theme-color" content="#007ACC">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>Profile · RelayTalk</title>
+
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.github.io
+        https://github.com
+        https://fonts.googleapis.com
+        https://cdnjs.cloudflare.com;
+
+        script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://kponqaktavkrchebmiwr.supabase.co
+        https://cdn.jsdelivr.net
+        https://fonts.googleapis.com
+        https://i.ibb.co
+        https://cdnjs.cloudflare.com;
+
+        style-src 'self' 'unsafe-inline'
+        https://fonts.googleapis.com
+        https://cdn.jsdelivr.net
+        https://fonts.gstatic.com
+        https://cdnjs.cloudflare.com;
+
+        img-src 'self' data: blob:
+        https://*.ibb.co
+        https://i.ibb.co
+        https://*.imgbb.com
+        https:;
+
+        font-src 'self' data:
+        https://fonts.gstatic.com
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
+        connect-src 'self'
+        https://kponqaktavkrchebmiwr.supabase.co
+        wss://kponqaktavkrchebmiwr.supabase.co
+        https://api.supabase.com
+        https://api.imgbb.com
+        https://*.github.io
+        https://i.ibb.co
+        https://cdn.jsdelivr.net
+        https://cdnjs.cloudflare.com;
+
+        worker-src 'self' blob:;
+        media-src 'self' blob:;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-src 'none';
+    ">
+
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="view.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/relay.png">
+</head>
+<body>
+    <!-- Loading -->
+    <div class="view-loading" id="loadingIndicator">
+        <div class="view-loading-spinner"></div>
+        <p>Loading profile...</p>
+    </div>
+
+    <!-- Not found fallback -->
+    <div class="view-fallback" id="fallbackScreen" style="display: none;">
+        <div class="fallback-card">
+            <div class="fallback-emoji">🔎</div>
+            <h2 class="fallback-title">Account not found</h2>
+            <p class="fallback-message">This account does not exist or may have been removed.</p>
+            <div class="fallback-actions">
+                <a href="../home/index.html" class="fallback-btn primary">Go to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <main class="view-main" id="viewMain" style="display: none;">
+        <!-- Close button -->
+        <button class="view-close" onclick="closeView()" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+
+        <!-- Avatar -->
+        <div class="view-avatar-wrap">
+            <div class="view-avatar" id="viewAvatar">
+                <span class="view-avatar-initial" id="viewAvatarInitial">?</span>
+                <img id="viewAvatarImg" src="" alt="" style="display: none;">
+            </div>
+            <div class="view-status-dot" id="viewStatusDot"></div>
+        </div>
+
+        <!-- Name + username -->
+        <h1 class="view-name" id="viewName">User</h1>
+        <div class="view-username" id="viewUsername">@username</div>
+        <div class="view-status-text" id="viewStatusText">Offline</div>
+
+        <!-- Action buttons -->
+        <div class="view-actions">
+            <button class="view-action-btn view-action-message" onclick="openChat()">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Message</span>
+            </button>
+            <button class="view-action-btn view-action-call" onclick="startCallFromView()">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.574 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <span>Call</span>
+            </button>
+        </div>
+
+        <!-- Biography -->
+        <div class="view-bio-section">
+            <div class="view-bio-label">Biography</div>
+            <div class="view-bio-box" id="viewBioBox">
+                <span class="view-bio-empty">No biography yet.</span>
+            </div>
+        </div>
+
+        <!-- Friends since -->
+        <div class="view-friends-since" id="viewFriendsSince"></div>
+    </main>
+
+    <!-- Toast -->
+    <div class="view-toast" id="viewToast" style="display: none;">
+        <span id="viewToastIcon">✅</span>
+        <span id="viewToastText">Message</span>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="../../../utils/supabase.js"></script>
+    <script type="module" src="view.js"></script>
+    <script type="module" src="/utils/callHub.js"></script>
+</body>
+</html>
