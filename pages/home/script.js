@@ -75,9 +75,6 @@ class ToastNotification {
                 ${message ? `<div class="toast-message">${message}</div>` : ''}
             </div>
             <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-            <div class="toast-progress">
-                <div class="toast-progress-bar"></div>
-            </div>
         `;
 
         this.container.appendChild(toast);
@@ -86,7 +83,6 @@ class ToastNotification {
         if (duration > 0) {
             setTimeout(() => {
                 toast.classList.remove('show');
-                toast.classList.add('hide');
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         }
@@ -113,6 +109,31 @@ let currentUser = null;
 let currentProfile = null;
 let currentNotifTab = 'main';
 let friendsRealtimeChannel = null;
+
+// Track seen notification IDs locally to properly clear badges
+const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
+const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
+
+function getSeenIds(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return new Set();
+        const arr = JSON.parse(raw);
+        return new Set(Array.isArray(arr) ? arr : []);
+    } catch (e) {
+        return new Set();
+    }
+}
+
+function addSeenIds(key, ids) {
+    try {
+        const set = getSeenIds(key);
+        ids.forEach(id => set.add(id));
+        // Keep only last 200 to avoid unbounded growth
+        const arr = Array.from(set).slice(-200);
+        localStorage.setItem(key, JSON.stringify(arr));
+    } catch (e) {}
+}
 
 // ============================================
 // SUPABASE WAIT
@@ -314,8 +335,8 @@ async function loadUserProfile() {
 function updateWelcomeMessage() {
     if (!currentProfile) return;
 
-    const nameEl = document.getElementById('welcomeTitle');
-    const smallEl = document.getElementById('greetingSmall');
+    const titleEl = document.getElementById('greetingTitle');
+    const subEl = document.getElementById('greetingSub');
 
     const hour = new Date().getHours();
     let greeting = 'Hello';
@@ -324,8 +345,42 @@ function updateWelcomeMessage() {
     else if (hour < 21) greeting = 'Good evening';
     else greeting = 'Good night';
 
-    if (smallEl) smallEl.textContent = greeting;
-    if (nameEl) nameEl.textContent = currentProfile.username || 'Friend';
+    const username = currentProfile.username || 'Friend';
+
+    if (titleEl) titleEl.textContent = `${greeting}, ${username}`;
+    if (subEl) subEl.textContent = 'Welcome back to RelayTalk';
+}
+
+// ============================================
+// AVATAR HELPERS (fix broken images gracefully)
+// ============================================
+function buildAvatarHTML(profile, size = '44') {
+    const username = (profile && profile.username) ? profile.username : '?';
+    const firstLetter = username.charAt(0).toUpperCase();
+    const avatarUrl = profile && profile.avatar_url ? profile.avatar_url : '';
+
+    if (avatarUrl) {
+        // Use onerror to fall back to initials if image fails to load
+        return `<img src="${escapeAttr(avatarUrl)}" alt="${escapeAttr(username)}"
+                    onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='flex';}"
+                    style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">
+                <span style="display:none;">${escapeHtml(firstLetter)}</span>`;
+    }
+    return `<span>${escapeHtml(firstLetter)}</span>`;
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) {
+    return escapeHtml(str);
 }
 
 // ============================================
@@ -366,25 +421,18 @@ async function loadFriends() {
                 if (isOnline) onlineCount++;
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
-                const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
 
                 html += `
-                    <div class="friend-card" onclick="openChat('${profile.id}', '${profile.username}')">
+                    <div class="friend-item" onclick="openChat('${profile.id}', '${escapeAttr(profile.username || 'Friend')}')">
                         <div class="friend-avatar">
-                            ${profile.avatar_url
-                                ? `<img src="${profile.avatar_url}" alt="${profile.username}">`
-                                : `<span>${firstLetter}</span>`
-                            }
+                            ${buildAvatarHTML(profile)}
                             <span class="friend-status-dot ${isOnline ? 'online' : 'offline'}"></span>
                         </div>
                         <div class="friend-info">
-                            <div class="friend-name">${profile.username || 'Unknown'}</div>
-                            <div class="friend-status">
+                            <div class="friend-name">${escapeHtml(profile.username || 'Unknown')}</div>
+                            <div class="friend-status ${isOnline ? 'online' : ''}">
                                 ${isOnline ? 'Online' : 'Last seen ' + timeAgo}
                             </div>
-                        </div>
-                        <div class="friend-card-arrow">
-                            <i class="fas fa-chevron-right"></i>
                         </div>
                     </div>
                 `;
@@ -402,6 +450,7 @@ async function loadFriends() {
         }
 
     } catch (error) {
+        console.error('Load friends error:', error);
         showEmptyFriends();
     }
 }
@@ -412,13 +461,16 @@ function showEmptyFriends() {
     container.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">
-                <i class="fas fa-user-friends"></i>
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
             </div>
             <h3 class="empty-title">No friends yet</h3>
             <p class="empty-desc">Search for friends to start chatting</p>
-            <button class="btn-primary empty-cta" onclick="openSearch()">
-                <i class="fas fa-search"></i> Find Friends
-            </button>
+            <button class="empty-cta" onclick="openSearch()">Find Friends</button>
         </div>
     `;
     const onlineCounter = document.getElementById('onlineCounter');
@@ -461,7 +513,7 @@ async function loadSearchResults() {
 
     try {
         if (!currentUser || !window.supabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Cannot search right now</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><p>Cannot search right now</p></div>`;
             return;
         }
 
@@ -472,7 +524,9 @@ async function loadSearchResults() {
             .limit(50);
 
         if (error || !allUsers || allUsers.length === 0) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-users"></i></div><p>No other users found</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div><p>No other users found</p></div>`;
             return;
         }
 
@@ -486,7 +540,7 @@ async function loadSearchResults() {
                     return;
                 }
                 const filtered = allUsers.filter(u =>
-                    u.username.toLowerCase().includes(searchTerm) ||
+                    (u.username || '').toLowerCase().includes(searchTerm) ||
                     (u.full_name && u.full_name.toLowerCase().includes(searchTerm))
                 );
                 await displaySearchResults(filtered);
@@ -494,7 +548,7 @@ async function loadSearchResults() {
             searchInput.focus();
         }
     } catch (error) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Search failed</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><p>Search failed</p></div>`;
     }
 }
 
@@ -503,7 +557,9 @@ async function displaySearchResults(users) {
     if (!container) return;
 
     if (!users || users.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>No users found</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div><p>No users found</p></div>`;
         return;
     }
 
@@ -527,26 +583,22 @@ async function displaySearchResults(users) {
         users.forEach(user => {
             const isFriend = friendIds.includes(user.id);
             const requestSent = pendingIds.includes(user.id);
-            const firstLetter = user.username.charAt(0).toUpperCase();
 
             html += `
                 <div class="search-result">
                     <div class="search-avatar">
-                        ${user.avatar_url
-                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
-                            : `<span>${firstLetter}</span>`
-                        }
+                        ${buildAvatarHTML(user)}
                     </div>
                     <div class="search-info">
-                        <div class="search-name">${user.username}</div>
-                        <div class="search-username">${user.full_name || ''}</div>
+                        <div class="search-name">${escapeHtml(user.username || 'Unknown')}</div>
+                        <div class="search-username">${escapeHtml(user.full_name || '')}</div>
                     </div>
                     ${isFriend ? `
                         <button class="send-request-btn sent" disabled>Friend</button>
                     ` : requestSent ? `
                         <button class="send-request-btn sent" disabled>Sent</button>
                     ` : `
-                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">Add</button>
+                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${escapeAttr(user.username || 'User')}', this)">Add</button>
                     `}
                 </div>
             `;
@@ -633,28 +685,24 @@ async function loadNotifications() {
             const timeAgo = getTimeAgo(notification.created_at);
             const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
-            const firstLetter = senderName.charAt(0).toUpperCase();
 
             html += `
                 <div class="notification-item">
                     <div class="notification-avatar">
-                        ${sender.avatar_url
-                            ? `<img src="${sender.avatar_url}" alt="${senderName}">`
-                            : `<span>${firstLetter}</span>`
-                        }
+                        ${buildAvatarHTML(sender)}
                     </div>
                     <div class="notification-content">
                         <div class="notification-text">
-                            <strong>${senderName}</strong> wants to be friends
+                            <strong>${escapeHtml(senderName)}</strong> wants to be friends
                             <span class="notification-time">${timeAgo}</span>
                         </div>
                     </div>
                     <div class="notification-actions">
-                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)" aria-label="Accept">
-                            <i class="fas fa-check"></i>
+                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${escapeAttr(senderName)}', this)" aria-label="Accept">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>
                         <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)" aria-label="Decline">
-                            <i class="fas fa-times"></i>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                     </div>
                 </div>
@@ -671,7 +719,10 @@ function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">
-                <i class="fas fa-bell-slash"></i>
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
             </div>
             <p class="empty-desc">No notifications yet</p>
         </div>
@@ -687,7 +738,7 @@ async function loadCallHistory() {
 
     try {
         if (!currentUser || !window.supabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-phone-slash"></i></div><p>Cannot load call history</p></div>`;
+            container.innerHTML = `<div class="empty-state"><p>Cannot load call history</p></div>`;
             return;
         }
 
@@ -702,7 +753,10 @@ async function loadCallHistory() {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">
-                        <i class="fas fa-phone-slash"></i>
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            <line x1="23" y1="1" x2="17" y2="7"/>
+                        </svg>
                     </div>
                     <h3 class="empty-title">No calls yet</h3>
                     <p class="empty-desc">Your call history will appear here</p>
@@ -738,53 +792,45 @@ async function loadCallHistory() {
             }
 
             const isOutgoing = call.caller_id === currentUser.id;
-            const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
+            const otherUserId = isOutgoing ? (call.receiver_id || call.callee_id) : (call.caller_id || call.callee_id);
             const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
 
             let statusClass = 'status-missed';
             let statusText = 'Missed';
-            let statusIcon = 'fa-phone-slash';
+            let statusIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6"/></svg>`;
 
             if (call.status === 'active' || call.status === 'ended') {
                 statusClass = 'status-answered';
                 statusText = 'Answered';
-                statusIcon = 'fa-phone';
+                statusIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
             } else if (call.status === 'rejected') {
                 statusClass = 'status-rejected';
                 statusText = 'Rejected';
-                statusIcon = 'fa-phone-slash';
             } else if (call.status === 'cancelled') {
                 statusClass = 'status-cancelled';
                 statusText = isOutgoing ? 'Cancelled' : 'Missed';
-                statusIcon = 'fa-phone-slash';
             } else if (call.status === 'ringing') {
                 statusClass = 'status-ringing';
                 statusText = isOutgoing ? 'No answer' : 'Missed';
-                statusIcon = 'fa-phone-slash';
             }
 
             const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
 
             html += `
-                <div class="call-history-item ${statusClass}">
+                <div class="call-history-item">
                     <div class="call-history-avatar">
-                        ${otherUser.avatar_url
-                            ? `<img src="${otherUser.avatar_url}" alt="${otherUser.username}">`
-                            : `<span>${initial}</span>`
-                        }
+                        ${buildAvatarHTML(otherUser)}
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name">${otherUser.username}</div>
+                        <div class="call-history-name">${escapeHtml(otherUser.username || 'Unknown')}</div>
                         <div class="call-history-meta">
-                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
                             <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
                             <span class="dot">•</span>
                             <span>${time}</span>
                         </div>
                     </div>
                     <div class="call-history-status ${statusClass}">
-                        <i class="fas ${statusIcon}"></i>
+                        ${statusIcon}
                         <span>${statusText}</span>
                     </div>
                 </div>
@@ -792,8 +838,29 @@ async function loadCallHistory() {
         });
 
         container.innerHTML = html;
+
+        // Mark all these calls as seen, so badge clears
+        const seenIds = calls.map(c => String(c.id)).filter(Boolean);
+        if (seenIds.length > 0) {
+            addSeenIds(SEEN_CALLS_KEY, seenIds);
+            // Optionally persist to server if 'seen' column exists:
+            if (currentUser && window.supabase) {
+                try {
+                    await window.supabase
+                        .from('calls')
+                        .update({ seen: true })
+                        .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+                        .eq('seen', false);
+                } catch (e) { /* ignore if column doesn't exist */ }
+            }
+            // Clear calls badge visually
+            const callsBadge = document.getElementById('callsTabBadge');
+            if (callsBadge) callsBadge.style.display = 'none';
+            await updateCallsTabBadge();
+        }
     } catch (error) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Could not load call history</p></div>`;
+        console.error('Call history error:', error);
+        container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
 }
 
@@ -819,8 +886,10 @@ window.switchNotifTab = function(tab) {
         mainTab.classList.remove('active');
         callsContent.classList.add('active');
         mainContent.classList.remove('active');
-        loadCallHistory();
-        updateCallsTabBadge();
+        loadCallHistory().then(() => {
+            // after loading calls (marking them seen), clear badge
+            updateCallsTabBadge();
+        });
     }
 };
 
@@ -853,6 +922,9 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             created_at: new Date().toISOString()
         });
 
+        // Track as seen so badge clears immediately
+        addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
         await loadNotifications();
         await loadFriends();
         await updateNotificationsBadge();
@@ -860,13 +932,14 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
         toast.success("New Friend!", `You are now connected with ${senderName}!`);
 
         if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.innerHTML = '✓';
             button.style.background = 'rgba(40, 167, 69, 0.3)';
         }
     } catch (error) {
+        console.error('Accept error:', error);
         toast.error("Connection Failed", "Could not accept friend request");
         if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.innerHTML = '✓';
             button.disabled = false;
         }
     }
@@ -886,18 +959,20 @@ async function declineFriendRequest(requestId, button = null) {
 
         if (error) throw error;
 
+        addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
         await loadNotifications();
         await updateNotificationsBadge();
 
         toast.info("Request Declined", "Friend request has been declined");
 
         if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
+            button.innerHTML = '×';
             button.style.background = 'rgba(220, 53, 69, 0.3)';
         }
     } catch (error) {
         if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
+            button.innerHTML = '×';
             button.disabled = false;
         }
     }
@@ -919,9 +994,32 @@ async function updateNotificationsBadge() {
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
-        const unreadCount = notifications?.length || 0;
-        updateBadgeDisplay(unreadCount);
+        const seenIds = getSeenIds(SEEN_STORAGE_KEY);
+        const unreadCount = (notifications || []).filter(n => !seenIds.has(String(n.id))).length;
 
+        // Update top badge
+        const badge = document.getElementById('notificationBadge');
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Update nav badge
+        const navBadge = document.getElementById('navNotificationBadge');
+        if (navBadge) {
+            if (unreadCount > 0) {
+                navBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                navBadge.style.display = 'flex';
+            } else {
+                navBadge.style.display = 'none';
+            }
+        }
+
+        // Update main tab badge
         const mainTabBadge = document.getElementById('mainTabBadge');
         if (mainTabBadge) {
             if (unreadCount > 0) {
@@ -940,23 +1038,31 @@ async function updateCallsTabBadge() {
     try {
         if (!currentUser || !window.supabase) return;
 
-        const { count } = await window.supabase
+        const { data: calls } = await window.supabase
             .from('calls')
-            .select('*', { count: 'exact', head: true })
+            .select('id, status, seen')
             .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
-            .eq('seen', false)
-            .in('status', ['missed', 'rejected']);
+            .in('status', ['missed', 'rejected'])
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const seenIds = getSeenIds(SEEN_CALLS_KEY);
+        const unseenCount = (calls || []).filter(c => {
+            if (c.seen === true) return false;
+            return !seenIds.has(String(c.id));
+        }).length;
 
         const badge = document.getElementById('callsTabBadge');
         if (badge) {
-            if (count && count > 0) {
-                badge.textContent = count > 9 ? '9+' : String(count);
+            if (unseenCount > 0) {
+                badge.textContent = unseenCount > 9 ? '9+' : String(unseenCount);
                 badge.style.display = 'inline-flex';
             } else {
                 badge.style.display = 'none';
             }
         }
 
+        // Also update top-right notification badge total
         const notifBadge = document.getElementById('notificationBadge');
         if (notifBadge) {
             const { data: fr } = await window.supabase
@@ -965,29 +1071,27 @@ async function updateCallsTabBadge() {
                 .eq('receiver_id', currentUser.id)
                 .eq('status', 'pending');
 
-            const total = (fr?.length || 0) + (count || 0);
+            const seenFR = getSeenIds(SEEN_STORAGE_KEY);
+            const frUnread = (fr || []).filter(r => !seenFR.has(String(r.id))).length;
+            const total = frUnread + unseenCount;
+
             if (total > 0) {
                 notifBadge.textContent = total > 9 ? '9+' : total;
-                notifBadge.style.display = 'block';
+                notifBadge.style.display = 'flex';
             } else {
                 notifBadge.style.display = 'none';
             }
         }
-    } catch (e) {}
-}
-
-function updateBadgeDisplay(count) {
-    const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
-    if (count > 0) {
-        badge.textContent = count > 9 ? '9+' : count;
-        badge.style.display = 'block';
+    } catch (e) {
+        console.warn('updateCallsTabBadge error:', e);
     }
 }
 
 function hideNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
     if (badge) badge.style.display = 'none';
+    const navBadge = document.getElementById('navNotificationBadge');
+    if (navBadge) navBadge.style.display = 'none';
 }
 
 // ============================================
@@ -1050,9 +1154,52 @@ window.openNotifications = function() {
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
-        updateCallsTabBadge();
+        // IMPORTANT: mark friend request notifications as seen, clear badge
+        markCurrentNotificationsAsSeen();
     }
 };
+
+// Mark currently visible friend request notifications as "seen" so the badge clears
+async function markCurrentNotificationsAsSeen() {
+    try {
+        if (!currentUser || !window.supabase) return;
+
+        const { data: notifications } = await window.supabase
+            .from('friend_requests')
+            .select('id')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+
+        if (notifications && notifications.length > 0) {
+            const ids = notifications.map(n => String(n.id));
+            addSeenIds(SEEN_STORAGE_KEY, ids);
+        }
+
+        // Also mark calls as seen once user opens notifications modal
+        const { data: calls } = await window.supabase
+            .from('calls')
+            .select('id')
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .in('status', ['missed', 'rejected']);
+
+        if (calls && calls.length > 0) {
+            const callIds = calls.map(c => String(c.id));
+            addSeenIds(SEEN_CALLS_KEY, callIds);
+            try {
+                await window.supabase
+                    .from('calls')
+                    .update({ seen: true })
+                    .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+                    .in('status', ['missed', 'rejected']);
+            } catch (e) { /* ignore */ }
+        }
+
+        await updateNotificationsBadge();
+        await updateCallsTabBadge();
+    } catch (e) {
+        console.warn('markCurrentNotificationsAsSeen error:', e);
+    }
+}
 
 window.closeModal = function() {
     const searchModal = document.getElementById('searchModal');
