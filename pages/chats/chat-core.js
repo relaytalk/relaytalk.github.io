@@ -19,14 +19,14 @@ let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
 
-// Reactions state: { messageId: [ {user_id, emoji}, ... ] }
 let messageReactions = {};
 
-// Long-press state
+// Long-press / selection state
 let longPressTimer = null;
 let longPressTarget = null;
-let activePickerMessageId = null;
-let activePickerEl = null;
+let selectedMessageId = null;
+let selectedMessageEl = null;
+let toolbarElement = null;
 
 // Global coordination
 window.colorPickerVisible = false;
@@ -63,6 +63,9 @@ window.sendTypingStatus = sendTypingStatus;
 window.showLoading = showLoading;
 window.refreshChat = refreshChat;
 window.reconnectRealtime = reconnectRealtime;
+window.openGuide = openGuide;
+window.closeGuide = closeGuide;
+window.openFriendProfile = openFriendProfile;
 
 window.getCurrentUser = () => currentUser;
 window.getChatFriend = () => chatFriend;
@@ -140,6 +143,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chatUserName').textContent = friend.username;
         updateFriendStatus(friend.status);
 
+        // Clickable header → friend profile
+        const clickableHeader = document.getElementById('chatHeaderProfile');
+        if (clickableHeader) {
+            clickableHeader.addEventListener('click', () => openFriendProfile(friend.id));
+        }
+
         await loadOldMessages(friendId);
         setupRealtime(friendId);
         setupTypingListener();
@@ -148,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateInputListener();
         setupBackButtonPrevention();
         setupLongPressHandlers();
-        setupPickerDismiss();
+        setupGlobalDismiss();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -209,9 +218,7 @@ function setupTypingIndicator() {
         indicator.id = 'typingIndicator';
         indicator.className = 'typing-indicator';
         indicator.innerHTML = `
-            <div class="typing-dots">
-                <div></div><div></div><div></div>
-            </div>
+            <div class="typing-dots"><div></div><div></div><div></div></div>
             <span id="typingText">${chatFriend?.username || 'Friend'} is typing...</span>
         `;
         indicator.style.display = 'none';
@@ -292,17 +299,12 @@ async function sendMessage() {
         playSentSound();
         input.value = '';
         autoResize(input);
-        // 🔥 Keep focus — do NOT blur/focus cycle
         input.focus({ preventScroll: true });
 
         isTyping = false;
         window.isTyping = false;
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-            typingTimeout = null;
-        }
+        if (typingTimeout) { clearTimeout(typingTimeout); typingTimeout = null; }
         sendTypingStatus(false);
-
     } catch (error) {
         console.error('Send failed:', error);
         showToast('Failed to send message', '❌', 2000);
@@ -333,7 +335,6 @@ async function loadOldMessages(friendId) {
         currentMessages = messages || [];
         window.currentMessages = currentMessages;
 
-        // Load reactions for these messages
         await loadReactionsForMessages(currentMessages.map(m => m.id));
 
         showMessages(currentMessages);
@@ -391,9 +392,7 @@ function showMessages(messages) {
 
     messages.forEach(msg => {
         const isSent = msg.sender_id === currentUser.id;
-        const time = new Date(msg.created_at).toLocaleTimeString([], {
-            hour: '2-digit', minute: '2-digit'
-        });
+        const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const date = new Date(msg.created_at).toLocaleDateString();
 
         if (date !== lastDate) {
@@ -425,7 +424,7 @@ function showMessages(messages) {
             `;
         }
 
-        html += `<div class="message-wrap" data-wrap-id="${msg.id}">${messageHTML}${renderReactionPills(msg.id)}</div>`;
+        html += `<div class="message-wrap ${isSent ? 'sent' : 'received'}" data-wrap-id="${msg.id}">${messageHTML}${renderReactionPills(msg.id)}</div>`;
     });
 
     container.innerHTML = html;
@@ -443,9 +442,7 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 
     const isSent = message.sender_id === currentUser.id;
-    const time = new Date(message.created_at).toLocaleTimeString([], {
-        hour: '2-digit', minute: '2-digit'
-    });
+    const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const color = message.color || null;
     const colorAttr = color ? `data-color="${color}"` : '';
@@ -475,7 +472,7 @@ function addMessageToUI(message, isFromRealtime = false) {
     if (typingIndicator) typingIndicator.remove();
 
     const wrap = document.createElement('div');
-    wrap.className = 'message-wrap';
+    wrap.className = `message-wrap ${isSent ? 'sent' : 'received'}`;
     wrap.dataset.wrapId = message.id;
     wrap.innerHTML = messageHTML + renderReactionPills(message.id);
     container.appendChild(wrap);
@@ -492,7 +489,7 @@ function addMessageToUI(message, isFromRealtime = false) {
         bubble.style.opacity = '0';
         bubble.style.transform = 'translateY(10px)';
         setTimeout(() => {
-            bubble.style.transition = 'all 0.15s ease';
+            bubble.style.transition = 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
             bubble.style.opacity = '1';
             bubble.style.transform = 'translateY(0)';
         }, 10);
@@ -517,13 +514,12 @@ function escapeHtml(text) {
 }
 
 // ============================================================
-// REACTIONS — RENDERING
+// REACTION PILLS
 // ============================================================
 function renderReactionPills(messageId) {
     const reactions = messageReactions[messageId] || [];
     if (reactions.length === 0) return '';
 
-    // Aggregate by emoji
     const grouped = {};
     reactions.forEach(r => {
         grouped[r.emoji] = (grouped[r.emoji] || 0) + 1;
@@ -563,43 +559,33 @@ function updateReactionPills(messageId) {
 }
 
 // ============================================================
-// REACTIONS — SAVE / TOGGLE
+// TOGGLE REACTION
 // ============================================================
 async function toggleReaction(messageId, emoji) {
     try {
         const existing = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id);
 
         if (existing && existing.emoji === emoji) {
-            // Remove
             const { error } = await supabase
                 .from('message_reactions')
                 .delete()
                 .eq('message_id', messageId)
                 .eq('user_id', currentUser.id);
             if (error) throw error;
-
             messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== currentUser.id);
         } else if (existing) {
-            // Update to new emoji
             const { error } = await supabase
                 .from('message_reactions')
                 .update({ emoji, updated_at: new Date().toISOString() })
                 .eq('message_id', messageId)
                 .eq('user_id', currentUser.id);
             if (error) throw error;
-
             existing.emoji = emoji;
         } else {
-            // Insert new
             const { error } = await supabase
                 .from('message_reactions')
-                .insert({
-                    message_id: messageId,
-                    user_id: currentUser.id,
-                    emoji
-                });
+                .insert({ message_id: messageId, user_id: currentUser.id, emoji });
             if (error) throw error;
-
             if (!messageReactions[messageId]) messageReactions[messageId] = [];
             messageReactions[messageId].push({ user_id: currentUser.id, emoji });
         }
@@ -612,32 +598,29 @@ async function toggleReaction(messageId, emoji) {
 }
 
 // ============================================================
-// REACTIONS — LONG PRESS + PICKER
+// LONG PRESS + SELECTION + TOOLBAR
 // ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
-    // Touch (mobile)
     container.addEventListener('touchstart', handlePressStart, { passive: true });
     container.addEventListener('touchend', handlePressEnd);
     container.addEventListener('touchmove', handlePressCancel, { passive: true });
 
-    // Mouse (desktop)
     container.addEventListener('mousedown', handlePressStart);
     container.addEventListener('mouseup', handlePressEnd);
     container.addEventListener('mouseleave', handlePressCancel);
 
-    // Right-click on desktop also triggers
     container.addEventListener('contextmenu', (e) => {
         const wrap = e.target.closest('.message-wrap');
         if (wrap) {
             e.preventDefault();
-            showReactionPicker(wrap);
+            selectMessage(wrap);
         }
     });
 
-    // Tap on existing pill to toggle
+    // Tap on pill = toggle
     container.addEventListener('click', (e) => {
         const pill = e.target.closest('.reaction-pill');
         if (pill) {
@@ -652,79 +635,344 @@ function handlePressStart(e) {
     const wrap = e.target.closest('.message-wrap');
     if (!wrap) return;
 
+    // Don't interfere if user tapped a pill or interactive element inside image
+    if (e.target.closest('.reaction-pill')) return;
+
     longPressTarget = wrap;
     longPressTimer = setTimeout(() => {
         if (longPressTarget === wrap) {
-            showReactionPicker(wrap);
-            if (navigator.vibrate) navigator.vibrate(30);
+            selectMessage(wrap);
+            if (navigator.vibrate) navigator.vibrate(25);
         }
-    }, 500);
+    }, 420);
 }
 
 function handlePressEnd() {
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-    }
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     longPressTarget = null;
 }
 
 function handlePressCancel() {
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-    }
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     longPressTarget = null;
 }
 
-function showReactionPicker(wrap) {
-    closeReactionPicker();
+function selectMessage(wrap) {
+    clearSelection();
+    closeToolbar();
 
-    const messageId = parseInt(wrap.dataset.wrapId);
-    if (!messageId) return;
+    selectedMessageId = parseInt(wrap.dataset.wrapId);
+    selectedMessageEl = wrap;
 
-    activePickerMessageId = messageId;
-    activePickerEl = wrap;
+    wrap.classList.add('selected');
 
-    const myEmoji = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+    buildTopToolbar();
+}
 
-    const picker = document.createElement('div');
-    picker.className = 'quick-reaction-bar';
-    picker.id = 'quickReactionBar';
-    picker.innerHTML = `
-        ${QUICK_REACTIONS.map(emoji => `
-            <button class="quick-emoji ${myEmoji === emoji ? 'selected' : ''}" data-emoji="${emoji}">${emoji}</button>
-        `).join('')}
-        <button class="quick-emoji quick-more" data-action="more">＋</button>
+function clearSelection() {
+    if (selectedMessageEl) {
+        selectedMessageEl.classList.remove('selected');
+    }
+    selectedMessageId = null;
+    selectedMessageEl = null;
+}
+
+function buildTopToolbar() {
+    const msg = currentMessages.find(m => m.id === selectedMessageId);
+    if (!msg) return;
+
+    const isMine = msg.sender_id === currentUser.id;
+    const isImage = !!msg.image_url;
+    const isText = !isImage && (msg.content || '').trim().length > 0;
+
+    const myEmoji = (messageReactions[selectedMessageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
+
+    toolbarElement = document.createElement('div');
+    toolbarElement.className = 'message-context-menu';
+    toolbarElement.id = 'messageContextMenu';
+
+    toolbarElement.innerHTML = `
+        <div class="context-toolbar">
+            <button class="context-btn" data-action="copy" title="Copy">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+            </button>
+            ${isMine && isText ? `
+            <button class="context-btn" data-action="edit" title="Edit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+            </button>
+            ` : ''}
+            ${isMine ? `
+            <button class="context-btn context-btn-danger" data-action="delete" title="Delete">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                </svg>
+            </button>
+            ` : ''}
+        </div>
+        <div class="context-reactions">
+            ${QUICK_REACTIONS.map(e => `
+                <button class="context-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
+            `).join('')}
+            <button class="context-emoji context-more" data-action="more">＋</button>
+        </div>
     `;
 
-    // Position: above the message bubble
-    wrap.style.position = 'relative';
-    wrap.appendChild(picker);
+    document.body.appendChild(toolbarElement);
 
-    // Handle taps
-    picker.querySelectorAll('.quick-emoji').forEach(btn => {
+    // Animate in
+    requestAnimationFrame(() => {
+        toolbarElement.classList.add('visible');
+    });
+
+    // Handle button clicks
+    toolbarElement.querySelectorAll('.context-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            if (action === 'copy') handleCopy();
+            else if (action === 'edit') handleEdit();
+            else if (action === 'delete') handleDelete();
+        });
+    });
+
+    toolbarElement.querySelectorAll('.context-emoji').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (btn.dataset.action === 'more') {
-                showEmojiGrid(messageId);
+                openEmojiGridForSelected();
             } else {
-                toggleReaction(messageId, btn.dataset.emoji);
-                closeReactionPicker();
+                toggleReaction(selectedMessageId, btn.dataset.emoji);
+                closeToolbar();
             }
         });
     });
 }
 
-function closeReactionPicker() {
-    const bar = document.getElementById('quickReactionBar');
-    if (bar) bar.remove();
-    activePickerMessageId = null;
-    activePickerEl = null;
+function closeToolbar() {
+    if (toolbarElement) {
+        toolbarElement.classList.remove('visible');
+        const el = toolbarElement;
+        toolbarElement = null;
+        setTimeout(() => el.remove(), 200);
+    }
 }
 
-function showEmojiGrid(messageId) {
-    closeReactionPicker();
+function setupGlobalDismiss() {
+    document.addEventListener('click', (e) => {
+        if (!selectedMessageId) return;
+        // Tap inside toolbar — ignore
+        if (toolbarElement && toolbarElement.contains(e.target)) return;
+        // Tap on a pill — handled separately
+        if (e.target.closest('.reaction-pill')) return;
+        // Tap on selected message — ignore
+        if (selectedMessageEl && selectedMessageEl.contains(e.target)) return;
+
+        clearSelection();
+        closeToolbar();
+    }, true);
+
+    // Scroll closes
+    const container = document.getElementById('messagesContainer');
+    if (container) {
+        container.addEventListener('scroll', () => {
+            if (selectedMessageId) {
+                clearSelection();
+                closeToolbar();
+            }
+        }, { passive: true });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && selectedMessageId) {
+            clearSelection();
+            closeToolbar();
+        }
+    });
+}
+
+// ============================================================
+// COPY / EDIT / DELETE
+// ============================================================
+async function handleCopy() {
+    if (!selectedMessageId) return;
+    const msg = currentMessages.find(m => m.id === selectedMessageId);
+    if (!msg) return;
+
+    const isImage = !!msg.image_url;
+
+    try {
+        if (isImage) {
+            // Try to copy the image itself
+            try {
+                const res = await fetch(msg.image_url);
+                const blob = await res.blob();
+
+                // Only proceed if ClipboardItem is supported
+                if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ [blob.type]: blob })
+                    ]);
+                    showToast('Image copied', '📋', 1500);
+                    clearSelection();
+                    closeToolbar();
+                    return;
+                }
+            } catch (imgErr) {
+                // Silent — don't fall back to URL, per user's request
+            }
+            // If image copy failed, do nothing
+            showToast('Copy not supported for images', '⚠️', 1500);
+        } else {
+            const text = (msg.content || '').trim();
+            if (!text) {
+                showToast('Nothing to copy', '⚠️', 1500);
+                clearSelection();
+                closeToolbar();
+                return;
+            }
+            await navigator.clipboard.writeText(text);
+            showToast('Copied to clipboard', '📋', 1500);
+        }
+    } catch (e) {
+        console.error('Copy failed:', e);
+        showToast('Could not copy', '❌', 1500);
+    }
+
+    clearSelection();
+    closeToolbar();
+}
+
+function handleEdit() {
+    if (!selectedMessageId) return;
+    const msg = currentMessages.find(m => m.id === selectedMessageId);
+    if (!msg || msg.sender_id !== currentUser.id) return;
+    if (msg.image_url) return;
+
+    closeToolbar();
+    showEditModal(msg);
+}
+
+function handleDelete() {
+    if (!selectedMessageId) return;
+    const msg = currentMessages.find(m => m.id === selectedMessageId);
+    if (!msg || msg.sender_id !== currentUser.id) return;
+
+    closeToolbar();
+    showConfirmAlert(
+        'Delete this message?',
+        '🗑️', 'Delete Message',
+        async () => {
+            try {
+                await supabase.from('message_reactions').delete().eq('message_id', msg.id);
+                const { error } = await supabase.from('direct_messages').delete().eq('id', msg.id);
+                if (error) throw error;
+
+                currentMessages = currentMessages.filter(m => m.id !== msg.id);
+                window.currentMessages = currentMessages;
+                delete messageReactions[msg.id];
+
+                const wrap = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"]`);
+                if (wrap) {
+                    wrap.classList.add('removing');
+                    setTimeout(() => wrap.remove(), 200);
+                }
+                clearSelection();
+                showToast('Message deleted', '✅', 1500);
+            } catch (error) {
+                console.error('Delete failed:', error);
+                showToast('Could not delete message', '❌', 1500);
+            }
+        }
+    );
+}
+
+function showEditModal(msg) {
+    const modal = document.createElement('div');
+    modal.className = 'edit-modal-overlay';
+    modal.id = 'editModalOverlay';
+    modal.innerHTML = `
+        <div class="edit-modal-panel">
+            <div class="edit-modal-header">
+                <h3>Edit message</h3>
+                <button class="edit-modal-close" id="editModalClose">×</button>
+            </div>
+            <textarea class="edit-modal-input" id="editModalInput" rows="4">${escapeHtml(msg.content || '')}</textarea>
+            <div class="edit-modal-actions">
+                <button class="btn-secondary" id="editModalCancel">Cancel</button>
+                <button class="btn-primary" id="editModalSave">Save</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('visible'));
+
+    const input = document.getElementById('editModalInput');
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+
+    const close = () => {
+        modal.classList.remove('visible');
+        setTimeout(() => modal.remove(), 200);
+    };
+
+    document.getElementById('editModalClose').onclick = close;
+    document.getElementById('editModalCancel').onclick = close;
+
+    document.getElementById('editModalSave').onclick = async () => {
+        const newText = input.value.trim();
+        if (!newText) {
+            showToast('Message cannot be empty', '⚠️', 1500);
+            return;
+        }
+        if (newText === msg.content) {
+            close();
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('direct_messages')
+                .update({ content: newText, edited_at: new Date().toISOString() })
+                .eq('id', msg.id);
+            if (error) throw error;
+
+            msg.content = newText;
+            msg.edited_at = new Date().toISOString();
+
+            const bubble = document.querySelector(`.message-wrap[data-wrap-id="${msg.id}"] .message-content`);
+            if (bubble) bubble.textContent = newText;
+
+            showToast('Message updated', '✅', 1500);
+            close();
+        } catch (error) {
+            console.error('Edit failed:', error);
+            showToast('Could not edit message', '❌', 1500);
+        }
+    };
+}
+
+// ============================================================
+// EMOJI PICKER (for "+" in toolbar)
+// ============================================================
+function openEmojiGridForSelected() {
+    if (!selectedMessageId) return;
+
+    const messageId = selectedMessageId;
+    closeToolbar();
+    // Keep selection for context, but hide menu
+    if (selectedMessageEl) selectedMessageEl.classList.remove('selected');
+    selectedMessageId = null;
+    selectedMessageEl = null;
 
     const modal = document.createElement('div');
     modal.className = 'emoji-picker-overlay';
@@ -742,49 +990,25 @@ function showEmojiGrid(messageId) {
     `;
 
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('visible'));
 
-    setTimeout(() => modal.classList.add('visible'), 10);
-
-    modal.querySelector('.emoji-picker-close').onclick = () => {
+    const close = () => {
         modal.classList.remove('visible');
-        setTimeout(() => modal.remove(), 200);
+        setTimeout(() => modal.remove(), 220);
     };
+
+    modal.querySelector('.emoji-picker-close').onclick = close;
 
     modal.querySelectorAll('.emoji-cell').forEach(btn => {
         btn.addEventListener('click', () => {
             toggleReaction(messageId, btn.dataset.emoji);
-            modal.classList.remove('visible');
-            setTimeout(() => modal.remove(), 200);
+            close();
         });
     });
 
-    // Tap outside to close
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('visible');
-            setTimeout(() => modal.remove(), 200);
-        }
+        if (e.target === modal) close();
     });
-}
-
-function setupPickerDismiss() {
-    document.addEventListener('click', (e) => {
-        const bar = document.getElementById('quickReactionBar');
-        if (!bar) return;
-        if (!bar.contains(e.target) && !e.target.closest('.message-wrap')) {
-            closeReactionPicker();
-        }
-    });
-
-    // Scroll closes picker
-    const container = document.getElementById('messagesContainer');
-    if (container) {
-        container.addEventListener('scroll', () => {
-            if (document.getElementById('quickReactionBar')) {
-                closeReactionPicker();
-            }
-        }, { passive: true });
-    }
 }
 
 // ============================================================
@@ -816,6 +1040,30 @@ function setupRealtime(friendId) {
             }
             addMessageToUI(newMsg, true);
         })
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'direct_messages'
+        }, (payload) => {
+            const updated = payload.new;
+            const idx = currentMessages.findIndex(m => m.id === updated.id);
+            if (idx >= 0) {
+                currentMessages[idx] = { ...currentMessages[idx], ...updated };
+                const bubble = document.querySelector(`.message-wrap[data-wrap-id="${updated.id}"] .message-content`);
+                if (bubble) bubble.textContent = updated.content || '';
+            }
+        })
+        .on('postgres_changes', {
+            event: 'DELETE', schema: 'public', table: 'direct_messages'
+        }, (payload) => {
+            const deleted = payload.old;
+            if (!deleted?.id) return;
+            const wrap = document.querySelector(`.message-wrap[data-wrap-id="${deleted.id}"]`);
+            if (wrap) {
+                wrap.classList.add('removing');
+                setTimeout(() => wrap.remove(), 200);
+            }
+            currentMessages = currentMessages.filter(m => m.id !== deleted.id);
+            window.currentMessages = currentMessages;
+        })
         .subscribe();
 
     window.chatChannel = chatChannel;
@@ -827,6 +1075,7 @@ function setupRealtime(friendId) {
         }, (payload) => {
             if (payload.new.id === friendId && chatFriend) {
                 chatFriend.status = payload.new.status;
+                chatFriend.last_seen = payload.new.last_seen || chatFriend.last_seen;
                 window.chatFriend = chatFriend;
                 updateFriendStatus(payload.new.status);
 
@@ -841,48 +1090,30 @@ function setupRealtime(friendId) {
 
     window.statusChannel = statusChannel;
 
-    // Reactions realtime
     reactionsChannel = supabase.channel(`reactions:${userIds[0]}:${userIds[1]}`)
-        .on('postgres_changes', {
-            event: 'INSERT', schema: 'public', table: 'message_reactions'
-        }, (payload) => {
-            handleReactionChange(payload.new, 'insert');
-        })
-        .on('postgres_changes', {
-            event: 'UPDATE', schema: 'public', table: 'message_reactions'
-        }, (payload) => {
-            handleReactionChange(payload.new, 'update');
-        })
-        .on('postgres_changes', {
-            event: 'DELETE', schema: 'public', table: 'message_reactions'
-        }, (payload) => {
-            handleReactionDelete(payload.old);
-        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_reactions' },
+            (payload) => handleReactionChange(payload.new))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'message_reactions' },
+            (payload) => handleReactionChange(payload.new))
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'message_reactions' },
+            (payload) => handleReactionDelete(payload.old))
         .subscribe();
 
     window.reactionsChannel = reactionsChannel;
 }
 
-function handleReactionChange(row, kind) {
+function handleReactionChange(row) {
     const messageId = row.message_id;
-    // Only care if we have this message rendered
     if (!document.querySelector(`[data-message-id="${messageId}"]`)) return;
-
     if (!messageReactions[messageId]) messageReactions[messageId] = [];
-
-    // Remove any existing entry by this user
     messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== row.user_id);
-
-    // Add the new one
     messageReactions[messageId].push({ user_id: row.user_id, emoji: row.emoji });
-
     updateReactionPills(messageId);
 }
 
 function handleReactionDelete(row) {
     const messageId = row.message_id;
     if (!messageReactions[messageId]) return;
-
     messageReactions[messageId] = messageReactions[messageId].filter(r => r.user_id !== row.user_id);
     updateReactionPills(messageId);
 }
@@ -906,7 +1137,6 @@ function handleTyping() {
     }
 
     if (typingTimeout) clearTimeout(typingTimeout);
-
     typingTimeout = setTimeout(() => {
         isTyping = false;
         window.isTyping = false;
@@ -926,7 +1156,7 @@ async function sendTypingStatus(isTyping) {
             payload: { userId: currentUser.id, isTyping }
         });
         setTimeout(() => supabase.removeChannel(channel), 5000);
-    } catch (e) { /* silent */ }
+    } catch (e) {}
 }
 
 function setupTypingReceiver(friendId) {
@@ -956,7 +1186,7 @@ function setupTypingReceiver(friendId) {
 }
 
 // ============================================================
-// INPUT HANDLERS
+// INPUT
 // ============================================================
 function updateInputListener() {
     const input = document.getElementById('messageInput');
@@ -967,7 +1197,6 @@ function updateInputListener() {
 function handleKeyPress(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-
         if (window.colorPickerVisible === true) {
             const input = document.getElementById('messageInput');
             if (input && input.value === '/') {
@@ -976,7 +1205,6 @@ function handleKeyPress(e) {
             }
             return;
         }
-
         const input = document.getElementById('messageInput');
         if (input && input.value === '/') return;
         if (input && input.value.trim()) sendMessage();
@@ -1007,8 +1235,13 @@ function goBack() {
     setTimeout(() => window.location.href = '../home/index.html', 50);
 }
 
+function openFriendProfile(friendId) {
+    if (!friendId) return;
+    window.location.href = `../profile/view.html?userId=${friendId}`;
+}
+
 // ============================================================
-// USER INFO MODAL
+// USER INFO / MODALS
 // ============================================================
 function showUserInfo() {
     if (!chatFriend) return;
@@ -1033,6 +1266,9 @@ function showUserInfo() {
             </div>
         </div>
         <div class="user-info-actions">
+            <button class="info-action-btn" onclick="openFriendProfile('${chatFriend.id}')">
+                👤 View Profile
+            </button>
             <button class="info-action-btn danger" onclick="blockUserPrompt()">🚫 Block User</button>
         </div>
     `;
@@ -1075,7 +1311,6 @@ async function clearChatPrompt() {
                     .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
 
                 if (error) throw error;
-
                 showToast('Chat cleared!', '✅', 1500);
                 currentMessages = [];
                 window.currentMessages = currentMessages;
@@ -1086,6 +1321,23 @@ async function clearChatPrompt() {
             }
         }
     );
+}
+
+// ============================================================
+// GUIDE
+// ============================================================
+function openGuide() {
+    const modal = document.getElementById('guideModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
+}
+
+function closeGuide() {
+    const modal = document.getElementById('guideModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => modal.style.display = 'none', 200);
 }
 
 // ============================================================
@@ -1102,8 +1354,6 @@ function forceScrollToBottom() {
     container.scrollTop = container.scrollHeight;
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
-        const last = container.lastElementChild;
-        if (last) last.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 50);
 }
 
@@ -1151,21 +1401,30 @@ function reconnectRealtime() {
 }
 
 // ============================================================
-// SOUNDS
+// SOUNDS (cached to avoid repeat fetches)
 // ============================================================
+let sentAudio = null;
+let receivedAudio = null;
+
 function playSentSound() {
     try {
-        const a = new Audio('/pages/chats/sent.mp3');
-        a.volume = 0.3;
-        a.play().catch(() => {});
+        if (!sentAudio) {
+            sentAudio = new Audio('/pages/chats/sent.mp3');
+            sentAudio.volume = 0.3;
+        }
+        sentAudio.currentTime = 0;
+        sentAudio.play().catch(() => {});
     } catch (e) {}
 }
 
 function playReceivedSound() {
     try {
-        const a = new Audio('/pages/chats/recieve.mp3');
-        a.volume = 0.3;
-        a.play().catch(() => {});
+        if (!receivedAudio) {
+            receivedAudio = new Audio('/pages/chats/recieve.mp3');
+            receivedAudio.volume = 0.3;
+        }
+        receivedAudio.currentTime = 0;
+        receivedAudio.play().catch(() => {});
     } catch (e) {}
 }
 
