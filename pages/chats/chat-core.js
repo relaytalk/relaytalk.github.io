@@ -93,7 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            // Not logged in → show friendly fallback
             showFallbackPage(
                 'You need to sign in',
                 'Please login or create a new account to start chatting.',
@@ -200,27 +199,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ============================================================
-// FALLBACK PAGE (missing user / no login / invalid link)
-// Uses relative paths so it works on both Vercel and GitHub Pages
+// FALLBACK PAGE
 // ============================================================
 function showFallbackPage(title, message, emoji = '💬') {
-    // Hide normal chat UI
     const loginEl = document.getElementById('login');
     const chatEl = document.getElementById('chat');
     if (loginEl) loginEl.style.display = 'none';
     if (chatEl) chatEl.style.display = 'none';
 
-    // Compute relative base from current page URL
-    // Current page: /pages/chats/index.html → we need to reach:
-    //   - login:   ../login/index.html
-    //   - auth:    ../auth/index.html
-    //   - home:    ../home/index.html
-    // All are siblings of "chats" folder inside "pages".
     const LOGIN_URL = '../login/index.html';
     const SIGNUP_URL = '../auth/index.html';
     const HOME_URL = '../home/index.html';
 
-    // If some other page already rendered the fallback, remove it
     const existing = document.getElementById('rtFallbackScreen');
     if (existing) existing.remove();
 
@@ -265,9 +255,6 @@ function showFallbackPage(title, message, emoji = '💬') {
     document.body.classList.add('fallback-active');
 }
 
-// ============================================================
-// LOGIN SCREEN (kept for compatibility but rarely used now)
-// ============================================================
 function showLoginScreen() {
     showFallbackPage(
         'You need to sign in',
@@ -591,9 +578,6 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 }
 
-// ============================================================
-// RE-RENDER ONE MESSAGE IN PLACE
-// ============================================================
 function refreshMessageBubble(messageId) {
     const msg = currentMessages.find(m => m.id === messageId);
     const wrap = document.querySelector(`.message-wrap[data-wrap-id="${messageId}"]`);
@@ -610,7 +594,6 @@ function refreshMessageBubble(messageId) {
         wrap.insertAdjacentHTML('afterbegin', bubbleHTML);
     }
 
-    // If deleted → remove reaction pills too
     if (isDeletedMessage(msg)) {
         const pills = wrap.querySelector('.reaction-pills');
         if (pills) pills.remove();
@@ -780,7 +763,6 @@ function openActionBar(wrap) {
     const msg = currentMessages.find(m => m.id === messageId);
 
     if (msg && isDeletedMessage(msg)) {
-        // Deleted messages: no action bar
         showToast('This message was deleted', '🚫', 1500);
         return;
     }
@@ -1001,10 +983,8 @@ async function performDelete(msgId) {
     try {
         const deletedAt = new Date().toISOString();
 
-        // Clear reactions first
         await supabase.from('message_reactions').delete().eq('message_id', msgId);
 
-        // Soft-delete the message: keep row, wipe content/image, mark deleted
         const updatePayload = {
             content: '__DELETED__',
             image_url: null,
@@ -1018,7 +998,6 @@ async function performDelete(msgId) {
             .update(updatePayload)
             .eq('id', msgId);
 
-        // If the DB has a `deleted` column, also set it. Ignore errors if not.
         if (!error) {
             await supabase
                 .from('direct_messages')
@@ -1027,7 +1006,6 @@ async function performDelete(msgId) {
                 .then(() => {}).catch(() => {});
         }
 
-        // If update fails (e.g., RLS), fall back to hard delete
         if (error) {
             console.warn('Soft-delete failed, falling back to hard delete:', error.message);
             const { error: delErr } = await supabase.from('direct_messages').delete().eq('id', msgId);
@@ -1046,7 +1024,6 @@ async function performDelete(msgId) {
             return;
         }
 
-        // Update local state
         const idx = currentMessages.findIndex(m => m.id === msgId);
         if (idx >= 0) {
             currentMessages[idx] = {
@@ -1061,7 +1038,6 @@ async function performDelete(msgId) {
         }
         delete messageReactions[msgId];
 
-        // Re-render the bubble in place
         refreshMessageBubble(msgId);
 
         showToast('Message deleted', '✅', 1500);
@@ -1216,7 +1192,6 @@ function setupRealtime(friendId) {
                 currentMessages[idx] = { ...currentMessages[idx], ...updated };
                 window.currentMessages = currentMessages;
             }
-            // If message is deleted via soft-delete → clear reactions locally
             if (isDeletedMessage(updated)) {
                 delete messageReactions[updated.id];
             }
@@ -1504,7 +1479,6 @@ function openGuide() {
     const modal = document.getElementById('guideModal');
     if (!modal) return;
 
-    // Replace body content so it stays up-to-date
     const bodyEl = modal.querySelector('.guide-body');
     if (bodyEl) {
         bodyEl.innerHTML = `
@@ -1561,7 +1535,7 @@ function openGuide() {
                 <div class="guide-icon">👤</div>
                 <div>
                     <strong>Open friend's profile</strong>
-                    <p>Tap your friend's name or avatar at the top of the chat to see their profile.</p>
+                    <p>Tap your friend's name or avatar at the top of the chat to see their bio and profile.</p>
                 </div>
             </div>
             <div class="guide-item">
@@ -1737,7 +1711,7 @@ function showToast(message, icon = '✅', duration = 1500) {
 }
 
 // ============================================================
-// STATUS
+// STATUS — SHORTENED LAST SEEN
 // ============================================================
 function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
@@ -1762,14 +1736,15 @@ function formatLastSeen(ts) {
         const hr = Math.floor(min / 60);
         const day = Math.floor(hr / 24);
 
-        if (sec < 60) return 'just now';
-        if (min < 60) return `${min}m ago`;
-        if (hr < 24) return `${hr}h ago`;
-        if (day === 1) return 'yesterday';
-        if (day < 7) return `${day}d ago`;
-        return t.toLocaleDateString();
+        if (sec < 60) return 'now';
+        if (min < 60) return `${min}m`;
+        if (hr < 24) return `${hr}h`;
+        if (day === 1) return '1d';
+        if (day < 7) return `${day}d`;
+        if (day < 30) return `${Math.floor(day / 7)}w`;
+        return t.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
-        return 'a while ago';
+        return 'offline';
     }
 }
 
