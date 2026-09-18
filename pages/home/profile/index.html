@@ -11,19 +11,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingIndicator">
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading profile...</div>
     </div>
 
-    <!-- Upload Loading -->
     <div class="loading-overlay" id="uploadLoading">
         <div class="loading-spinner"></div>
         <div class="loading-text">Uploading...</div>
     </div>
 
-    <!-- Header -->
     <header class="profile-header">
         <div class="header-content">
             <button class="back-btn" onclick="goToHome()">
@@ -33,10 +30,8 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="profile-main">
         <div class="profile-card">
-            <!-- Avatar Section -->
             <div class="avatar-section">
                 <div class="profile-avatar" id="profileAvatar">
                     <img id="avatarImage" src="" alt="Profile" style="display: none;">
@@ -48,13 +43,27 @@
                 </button>
             </div>
 
-            <!-- User Info -->
             <div class="user-info">
                 <h2 class="user-name" id="displayName">User</h2>
                 <div class="user-username" id="displayUsername">@username</div>
             </div>
 
-            <!-- Stats -->
+            <!-- BIO SECTION -->
+            <div class="bio-section">
+                <div class="bio-header">
+                    <span class="bio-label">BIOGRAPHY</span>
+                    <button class="bio-edit-btn" onclick="openBioEditor()" aria-label="Edit bio">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="bio-box" id="bioBox">
+                    <span class="bio-empty">Tap the pencil to write something about you (max 50 chars)</span>
+                </div>
+            </div>
+
             <div class="profile-stats">
                 <div class="stat-item">
                     <div class="stat-value" id="friendsCount">0</div>
@@ -66,9 +75,6 @@
                 </div>
             </div>
 
-            <!-- ============================================= -->
-            <!-- NOTIFICATION CONTROLS (3 buttons)             -->
-            <!-- ============================================= -->
             <div class="notify-section">
                 <div class="notify-row">
                     <button class="notify-btn-half" id="enableNotificationsBtn" onclick="enableNotifications()">
@@ -107,7 +113,6 @@
                 </button>
             </div>
 
-            <!-- Regular Actions -->
             <div class="profile-actions">
                 <button class="action-btn" onclick="openImagePicker()">
                     <i class="fas fa-camera"></i>
@@ -125,6 +130,32 @@
         </div>
     </main>
 
+    <!-- Bio Editor Modal -->
+    <div class="modal-overlay" id="bioEditorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">✏️ Edit Bio</h3>
+                <button class="modal-close" onclick="closeBioEditor()">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea
+                    id="bioInput"
+                    class="bio-input"
+                    maxlength="50"
+                    rows="3"
+                    placeholder="Write something about yourself..."
+                ></textarea>
+                <div class="bio-counter">
+                    <span id="bioCharCount">0</span> / 50
+                </div>
+                <div class="bio-actions">
+                    <button class="btn-secondary" onclick="closeBioEditor()">Cancel</button>
+                    <button class="btn-primary" onclick="saveBio()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Details Info Modal -->
     <div class="modal-overlay" id="detailsInfoModal">
         <div class="modal-content">
@@ -132,9 +163,7 @@
                 <h3 id="detailsInfoTitle"><i class="fas fa-eye" style="color:#007acc;"></i> Notification Details</h3>
                 <button class="modal-close" onclick="closeDetailsInfo()">×</button>
             </div>
-            <div class="modal-body" id="detailsInfoBody">
-                <!-- filled by JS -->
-            </div>
+            <div class="modal-body" id="detailsInfoBody"></div>
             <div class="modal-body" style="padding-top:0;">
                 <button class="btn-primary" style="width:100%; padding:12px; border-radius:12px;" onclick="confirmDetailsToggle()">
                     Got it
@@ -171,10 +200,8 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <a href="../../home/index.html" class="nav-item">
             <i class="fas fa-home"></i>
@@ -190,7 +217,6 @@
         </a>
     </nav>
 
-    <!-- Scripts -->
     <script type="module" src="../../../utils/supabase.js"></script>
     <script type="module" src="/utils/pushClient.js"></script>
     <script type="module" src="profile.js"></script>
