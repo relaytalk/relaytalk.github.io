@@ -1,4 +1,4 @@
-// friends.js - Complete with Notifications modal + realtime friends updates
+// friends.js - Friends page controller (design updated, backend unchanged)
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import {
@@ -30,15 +30,33 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 async function initFriendsPage() {
     console.log('🚀 Loading friends...');
 
+    const loader = document.getElementById('loadingIndicator');
+
+    // Safety timeout — force-hide loader after 4s no matter what
+    const forceHideTimeout = setTimeout(() => {
+        if (loader && !loader.classList.contains('hidden')) {
+            console.warn('⏱️ Loading timeout reached — hiding loader');
+            loader.classList.add('hidden');
+            setTimeout(() => { loader.style.display = 'none'; }, 400);
+        }
+    }, 4000);
+
+    // Helper to hide the loader once and clean up
+    const hideLoader = () => {
+        clearTimeout(forceHideTimeout);
+        if (loader && !loader.classList.contains('hidden')) {
+            loader.classList.add('hidden');
+            setTimeout(() => { loader.style.display = 'none'; }, 400);
+        }
+    };
+
     try {
-        updateLoadingText('Connecting to server...');
         mainSupabase = await initMainSupabase();
 
         if (!mainSupabase || !mainSupabase.auth) {
             throw new Error('Main Supabase not initialized');
         }
 
-        updateLoadingText('Verifying login...');
         const { data: { session }, error } = await mainSupabase.auth.getSession();
 
         if (error) throw error;
@@ -62,38 +80,32 @@ async function initFriendsPage() {
             throw new Error('Failed to sync user to database');
         }
 
-        updateLoadingText('Finding your friends...');
         await loadFriends();
-
         await checkMissedCalls();
         await updateBadges();
 
-        updateLoadingText('Setting up calls...');
         if (!callListenerInitialized && currentUser && currentUser.id) {
             await initializeCallListener();
             callListenerInitialized = true;
         }
 
-        // 🔥 Realtime friends updates
         setupFriendRealtimeListener();
 
-        // Periodic checks
         setInterval(() => checkMissedCalls(), 10000);
         startStatusUpdates();
 
-        setTimeout(() => {
-            const loader = document.getElementById('loadingIndicator');
-            if (loader) loader.classList.add('hidden');
-        }, 500);
+        // ✅ Hide loader only after everything is really ready
+        hideLoader();
 
     } catch (error) {
         console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
+        hideLoader();
     }
 }
 
 // ============================================
-// REALTIME FRIENDS + REQUESTS LISTENER
+// REALTIME FRIENDS LISTENER
 // ============================================
 function setupFriendRealtimeListener() {
     if (friendRealtimeChannel) {
@@ -106,38 +118,30 @@ function setupFriendRealtimeListener() {
     friendRealtimeChannel = mainSupabase
         .channel(`friends-realtime:${currentUser.id}`)
         .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'friends',
+            event: 'INSERT', schema: 'public', table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
         }, (payload) => {
             console.log('🟢 New friendship inserted:', payload.new);
             loadFriends();
         })
         .on('postgres_changes', {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'friends',
+            event: 'DELETE', schema: 'public', table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
-        }, (payload) => {
+        }, () => {
             console.log('🔴 Friendship removed');
             loadFriends();
         })
         .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'friend_requests',
+            event: 'INSERT', schema: 'public', table: 'friend_requests',
             filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
+        }, () => {
             console.log('📩 New friend request received');
             updateBadges();
         })
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'friend_requests',
+            event: 'UPDATE', schema: 'public', table: 'friend_requests',
             filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
+        }, () => {
             updateBadges();
         })
         .subscribe((status) => {
@@ -146,7 +150,7 @@ function setupFriendRealtimeListener() {
 }
 
 // ============================================
-// CALL LISTENER (incoming calls)
+// CALL LISTENER
 // ============================================
 async function initializeCallListener() {
     try {
@@ -164,9 +168,7 @@ async function initializeCallListener() {
                 }
             })
             .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'calls',
+                event: 'INSERT', schema: 'public', table: 'calls',
                 filter: `callee_id=eq.${currentUser.id}`
             }, (payload) => {
                 console.log('📞 New call detected:', payload);
@@ -191,7 +193,7 @@ async function initializeCallListener() {
 function handleIncomingCall(callData) {
     if (!callData || !callData.caller_id) return;
     if (callData.callee_id === currentUser.id && callData.status === 'ringing') {
-        // callHub handles the UI now
+        // callHub handles the UI
     }
 }
 
@@ -246,27 +248,39 @@ function renderFriendsList() {
         const initial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
         const online = friend.status === 'online';
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
+        const avatarSrc = friend.avatar_url || '';
 
         html += `
             <div class="friend-item" data-friend-id="${friend.id}">
-                <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8); position: relative;">
-                    ${friend.avatar_url
-                        ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" loading="lazy">`
-                        : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
+                <div class="friend-avatar" onclick="event.stopPropagation(); openProfile('${friend.id}')">
+                    ${avatarSrc
+                        ? `<img src="${avatarSrc}" alt="${escapeHtml(friend.username || '')}" loading="lazy">`
+                        : `<span>${escapeHtml(initial)}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
                 </div>
-                <div class="friend-info-clean" onclick="openChat('${friend.id}', '${friend.username}')">
+                <div class="friend-info-clean" onclick="openProfile('${friend.id}')">
                     <div class="friend-name-status">
-                        <div class="friend-name-clean">${friend.username || 'User'}</div>
-                        <div class="friend-status-clean">
-                            ${online ? '🟢 Online' : `⚪ Last seen ${lastSeen}`}
+                        <div class="friend-name-clean">${escapeHtml(friend.username || 'User')}</div>
+                        <div class="friend-status-clean ${online ? 'online' : ''}">
+                            ${online ? 'Online' : `Last seen ${lastSeen}`}
                         </div>
                     </div>
                 </div>
-                <button class="call-btn" onclick="event.stopPropagation(); startCall('${friend.id}', '${friend.username}')" ${!online ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
-                    <i class="fas fa-phone"></i>
-                </button>
+                <div class="friend-actions">
+                    <button class="action-btn message-btn"
+                            onclick="event.stopPropagation(); openChat('${friend.id}', '${escapeAttr(friend.username || 'Friend')}')"
+                            aria-label="Message"
+                            title="Message">
+                        <i class="fas fa-comment-dots"></i>
+                    </button>
+                    <button class="action-btn call-btn"
+                            onclick="event.stopPropagation(); startCall('${friend.id}', '${escapeAttr(friend.username || 'Friend')}')"
+                            aria-label="Call"
+                            title="Call">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
             </div>
         `;
     });
@@ -280,9 +294,11 @@ function showEmptyState() {
 
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon">👥</div>
-            <h3>No friends yet</h3>
-            <p>Add friends from the home page to start calling</p>
+            <div class="empty-icon">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <h3 class="empty-title">No friends yet</h3>
+            <p class="empty-desc">Add friends from the home page to start chatting and calling</p>
         </div>
     `;
 }
@@ -293,12 +309,11 @@ function showError(message) {
 
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon">❌</div>
-            <h3>Error</h3>
-            <p>${message}</p>
-            <button class="add-friends-btn" onclick="location.reload()">
-                <i class="fas fa-redo"></i> Try Again
-            </button>
+            <div class="empty-icon" style="background: var(--danger-soft); color: var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="empty-title">Something went wrong</h3>
+            <p class="empty-desc">${escapeHtml(message)}</p>
         </div>
     `;
 }
@@ -340,6 +355,9 @@ window.clearSearch = function() {
     renderFriendsList();
 };
 
+// ============================================
+// NAVIGATION
+// ============================================
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
@@ -348,7 +366,26 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
+window.openProfile = function(userId) {
+    if (!userId) return;
+    window.location.href = `../home/profile/view.html?id=${encodeURIComponent(userId)}`;
+};
+
 window.goToHome = () => window.location.href = '../../home/index.html';
+
+// Start a call — allowed even if the friend is offline
+window.startCall = function(friendId, friendName) {
+    if (!friendId) return;
+
+    // Persist the target so the call page knows who to dial
+    sessionStorage.setItem('currentCallTarget', JSON.stringify({
+        id: friendId,
+        username: friendName || 'Friend'
+    }));
+
+    // Route to your existing call page. Adjust if the route differs.
+    window.location.href = `../../chats/index.html?friendId=${friendId}&call=1`;
+};
 
 // ============================================
 // NOTIFICATIONS MODAL
@@ -358,6 +395,7 @@ window.openNotifications = function(event) {
     const modal = document.getElementById('notificationsModal');
     if (modal) {
         modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
         updateBadges();
     }
@@ -387,7 +425,7 @@ window.switchNotifTab = function(tab) {
 };
 
 // ============================================
-// LOAD NOTIFICATIONS (Main tab)
+// LOAD NOTIFICATIONS
 // ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
@@ -425,23 +463,30 @@ async function loadNotifications() {
             const timeAgo = timeAgoShort(notification.created_at);
             const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
-            const firstLetter = senderName.charAt(0).toUpperCase();
+            const initial = senderName.charAt(0).toUpperCase();
+            const avatarSrc = sender.avatar_url || '';
 
             html += `
                 <div class="notification-item">
-                    <div class="notification-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                        ${sender.avatar_url
-                            ? `<img src="${sender.avatar_url}" alt="${senderName}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1rem; font-weight:600;">${firstLetter}</span>`
+                    <div class="notification-avatar">
+                        ${avatarSrc
+                            ? `<img src="${avatarSrc}" alt="${escapeHtml(senderName)}">`
+                            : `<span>${escapeHtml(initial)}</span>`
                         }
                     </div>
                     <div class="notification-content">
-                        <strong>${senderName}</strong> wants to be friends
-                        <small>${timeAgo}</small>
+                        <div class="notification-text">
+                            <strong>${escapeHtml(senderName)}</strong> wants to be friends
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
                     </div>
                     <div class="notification-actions">
-                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)">✓</button>
-                        <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)">✗</button>
+                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${escapeAttr(senderName)}', this)" aria-label="Accept">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)" aria-label="Decline">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
             `;
@@ -457,14 +502,16 @@ async function loadNotifications() {
 function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon">🔔</div>
-            <p>No notifications yet</p>
+            <div class="empty-icon">
+                <i class="fas fa-bell-slash"></i>
+            </div>
+            <p class="empty-desc">No notifications yet</p>
         </div>
     `;
 }
 
 // ============================================
-// LOAD CALL HISTORY (Calls tab)
+// LOAD CALL HISTORY
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -472,7 +519,7 @@ async function loadCallHistory() {
 
     try {
         if (!currentUser || !mainSupabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">📞</div><p>Cannot load call history</p></div>`;
+            container.innerHTML = `<div class="empty-state"><p>Cannot load call history</p></div>`;
             return;
         }
 
@@ -486,9 +533,11 @@ async function loadCallHistory() {
         if (error || !calls || calls.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">📞</div>
-                    <h3>No calls yet</h3>
-                    <p>Your call history will appear here</p>
+                    <div class="empty-icon">
+                        <i class="fas fa-phone-slash"></i>
+                    </div>
+                    <h3 class="empty-title">No calls yet</h3>
+                    <p class="empty-desc">Your call history will appear here</p>
                 </div>
             `;
             return;
@@ -521,54 +570,62 @@ async function loadCallHistory() {
             }
 
             const isOutgoing = call.caller_id === currentUser.id;
-            const otherUserId = isOutgoing ? call.receiver_id : call.caller_id;
+            const otherUserId = isOutgoing ? (call.receiver_id || call.callee_id) : (call.caller_id || call.callee_id);
             const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
 
-            let statusClass = 'status-missed';
-            let statusText = 'Missed';
-            let statusIcon = 'fa-phone-slash';
+            let metaIcon = 'fa-arrow-down';
+            let metaClass = 'meta-incoming';
+            let metaText = 'Incoming';
+            let isMissed = false;
 
-            if (call.status === 'active' || call.status === 'ended') {
-                statusClass = 'status-answered';
-                statusText = 'Answered';
-                statusIcon = 'fa-phone';
-            } else if (call.status === 'rejected') {
-                statusClass = 'status-rejected';
-                statusText = 'Rejected';
-                statusIcon = 'fa-phone-slash';
-            } else if (call.status === 'cancelled') {
-                statusClass = 'status-cancelled';
-                statusText = isOutgoing ? 'Cancelled' : 'Missed';
-                statusIcon = 'fa-phone-slash';
-            } else if (call.status === 'ringing') {
-                statusClass = 'status-ringing';
-                statusText = isOutgoing ? 'No answer' : 'Missed';
-                statusIcon = 'fa-phone-slash';
+            if (isOutgoing) {
+                metaIcon = 'fa-arrow-up';
+                metaClass = 'meta-outgoing';
+                metaText = 'Outgoing';
+            }
+
+            if (call.status === 'missed' || call.status === 'cancelled' || call.status === 'rejected') {
+                if (!isOutgoing || call.status === 'rejected') {
+                    metaIcon = 'fa-phone-slash';
+                    metaClass = 'meta-missed';
+                    metaText = 'Missed';
+                    isMissed = true;
+                }
+            } else if (call.status === 'ringing' && !isOutgoing) {
+                metaIcon = 'fa-phone-slash';
+                metaClass = 'meta-missed';
+                metaText = 'Missed';
+                isMissed = true;
             }
 
             const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
+            const avatarSrc = otherUser.avatar_url || '';
 
             html += `
-                <div class="call-history-item ${statusClass}">
+                <div class="call-history-item">
                     <div class="call-history-avatar">
-                        ${otherUser.avatar_url
-                            ? `<img src="${otherUser.avatar_url}" alt="${otherUser.username}">`
-                            : `<span>${initial}</span>`
+                        ${avatarSrc
+                            ? `<img src="${avatarSrc}" alt="${escapeHtml(otherUser.username || '')}">`
+                            : `<span>${escapeHtml(initial)}</span>`
                         }
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name">${otherUser.username}</div>
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
                         <div class="call-history-meta">
-                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}" style="font-size:0.75rem;"></i>
-                            <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
-                            <span>•</span>
+                            <i class="fas ${metaIcon} ${metaClass}"></i>
+                            <span>${metaText}</span>
+                            <span class="dot">•</span>
                             <span>${time}</span>
                         </div>
                     </div>
-                    <div class="call-history-status ${statusClass}">
-                        <i class="fas ${statusIcon}"></i>
-                        <span>${statusText}</span>
+                    <div class="call-history-actions">
+                        <button class="call-back-btn"
+                                onclick="event.stopPropagation(); startCall('${otherUserId}', '${escapeAttr(otherUser.username || 'Friend')}')"
+                                aria-label="Call back"
+                                title="Call back">
+                            <i class="fas fa-phone"></i>
+                        </button>
                     </div>
                 </div>
             `;
@@ -577,7 +634,7 @@ async function loadCallHistory() {
         container.innerHTML = html;
     } catch (error) {
         console.error("❌ Error loading call history:", error);
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
 }
 
@@ -603,7 +660,6 @@ async function updateBadges() {
             .eq('seen', false)
             .in('status', ['missed', 'rejected']);
 
-        // Bottom nav badge = friend requests + missed calls
         const notifBadge = document.getElementById('notificationBadge');
         const total = pendingCount + (missedCount || 0);
         if (notifBadge) {
@@ -615,7 +671,6 @@ async function updateBadges() {
             }
         }
 
-        // Main tab badge
         const mainTabBadge = document.getElementById('mainTabBadge');
         if (mainTabBadge) {
             if (pendingCount > 0) {
@@ -626,7 +681,6 @@ async function updateBadges() {
             }
         }
 
-        // Calls tab badge
         const callsTabBadge = document.getElementById('callsTabBadge');
         if (callsTabBadge) {
             if (missedCount && missedCount > 0) {
@@ -664,7 +718,7 @@ async function checkMissedCalls() {
 // ============================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
-        button.textContent = '...';
+        button.innerHTML = '...';
         button.disabled = true;
     }
 
@@ -696,7 +750,7 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
         console.error('Accept error:', error);
         showToast('error', 'Could not accept request');
         if (button) {
-            button.textContent = '✓';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.disabled = false;
         }
     }
@@ -704,7 +758,7 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
 
 window.declineFriendRequest = async function(requestId, button) {
     if (button) {
-        button.textContent = '...';
+        button.innerHTML = '...';
         button.disabled = true;
     }
 
@@ -722,7 +776,7 @@ window.declineFriendRequest = async function(requestId, button) {
     } catch (error) {
         console.error('Decline error:', error);
         if (button) {
-            button.textContent = '✗';
+            button.innerHTML = '<i class="fas fa-times"></i>';
             button.disabled = false;
         }
     }
@@ -745,6 +799,18 @@ function timeAgoShort(dateStr) {
     return past.toLocaleDateString();
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) { return escapeHtml(str); }
+
 function updateLoadingText(text) {
     const el = document.querySelector('.loading-text');
     if (el) el.textContent = text;
@@ -758,10 +824,14 @@ function showToast(type, message) {
     toast.className = `toast ${type}`;
     toast.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
     `;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 function startStatusUpdates() {
@@ -782,12 +852,13 @@ function startStatusUpdates() {
 }
 
 // ============================================
-// NAV FUNCTIONS (kept for compat)
+// LEGACY: search users (kept for compat, unreachable UI)
 // ============================================
 window.openSearch = () => {
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
         setTimeout(() => document.getElementById('userSearchInput')?.focus(), 100);
     }
 };
@@ -800,7 +871,7 @@ window.searchUsers = async function() {
 
     const term = input.value.toLowerCase().trim();
     if (!term) {
-        container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-search" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>Search for friends to add</p></div>`;
+        container.innerHTML = `<div class="empty-search"><i class="fas fa-search"></i><p>Search for users</p></div>`;
         return;
     }
 
@@ -828,7 +899,7 @@ window.searchUsers = async function() {
             .limit(20);
 
         if (error || !users || users.length === 0) {
-            container.innerHTML = `<div class="empty-search" style="text-align:center;padding:30px;"><i class="fas fa-user-slash" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;"></i><p>No users found</p></div>`;
+            container.innerHTML = `<div class="empty-search"><i class="fas fa-user-slash"></i><p>No users found</p></div>`;
             return;
         }
 
@@ -837,24 +908,25 @@ window.searchUsers = async function() {
             const isFriend = friendIds.includes(user.id);
             const isPending = pendingIds.includes(user.id);
             const initial = user.username?.charAt(0).toUpperCase() || '?';
+            const avatarSrc = user.avatar_url || '';
 
             html += `
                 <div class="search-result-item">
-                    <div class="search-result-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
-                        ${user.avatar_url
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
+                    <div class="search-result-avatar">
+                        ${avatarSrc
+                            ? `<img src="${avatarSrc}" alt="${escapeHtml(user.username || '')}">`
+                            : `<span>${escapeHtml(initial)}</span>`
                         }
                     </div>
                     <div class="search-result-info">
-                        <div class="search-result-name">${user.username}</div>
-                        <div class="search-result-username">@${user.username}</div>
+                        <div class="search-result-name">${escapeHtml(user.username || '')}</div>
+                        <div class="search-result-username">@${escapeHtml(user.username || '')}</div>
                     </div>
                     ${isFriend
-                        ? '<button class="add-friend-btn added" disabled>✓ Friends</button>'
+                        ? '<button class="add-friend-btn added" disabled>Friend</button>'
                         : isPending
-                        ? '<button class="add-friend-btn added" disabled>⏳ Sent</button>'
-                        : `<button class="add-friend-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">+ Add</button>`
+                        ? '<button class="add-friend-btn added" disabled>Sent</button>'
+                        : `<button class="add-friend-btn" onclick="sendFriendRequest('${user.id}', '${escapeAttr(user.username || 'User')}', this)">Add</button>`
                     }
                 </div>
             `;
@@ -883,20 +955,26 @@ window.sendFriendRequest = async function(userId, username, btn) {
 
         if (error) throw error;
 
-        btn.textContent = '✓ Sent';
+        btn.textContent = 'Sent';
         btn.classList.add('added');
         showToast('success', `Friend request sent to ${username}`);
     } catch (error) {
         console.error('Request error:', error);
         btn.disabled = false;
-        btn.textContent = '+ Add';
+        btn.textContent = 'Add';
         showToast('error', 'Failed to send request');
     }
 };
 
 window.closeModal = function() {
-    document.getElementById('searchModal').style.display = 'none';
-    document.getElementById('notificationsModal').style.display = 'none';
+    const searchModal = document.getElementById('searchModal');
+    const notificationsModal = document.getElementById('notificationsModal');
+
+    [searchModal, notificationsModal].forEach(m => {
+        if (!m) return;
+        m.classList.remove('visible');
+        setTimeout(() => { m.style.display = 'none'; }, 200);
+    });
 };
 
 window.logout = async () => {
