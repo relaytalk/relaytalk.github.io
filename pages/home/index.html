@@ -27,8 +27,11 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self'
@@ -119,19 +122,16 @@
     <!-- Top App Bar -->
     <header class="app-bar">
         <div class="app-bar-inner">
-            <div class="app-bar-brand">RelayTalk</div>
+            <div class="app-bar-brand">
+                <span class="brand-logo">R</span>
+                <span class="brand-name">RelayTalk</span>
+            </div>
             <div class="app-bar-actions">
                 <button class="icon-btn" onclick="openSearch()" aria-label="Search">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
+                    <i class="fas fa-search"></i>
                 </button>
                 <button class="icon-btn" onclick="openNotifications()" aria-label="Notifications">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
+                    <i class="fas fa-bell"></i>
                     <span class="app-bar-badge" id="notificationBadge" style="display: none;">0</span>
                 </button>
             </div>
@@ -142,28 +142,22 @@
     <main class="page">
         <!-- Greeting -->
         <section class="greeting">
-            <h1 class="greeting-title" id="greetingTitle">Hello</h1>
-            <p class="greeting-sub" id="greetingSub">Welcome back to RelayTalk</p>
+            <p class="greeting-small" id="greetingSmall">Hello</p>
+            <h1 class="greeting-title" id="welcomeTitle">Friend</h1>
+            <p class="greeting-sub">Welcome back to RelayTalk</p>
         </section>
 
         <!-- Primary action -->
         <button class="primary-action" onclick="openSearch()">
             <span class="primary-action-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="8.5" cy="7" r="4"/>
-                    <line x1="20" y1="8" x2="20" y2="14"/>
-                    <line x1="23" y1="11" x2="17" y2="11"/>
-                </svg>
+                <i class="fas fa-user-plus"></i>
             </span>
             <span class="primary-action-text">
                 <span class="primary-action-title">Find friends</span>
                 <span class="primary-action-desc">Search by username</span>
             </span>
             <span class="primary-action-chevron">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                </svg>
+                <i class="fas fa-chevron-right"></i>
             </span>
         </button>
 
@@ -177,37 +171,23 @@
         </section>
     </main>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation (original icons restored) -->
     <nav class="bottom-nav">
         <a href="#" class="nav-item active" onclick="goToHome(); return false;">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
+            <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
         <a href="#" class="nav-item" onclick="openNotifications(); return false;">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
+            <i class="fas fa-bell"></i>
             <span>Alerts</span>
             <span class="nav-badge" id="navNotificationBadge" style="display: none;">0</span>
         </a>
         <a href="#" class="nav-item" onclick="viewFriendsPage(); return false;">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+            <i class="fas fa-user-friends"></i>
             <span>Friends</span>
         </a>
         <a href="profile/index.html" class="nav-item">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-            </svg>
+            <i class="fas fa-user"></i>
             <span>You</span>
         </a>
     </nav>
@@ -218,18 +198,12 @@
             <div class="modal-head">
                 <h2 class="modal-title">Find people</h2>
                 <button class="modal-close" onclick="closeModal()" aria-label="Close">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="search-wrap">
-                    <svg class="search-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
+                    <i class="fas fa-search search-svg"></i>
                     <input type="text" id="searchInput" class="search-input" placeholder="Search by username" autocomplete="off" spellcheck="false">
                 </div>
                 <div id="searchResults" class="search-results"></div>
@@ -243,19 +217,18 @@
             <div class="modal-head">
                 <h2 class="modal-title">Notifications</h2>
                 <button class="modal-close" onclick="closeModal()" aria-label="Close">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="tabs" role="tablist">
                     <button class="tab active" id="notifTabMain" onclick="switchNotifTab('main')">
+                        <i class="fas fa-user-plus tab-icon"></i>
                         Requests
                         <span class="tab-badge" id="mainTabBadge" style="display: none;">0</span>
                     </button>
                     <button class="tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
+                        <i class="fas fa-phone tab-icon"></i>
                         Calls
                         <span class="tab-badge" id="callsTabBadge" style="display: none;">0</span>
                     </button>
