@@ -17,6 +17,8 @@
     --border-light: rgba(0, 122, 204, 0.2);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -86,7 +88,7 @@ button, input, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: box-shadow 0.15s;
+    transition: box-shadow 0.25s var(--ease-out);
     box-shadow: var(--shadow-sm);
     flex-shrink: 0;
 }
@@ -99,6 +101,19 @@ button, input, textarea {
     gap: 12px;
     flex: 1;
     min-width: 0;
+    cursor: pointer;
+    border-radius: 12px;
+    padding: 4px 8px;
+    margin: 0 -4px;
+    transition: background 0.25s var(--ease-out);
+}
+
+.chat-user-info:hover {
+    background: rgba(0, 122, 204, 0.06);
+}
+
+.chat-user-info:active {
+    background: rgba(0, 122, 204, 0.1);
 }
 
 .chat-user-avatar {
@@ -169,7 +184,31 @@ button, input, textarea {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    align-items: center;
 }
+
+.guide-btn {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    color: var(--primary-color);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+
+.guide-btn:hover {
+    transform: scale(1.05) rotate(-5deg);
+    box-shadow: var(--shadow-md);
+}
+
+.guide-btn svg { stroke: currentColor; }
 
 .call-btn {
     background: #007acc;
@@ -182,8 +221,9 @@ button, input, textarea {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
+    transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out);
     box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
 }
 
 .call-btn:hover { background: #005a9e; transform: scale(1.05); }
@@ -228,11 +268,21 @@ button, input, textarea {
     display: flex;
     flex-direction: column;
     position: relative;
-    animation: fadeIn 0.15s ease;
+    animation: fadeIn 0.25s var(--ease-out);
+    transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
 }
 
 .message-wrap.sent { align-items: flex-end; }
 .message-wrap.received { align-items: flex-start; }
+
+.message-wrap.removing {
+    opacity: 0;
+    transform: scale(0.96);
+}
+
+.message-wrap.selected .message {
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.35), var(--shadow-md);
+}
 
 .message {
     max-width: 75%;
@@ -241,8 +291,8 @@ button, input, textarea {
     word-wrap: break-word;
     line-height: 1.4;
     box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s var(--ease-out), transform 0.2s var(--ease-out);
     backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
 }
 
 .message.sent {
@@ -297,7 +347,7 @@ button, input, textarea {
 }
 
 /* ============================================================ */
-/* IMAGE MESSAGES — uniform medium size                          */
+/* IMAGE MESSAGES                                                */
 /* ============================================================ */
 
 .image-message {
@@ -312,7 +362,7 @@ button, input, textarea {
     cursor: pointer;
     background: rgba(0, 122, 204, 0.1);
     margin-bottom: 6px;
-    transition: transform 0.2s;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
     border: 1px solid var(--border-light);
     width: 260px;
     height: 260px;
@@ -329,7 +379,10 @@ button, input, textarea {
     .message-image-container { width: 190px; height: 190px; }
 }
 
-.message-image-container:hover { transform: scale(1.02); }
+.message-image-container:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow-md);
+}
 
 .message-image {
     width: 100%;
@@ -337,7 +390,7 @@ button, input, textarea {
     display: block;
     object-fit: cover;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s var(--ease-out);
 }
 
 .message-image.loaded { opacity: 1; }
@@ -350,7 +403,7 @@ button, input, textarea {
     align-items: flex-end;
     padding: 12px;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.25s var(--ease-out);
     pointer-events: none;
 }
 
@@ -375,21 +428,19 @@ button, input, textarea {
     margin-top: 4px;
     padding: 0 4px;
     max-width: 260px;
-    /* Default: align left (received) */
-    align-self: flex-start;
-    justify-content: flex-start;
+    animation: fadeIn 0.25s var(--ease-out);
 }
 
-/* Own-message pills: align right */
+/* Sent messages — pills on the right */
 .message-wrap.sent .reaction-pills {
-    align-self: flex-end;
     justify-content: flex-end;
+    margin-left: auto;
 }
 
-/* Received-message pills: align left (explicit) */
+/* Received messages — pills on the left */
 .message-wrap.received .reaction-pills {
-    align-self: flex-start;
     justify-content: flex-start;
+    margin-right: auto;
 }
 
 .reaction-pill {
@@ -402,7 +453,7 @@ button, input, textarea {
     border-radius: 12px;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), background 0.25s var(--ease-out);
     box-shadow: var(--shadow-sm);
     line-height: 1;
     min-height: auto;
@@ -429,81 +480,120 @@ button, input, textarea {
 .reaction-pill.mine .reaction-count { color: var(--primary-dark); }
 
 /* ============================================================ */
-/* QUICK REACTION BAR (appears above message on long press)      */
+/* MESSAGE CONTEXT MENU (WhatsApp-style top toolbar)             */
 /* ============================================================ */
 
-.quick-reaction-bar {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 0;
-    display: flex;
-    gap: 6px;
-    padding: 6px 8px;
+.message-context-menu {
+    position: fixed;
+    top: calc(14px + var(--safe-area-top));
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    width: min(92%, 400px);
     background: #ffffff;
     border: 1px solid var(--border-light);
-    border-radius: 30px;
-    box-shadow: 0 6px 20px rgba(0, 122, 204, 0.2);
-    z-index: 50;
-    animation: popIn 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-    white-space: nowrap;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 122, 204, 0.22);
+    z-index: 9000;
+    padding: 10px 10px 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.message-wrap.sent .quick-reaction-bar {
-    left: auto;
-    right: 0;
+.message-context-menu.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
 }
 
-@keyframes popIn {
-    from { opacity: 0; transform: scale(0.85) translateY(6px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+.context-toolbar {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
 }
 
-.quick-emoji {
+.context-btn {
     background: transparent;
     border: none;
-    font-size: 1.4rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
-    line-height: 1;
-    transition: transform 0.15s, background 0.15s;
+    color: var(--primary-color);
+    transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
     min-height: auto;
     min-width: auto;
 }
 
-.quick-emoji:hover {
-    transform: scale(1.25);
+.context-btn:hover {
     background: rgba(0, 122, 204, 0.1);
+    transform: scale(1.05);
 }
 
-.quick-emoji.selected {
-    background: rgba(0, 122, 204, 0.15);
-    border: 1px solid rgba(0, 122, 204, 0.4);
+.context-btn:active { transform: scale(0.95); }
+
+.context-btn-danger { color: #dc2626; }
+.context-btn-danger:hover { background: rgba(220, 38, 38, 0.1); }
+
+.context-reactions {
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+    padding: 2px 2px 0;
 }
 
-.quick-more {
+.context-emoji {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    padding: 6px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    line-height: 1;
+    transition: transform 0.2s var(--ease-out), background 0.2s var(--ease-out);
+    min-height: auto;
+    min-width: auto;
+    flex: 1;
+}
+
+.context-emoji:hover {
+    transform: scale(1.15);
+    background: rgba(0, 122, 204, 0.08);
+}
+
+.context-emoji.selected {
+    background: rgba(0, 122, 204, 0.12);
+    border: 1px solid rgba(0, 122, 204, 0.35);
+}
+
+.context-more {
     color: var(--primary-color);
-    font-weight: bold;
+    font-weight: 700;
     border-left: 1px solid var(--border-light);
-    padding-left: 10px;
-    margin-left: 2px;
-    border-radius: 0 30px 30px 0;
 }
 
 /* ============================================================ */
-/* EMOJI PICKER (full panel)                                     */
+/* EMOJI PICKER (full panel — used by ＋)                        */
 /* ============================================================ */
 
 .emoji-picker-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0, 0, 0, 0.4);
-    z-index: 3000;
+    z-index: 9500;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.25s var(--ease-out);
     backdrop-filter: blur(4px);
 }
 
@@ -516,14 +606,14 @@ button, input, textarea {
     max-width: 480px;
     padding: 20px 16px calc(20px + var(--safe-area-bottom));
     box-shadow: 0 -8px 30px rgba(0, 122, 204, 0.15);
-    animation: slideUpPanel 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     max-height: 60vh;
     overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.3s var(--ease-out);
 }
 
-@keyframes slideUpPanel {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+.emoji-picker-overlay.visible .emoji-picker-panel {
+    transform: translateY(0);
 }
 
 .emoji-picker-header {
@@ -550,6 +640,7 @@ button, input, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.25s var(--ease-out);
 }
 
 .emoji-picker-close:hover { transform: rotate(90deg); }
@@ -571,7 +662,7 @@ button, input, textarea {
     padding: 8px;
     cursor: pointer;
     border-radius: 12px;
-    transition: transform 0.15s, background 0.15s;
+    transition: transform 0.2s var(--ease-out), background 0.2s var(--ease-out);
     line-height: 1;
     aspect-ratio: 1;
     display: flex;
@@ -582,11 +673,122 @@ button, input, textarea {
 }
 
 .emoji-cell:hover {
-    transform: scale(1.2);
+    transform: scale(1.15);
     background: rgba(0, 122, 204, 0.1);
 }
 
 .emoji-cell:active { transform: scale(0.95); }
+
+/* ============================================================ */
+/* EDIT MODAL                                                    */
+/* ============================================================ */
+
+.edit-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 9500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out);
+    backdrop-filter: blur(6px);
+}
+
+.edit-modal-overlay.visible { opacity: 1; }
+
+.edit-modal-panel {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-md);
+    transform: scale(0.95);
+    transition: transform 0.25s var(--ease-out);
+}
+
+.edit-modal-overlay.visible .edit-modal-panel {
+    transform: scale(1);
+}
+
+.edit-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.edit-modal-header h3 {
+    font-size: 1.1rem;
+    color: var(--primary-dark);
+    margin: 0;
+}
+
+.edit-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out);
+    min-height: auto;
+    min-width: auto;
+}
+
+.edit-modal-close:hover {
+    transform: rotate(90deg);
+    background: rgba(0, 122, 204, 0.1);
+}
+
+.edit-modal-input {
+    width: 100%;
+    padding: 14px;
+    background: #f8fbff;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    resize: none;
+    min-height: 90px;
+    transition: border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+    line-height: 1.4;
+}
+
+.edit-modal-input:focus {
+    border-color: var(--primary-color);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.12);
+}
+
+.edit-modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.edit-modal-actions .btn-secondary,
+.edit-modal-actions .btn-primary {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
 
 /* ============================================================ */
 /* TYPING INDICATOR                                              */
@@ -607,11 +809,10 @@ button, input, textarea {
     color: var(--primary-color);
     width: fit-content;
     box-shadow: var(--shadow-sm);
-    animation: fadeIn 0.2s ease;
+    animation: fadeIn 0.25s var(--ease-out);
 }
 
 .typing-indicator span { color: var(--text-secondary); font-size: 0.85rem; }
-
 .typing-dots { display: flex; gap: 4px; }
 
 .typing-dots div {
@@ -663,7 +864,7 @@ button, input, textarea {
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
     box-shadow: var(--shadow-sm);
 }
 
@@ -685,13 +886,13 @@ button, input, textarea {
     min-height: 44px;
     max-height: 100px;
     overflow-y: auto;
-    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    transition: border-color 0.25s var(--ease-out), background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
 }
 
 .message-input:focus {
     border-color: var(--primary-color);
     background: #ffffff;
-    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .send-btn {
@@ -706,11 +907,11 @@ button, input, textarea {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
     box-shadow: var(--shadow-sm);
 }
 
-.send-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: var(--shadow-md); }
+.send-btn:hover:not(:disabled) { transform: scale(1.06); box-shadow: var(--shadow-md); }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .send-icon { width: 18px; height: 18px; fill: white; }
@@ -723,7 +924,7 @@ button, input, textarea {
     position: fixed;
     bottom: 100px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(8px);
     background: #ffffff;
     border: 1px solid var(--border-light);
     border-radius: 20px;
@@ -735,7 +936,11 @@ button, input, textarea {
     min-width: 300px;
     max-width: 90%;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+}
+
+.color-picker-overlay[style*="display: flex"] {
+    transform: translateX(-50%) translateY(0);
 }
 
 .color-picker-grid {
@@ -751,7 +956,7 @@ button, input, textarea {
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: transform 0.15s;
+    transition: transform 0.2s var(--ease-out);
 }
 
 .color-option:hover { transform: scale(1.1); }
@@ -784,7 +989,7 @@ button, input, textarea {
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: background 0.2s;
+    transition: background 0.25s var(--ease-out);
 }
 
 .color-clear-btn:hover { background: rgba(0, 122, 204, 0.2); }
@@ -802,9 +1007,11 @@ button, input, textarea {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity 0.25s var(--ease-out);
     backdrop-filter: blur(20px);
 }
+
+.image-viewer-overlay[style*="opacity: 1"] { opacity: 1; }
 
 .viewer-close {
     position: fixed;
@@ -823,10 +1030,11 @@ button, input, textarea {
     justify-content: center;
     z-index: 4001;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.2s;
+    transition: transform 0.25s var(--ease-out);
 }
 
 .viewer-close:hover { transform: rotate(90deg); box-shadow: var(--shadow-md); }
+.viewer-close svg { width: 22px; height: 22px; fill: currentColor; }
 
 .viewer-image-container {
     width: 100%; height: 100%;
@@ -842,7 +1050,7 @@ button, input, textarea {
     object-fit: contain;
     border-radius: 10px;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s var(--ease-out);
 }
 
 .viewer-image.loaded { opacity: 1; }
@@ -872,15 +1080,14 @@ button, input, textarea {
     min-width: 140px;
     justify-content: center;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
 }
 
 .viewer-action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-
 .viewer-action-btn svg { width: 20px; height: 20px; fill: var(--primary-color); }
 
 /* ============================================================ */
-/* IMAGE PICKER                                                  */
+/* IMAGE PICKER / PREVIEW                                        */
 /* ============================================================ */
 
 .image-picker-overlay {
@@ -892,7 +1099,11 @@ button, input, textarea {
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(15px);
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out);
 }
+
+.image-picker-overlay[style*="display: flex"] { opacity: 1; }
 
 .image-picker-container {
     background: #ffffff;
@@ -932,6 +1143,7 @@ button, input, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.25s var(--ease-out);
 }
 
 .image-picker-close:hover { transform: rotate(90deg); }
@@ -955,17 +1167,12 @@ button, input, textarea {
     align-items: center;
     gap: 12px;
     text-align: left;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
     box-shadow: var(--shadow-sm);
 }
 
 .image-picker-option:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-
 .picker-icon { width: 24px; height: 24px; fill: currentColor; }
-
-/* ============================================================ */
-/* IMAGE PREVIEW                                                 */
-/* ============================================================ */
 
 .image-preview-overlay {
     position: fixed;
@@ -976,9 +1183,11 @@ button, input, textarea {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity 0.25s var(--ease-out);
     backdrop-filter: blur(20px);
 }
+
+.image-preview-overlay[style*="opacity: 1"] { opacity: 1; }
 
 .image-preview-container {
     background: #ffffff;
@@ -1010,7 +1219,10 @@ button, input, textarea {
     border-radius: 50%;
     font-size: 1.5rem;
     cursor: pointer;
+    transition: transform 0.25s var(--ease-out);
 }
+
+.preview-close:hover { transform: rotate(90deg); }
 
 .preview-image-container {
     margin: 20px 0;
@@ -1062,7 +1274,7 @@ button, input, textarea {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .preview-btn.cancel {
@@ -1095,7 +1307,7 @@ button, input, textarea {
 }
 
 /* ============================================================ */
-/* MODALS                                                        */
+/* MODALS (generic)                                              */
 /* ============================================================ */
 
 .modal-overlay {
@@ -1107,7 +1319,13 @@ button, input, textarea {
     align-items: center;
     z-index: 2000;
     backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out);
 }
+
+.modal-overlay[style*="display: flex"] { opacity: 1; }
+
+.modal-overlay.visible { opacity: 1; }
 
 .modal-content {
     background: #ffffff;
@@ -1117,12 +1335,13 @@ button, input, textarea {
     width: 90%;
     max-width: 350px;
     box-shadow: var(--shadow-md);
-    animation: modalSlideUp 0.2s ease;
+    transform: scale(0.96);
+    transition: transform 0.25s var(--ease-out);
 }
 
-@keyframes modalSlideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.modal-overlay.visible .modal-content,
+.modal-overlay[style*="display: flex"] .modal-content {
+    transform: scale(1);
 }
 
 .modal-header {
@@ -1145,11 +1364,86 @@ button, input, textarea {
     border-radius: 50%;
     font-size: 1.4rem;
     cursor: pointer;
+    transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out);
 }
 
-.modal-close:hover { transform: rotate(90deg); }
+.modal-close:hover { transform: rotate(90deg); background: rgba(0, 122, 204, 0.06); }
 
 .modal-body { color: var(--text-secondary); font-size: 0.95rem; }
+
+/* ============================================================ */
+/* GUIDE MODAL                                                   */
+/* ============================================================ */
+
+.guide-modal-content {
+    max-width: 420px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.guide-modal-content .modal-header {
+    padding: 18px 20px 14px;
+    margin: 0;
+}
+
+.guide-body {
+    padding: 8px 20px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.guide-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 12px;
+    transition: background 0.25s var(--ease-out);
+}
+
+.guide-item:hover {
+    background: rgba(0, 122, 204, 0.06);
+}
+
+.guide-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 122, 204, 0.08);
+    border-radius: 10px;
+}
+
+.guide-item strong {
+    display: block;
+    color: var(--primary-dark);
+    font-size: 0.95rem;
+    margin-bottom: 3px;
+}
+
+.guide-item p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.guide-item code {
+    background: rgba(0, 122, 204, 0.1);
+    color: var(--primary-dark);
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+}
 
 /* ============================================================ */
 /* USER INFO                                                     */
@@ -1185,7 +1479,7 @@ button, input, textarea {
     color: var(--primary-dark);
     font-size: 0.95rem;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .info-action-btn.danger {
@@ -1210,7 +1504,7 @@ button, input, textarea {
     font-weight: 600;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -1225,7 +1519,7 @@ button, input, textarea {
     font-weight: 600;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .btn-secondary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -1285,7 +1579,11 @@ button, input, textarea {
     flex-direction: column;
     z-index: 5000;
     backdrop-filter: blur(20px);
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out);
 }
+
+.loading-overlay[style*="opacity: 1"] { opacity: 1; }
 
 .loading-spinner {
     width: 44px;
@@ -1304,7 +1602,7 @@ button, input, textarea {
 /* ============================================================ */
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -1318,11 +1616,16 @@ button, input, textarea {
     .chat-user-details h3 { font-size: 1.1rem; }
     .message { max-width: 85%; padding: 8px 12px; }
     .main-content { top: calc(74px + var(--safe-area-top)); }
+    .guide-btn, .call-btn { width: 40px; height: 40px; }
+    .message-context-menu { padding: 8px; }
+    .context-emoji { padding: 4px 6px; font-size: 1.3rem; }
 }
 
 @media (max-width: 480px) {
     .chat-user-details h3 { font-size: 1rem; }
     .message { max-width: 90%; font-size: 0.95rem; }
+    .context-btn { width: 34px; height: 34px; }
+    .context-emoji { font-size: 1.25rem; padding: 4px; }
 }
 
 /* ============================================================ */
@@ -1334,5 +1637,4 @@ button, input, textarea {
     .message-input-wrapper { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
 }
 
-/* Prevent Chrome pull-to-refresh */
 body { overscroll-behavior-y: contain; }
