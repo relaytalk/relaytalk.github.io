@@ -1,4 +1,4 @@
-// home/script.js - COMPLETE WITH REALTIME FRIENDS
+// home/script.js - Home page controller
 
 import { auth } from '../../utils/auth.js'
 
@@ -205,18 +205,9 @@ async function initHomePage() {
         await updateNotificationsBadge();
         await updateCallsTabBadge();
         setupEventListeners();
-
-        // 🔥 Set up realtime friends listener
         setupFriendsRealtime();
 
         console.log('✅ Home page initialized successfully');
-
-        setTimeout(() => {
-            if (currentProfile) {
-                toast.success("Welcome back!", `Good to see you, ${currentProfile.username}! 👋`);
-            }
-        }, 800);
-
     } catch (error) {
         console.error('❌ Init failed:', error);
         if (loadingIndicator) loadingIndicator.style.display = 'none';
@@ -322,8 +313,19 @@ async function loadUserProfile() {
 
 function updateWelcomeMessage() {
     if (!currentProfile) return;
-    const el = document.getElementById('welcomeTitle');
-    if (el) el.textContent = `Welcome, ${currentProfile.username}!`;
+
+    const nameEl = document.getElementById('welcomeTitle');
+    const smallEl = document.getElementById('greetingSmall');
+
+    const hour = new Date().getHours();
+    let greeting = 'Hello';
+    if (hour < 12) greeting = 'Good morning';
+    else if (hour < 17) greeting = 'Good afternoon';
+    else if (hour < 21) greeting = 'Good evening';
+    else greeting = 'Good night';
+
+    if (smallEl) smallEl.textContent = greeting;
+    if (nameEl) nameEl.textContent = currentProfile.username || 'Friend';
 }
 
 // ============================================
@@ -368,18 +370,21 @@ async function loadFriends() {
 
                 html += `
                     <div class="friend-card" onclick="openChat('${profile.id}', '${profile.username}')">
-                        <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
+                        <div class="friend-avatar">
                             ${profile.avatar_url
-                                ? `<img src="${profile.avatar_url}" alt="${profile.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                                : `<span style="color:white; font-size:1.3rem; font-weight:600;">${firstLetter}</span>`
+                                ? `<img src="${profile.avatar_url}" alt="${profile.username}">`
+                                : `<span>${firstLetter}</span>`
                             }
+                            <span class="friend-status-dot ${isOnline ? 'online' : 'offline'}"></span>
                         </div>
                         <div class="friend-info">
-                            <div class="friend-name">${profile.username || 'Unknown User'}</div>
+                            <div class="friend-name">${profile.username || 'Unknown'}</div>
                             <div class="friend-status">
-                                <span class="status-dot ${isOnline ? '' : 'offline'}"></span>
                                 ${isOnline ? 'Online' : 'Last seen ' + timeAgo}
                             </div>
+                        </div>
+                        <div class="friend-card-arrow">
+                            <i class="fas fa-chevron-right"></i>
                         </div>
                     </div>
                 `;
@@ -392,7 +397,9 @@ async function loadFriends() {
         container.innerHTML = html;
 
         const onlineCounter = document.getElementById('onlineCounter');
-        if (onlineCounter) onlineCounter.textContent = `${onlineCount} Online`;
+        if (onlineCounter) {
+            onlineCounter.innerHTML = `<span class="online-dot"></span>${onlineCount} online`;
+        }
 
     } catch (error) {
         showEmptyFriends();
@@ -404,16 +411,20 @@ function showEmptyFriends() {
     if (!container) return;
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon">👥</div>
-            <h3 class="empty-title">No Friends Yet</h3>
-            <p class="empty-desc">Start by searching for friends to connect with</p>
-            <button class="search-btn" onclick="openSearch()" style="margin-top: 20px;">
+            <div class="empty-icon">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <h3 class="empty-title">No friends yet</h3>
+            <p class="empty-desc">Search for friends to start chatting</p>
+            <button class="btn-primary empty-cta" onclick="openSearch()">
                 <i class="fas fa-search"></i> Find Friends
             </button>
         </div>
     `;
     const onlineCounter = document.getElementById('onlineCounter');
-    if (onlineCounter) onlineCounter.textContent = '0 Online';
+    if (onlineCounter) {
+        onlineCounter.innerHTML = `<span class="online-dot"></span>0 online`;
+    }
 }
 
 function getTimeAgo(date) {
@@ -450,7 +461,7 @@ async function loadSearchResults() {
 
     try {
         if (!currentUser || !window.supabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Cannot search right now</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Cannot search right now</p></div>`;
             return;
         }
 
@@ -461,7 +472,7 @@ async function loadSearchResults() {
             .limit(50);
 
         if (error || !allUsers || allUsers.length === 0) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No other users found</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-users"></i></div><p>No other users found</p></div>`;
             return;
         }
 
@@ -483,7 +494,7 @@ async function loadSearchResults() {
             searchInput.focus();
         }
     } catch (error) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Search failed</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Search failed</p></div>`;
     }
 }
 
@@ -492,7 +503,7 @@ async function displaySearchResults(users) {
     if (!container) return;
 
     if (!users || users.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No users found</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>No users found</p></div>`;
         return;
     }
 
@@ -520,10 +531,10 @@ async function displaySearchResults(users) {
 
             html += `
                 <div class="search-result">
-                    <div class="search-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
+                    <div class="search-avatar">
                         ${user.avatar_url
-                            ? `<img src="${user.avatar_url}" alt="${user.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1.1rem; font-weight:600;">${firstLetter}</span>`
+                            ? `<img src="${user.avatar_url}" alt="${user.username}">`
+                            : `<span>${firstLetter}</span>`
                         }
                     </div>
                     <div class="search-info">
@@ -531,11 +542,11 @@ async function displaySearchResults(users) {
                         <div class="search-username">${user.full_name || ''}</div>
                     </div>
                     ${isFriend ? `
-                        <button class="send-request-btn sent" disabled>✓ Friend</button>
+                        <button class="send-request-btn sent" disabled>Friend</button>
                     ` : requestSent ? `
-                        <button class="send-request-btn sent" disabled>✓ Sent</button>
+                        <button class="send-request-btn sent" disabled>Sent</button>
                     ` : `
-                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">Add Friend</button>
+                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">Add</button>
                     `}
                 </div>
             `;
@@ -570,14 +581,14 @@ async function sendFriendRequest(toUserId, toUsername, button) {
         toast.success("Request Sent", `Your request has been sent to ${toUsername}!`);
 
         if (button) {
-            button.textContent = '✓ Sent';
+            button.textContent = 'Sent';
             button.disabled = true;
             button.classList.add('sent');
         }
     } catch (error) {
         toast.error("Request Failed", "Please check your connection");
         if (button) {
-            button.textContent = 'Add Friend';
+            button.textContent = 'Add';
             button.disabled = false;
         }
     }
@@ -620,25 +631,31 @@ async function loadNotifications() {
         let html = '';
         notifications.forEach(notification => {
             const timeAgo = getTimeAgo(notification.created_at);
-            const sender = profileMap[notification.sender_id] || { username: 'Unknown User' };
+            const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
             const firstLetter = senderName.charAt(0).toUpperCase();
 
             html += `
                 <div class="notification-item">
-                    <div class="notification-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
+                    <div class="notification-avatar">
                         ${sender.avatar_url
-                            ? `<img src="${sender.avatar_url}" alt="${senderName}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                            : `<span style="color:white; font-size:1rem; font-weight:600;">${firstLetter}</span>`
+                            ? `<img src="${sender.avatar_url}" alt="${senderName}">`
+                            : `<span>${firstLetter}</span>`
                         }
                     </div>
                     <div class="notification-content">
-                        <strong>${senderName}</strong> wants to be friends
-                        <small>${timeAgo}</small>
+                        <div class="notification-text">
+                            <strong>${senderName}</strong> wants to be friends
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
                     </div>
                     <div class="notification-actions">
-                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)">✓</button>
-                        <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)">✗</button>
+                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)" aria-label="Accept">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)" aria-label="Decline">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
             `;
@@ -653,8 +670,10 @@ async function loadNotifications() {
 function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon">🔔</div>
-            <p>No notifications yet</p>
+            <div class="empty-icon">
+                <i class="fas fa-bell-slash"></i>
+            </div>
+            <p class="empty-desc">No notifications yet</p>
         </div>
     `;
 }
@@ -668,7 +687,7 @@ async function loadCallHistory() {
 
     try {
         if (!currentUser || !window.supabase) {
-            container.innerHTML = `<div class="empty-state"><div class="empty-icon">📞</div><p>Cannot load call history</p></div>`;
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-phone-slash"></i></div><p>Cannot load call history</p></div>`;
             return;
         }
 
@@ -682,7 +701,9 @@ async function loadCallHistory() {
         if (error || !calls || calls.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">📞</div>
+                    <div class="empty-icon">
+                        <i class="fas fa-phone-slash"></i>
+                    </div>
                     <h3 class="empty-title">No calls yet</h3>
                     <p class="empty-desc">Your call history will appear here</p>
                 </div>
@@ -756,7 +777,7 @@ async function loadCallHistory() {
                     <div class="call-history-info">
                         <div class="call-history-name">${otherUser.username}</div>
                         <div class="call-history-meta">
-                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}" style="font-size:0.75rem;color:#64748b;"></i>
+                            <i class="fas ${isOutgoing ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
                             <span>${isOutgoing ? 'Outgoing' : 'Incoming'}</span>
                             <span class="dot">•</span>
                             <span>${time}</span>
@@ -772,7 +793,7 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
     } catch (error) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load call history</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div><p>Could not load call history</p></div>`;
     }
 }
 
@@ -808,7 +829,7 @@ window.switchNotifTab = function(tab) {
 // ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
     if (button) {
-        button.textContent = '...';
+        button.innerHTML = '...';
         button.disabled = true;
     }
 
@@ -836,16 +857,16 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
         await loadFriends();
         await updateNotificationsBadge();
 
-        toast.success("New Friend!", `You are now connected with ${senderName}! 🎉`);
+        toast.success("New Friend!", `You are now connected with ${senderName}!`);
 
         if (button) {
-            button.textContent = '✓ Accepted';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.style.background = 'rgba(40, 167, 69, 0.3)';
         }
     } catch (error) {
         toast.error("Connection Failed", "Could not accept friend request");
         if (button) {
-            button.textContent = '✓';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.disabled = false;
         }
     }
@@ -853,7 +874,7 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
 
 async function declineFriendRequest(requestId, button = null) {
     if (button) {
-        button.textContent = '...';
+        button.innerHTML = '...';
         button.disabled = true;
     }
 
@@ -871,12 +892,12 @@ async function declineFriendRequest(requestId, button = null) {
         toast.info("Request Declined", "Friend request has been declined");
 
         if (button) {
-            button.textContent = '✗ Declined';
+            button.innerHTML = '<i class="fas fa-times"></i>';
             button.style.background = 'rgba(220, 53, 69, 0.3)';
         }
     } catch (error) {
         if (button) {
-            button.textContent = '✗';
+            button.innerHTML = '<i class="fas fa-times"></i>';
             button.disabled = false;
         }
     }
@@ -936,7 +957,6 @@ async function updateCallsTabBadge() {
             }
         }
 
-        // Combined bottom-nav badge
         const notifBadge = document.getElementById('notificationBadge');
         if (notifBadge) {
             const { data: fr } = await window.supabase
@@ -1008,7 +1028,7 @@ function goToHome() {
 }
 
 function openSettings() {
-    toast.info("Coming Soon", "Settings page is under development! Stay tuned ✨");
+    toast.info("Coming Soon", "Settings page is under development! Stay tuned");
 }
 
 function viewFriendsPage() {
@@ -1019,6 +1039,7 @@ window.openSearch = function() {
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
         loadSearchResults();
     }
 };
@@ -1027,6 +1048,7 @@ window.openNotifications = function() {
     const modal = document.getElementById('notificationsModal');
     if (modal) {
         modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
         updateCallsTabBadge();
     }
@@ -1035,8 +1057,11 @@ window.openNotifications = function() {
 window.closeModal = function() {
     const searchModal = document.getElementById('searchModal');
     const notificationsModal = document.getElementById('notificationsModal');
-    if (searchModal) searchModal.style.display = 'none';
-    if (notificationsModal) notificationsModal.style.display = 'none';
+    [searchModal, notificationsModal].forEach(m => {
+        if (!m) return;
+        m.classList.remove('visible');
+        setTimeout(() => { m.style.display = 'none'; }, 200);
+    });
 };
 
 window.openChat = openChat;
