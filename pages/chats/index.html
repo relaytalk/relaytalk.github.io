@@ -136,6 +136,9 @@
                     <i class="fas fa-phone"></i>
                 </button>
             </div>
+
+            <!-- TOP ACTION BAR — hidden by default, overlays the header on long press -->
+            <div class="top-action-bar" id="topActionBar" style="display: none;"></div>
         </header>
 
         <!-- Main Chat Area -->
@@ -248,7 +251,7 @@
                     <div class="guide-icon">😀</div>
                     <div>
                         <strong>React to messages</strong>
-                        <p>Long-press any message → pick an emoji from the top bar. Tap the same emoji to remove it. Tap <strong>＋</strong> for more options.</p>
+                        <p>Long-press any message → pick an emoji. Tap the same emoji to remove it. Tap <strong>＋</strong> for more options.</p>
                     </div>
                 </div>
                 <div class="guide-item">
@@ -317,7 +320,7 @@
         </div>
     </div>
 
-    <!-- Toast -->
+    <!-- Toast Notification -->
     <div class="modal-overlay" id="customToast" style="display: none; align-items: flex-end; justify-content: center; background: transparent; pointer-events: none;">
         <div class="modal-content" style="max-width: 300px; margin-bottom: 20px; text-align: center;">
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -327,31 +330,42 @@
         </div>
     </div>
 
+    <!-- Scripts -->
     <script type="module" src="script.js"></script>
+
+    <!-- Global call hub: incoming call banner + window.startCall() -->
     <script type="module" src="/utils/callHub.js"></script>
 
+    <!-- Chat page call button glue -->
     <script>
         window.callCurrentFriend = function() {
             const friend = window.chatFriend;
 
             if (!friend || !friend.id) {
-                if (typeof window.showToast === 'function') window.showToast('Friend info not ready yet', '⚠️', 1500);
-                else alert('Friend info not ready yet');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Friend info not ready yet', '⚠️', 1500);
+                } else {
+                    alert('Friend info not ready yet');
+                }
                 return;
             }
 
             if (typeof window.startCall !== 'function') {
-                if (typeof window.showToast === 'function') window.showToast('Calling service not ready yet', '⚠️', 1500);
-                else alert('Calling service not ready yet');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Calling service not ready yet', '⚠️', 1500);
+                } else {
+                    alert('Calling service not ready yet');
+                }
                 return;
             }
 
+            console.log('📞 [chats] Triggering call to:', friend.id, friend.username);
             window.startCall(friend.id, friend.username || 'Friend');
         };
 
         function isMobileChrome() {
             const ua = navigator.userAgent;
-            return /Android/i.test(ua) && /Chrome/i.test(ua) && !/Edg/i.test(ua);
+            return (/Android/i.test(ua) && /Chrome/i.test(ua) && !/Edg/i.test(ua));
         }
 
         function applyChromeMobileFixes() {
