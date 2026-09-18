@@ -9,6 +9,7 @@ let currentUser = null;
 let currentProfile = null;
 let currentShowDetails = true;
 let currentBio = '';
+let notificationsEnabled = false;
 
 // ============================================================
 // INIT
@@ -35,7 +36,7 @@ async function initProfilePage() {
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.style.display = 'none';
 
-        updateNotifyButtonState();
+        await refreshNotificationState();
         updateDetailsToggle();
     } catch (error) {
         console.error('Init error:', error);
@@ -301,9 +302,9 @@ window.removeAvatar = async function() {
 };
 
 // ============================================================
-// NOTIFICATIONS — Enable
+// NOTIFICATIONS — Toggle (Enable / Disable)
 // ============================================================
-window.enableNotifications = async function() {
+window.toggleNotifications = async function() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
 
@@ -312,9 +313,31 @@ window.enableNotifications = async function() {
         return;
     }
 
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+        if (notificationsEnabled) {
+            // Currently enabled → turn OFF
+            await disableNotificationsAction();
+        } else {
+            // Currently off → turn ON
+            await enableNotificationsAction();
+        }
+    } catch (e) {
+        console.error('Toggle notification error:', e);
+        showToast('error', 'Something went wrong');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        await refreshNotificationState();
+    }
+};
+
+async function enableNotificationsAction() {
     if (Notification.permission === 'granted') {
         if (window.relaytalkPush) await window.relaytalkPush.init();
-        showToast('success', 'Already enabled');
+        showToast('success', 'Notifications enabled');
         return;
     }
 
@@ -323,34 +346,129 @@ window.enableNotifications = async function() {
         return;
     }
 
-    btn.disabled = true;
-    btn.classList.add('loading');
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true;
+    if (isIOS && !isStandalone) {
+        alert('On iPhone, please tap Share → Add to Home Screen first, then reopen this page and tap Enable again.');
+        return;
+    }
+
+    const result = await window.relaytalkPush.request();
+    if (result.success) {
+        showToast('success', 'Notifications enabled!');
+    } else {
+        showToast('error', 'Could not enable: ' + (result.reason || 'denied'));
+    }
+}
+
+async function disableNotificationsAction() {
+    const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
+    if (!ok) {
+        // user cancelled — no state change
+        return;
+    }
 
     try {
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isStandalone = window.navigator.standalone === true;
-        if (isIOS && !isStandalone) {
-            alert('On iPhone, please tap Share → Add to Home Screen first, then reopen this page and tap Enable again.');
-            btn.disabled = false;
-            btn.classList.remove('loading');
-            return;
-        }
-
-        const result = await window.relaytalkPush.request();
-        if (result.success) {
-            markNotifyEnabled();
-            showToast('success', 'Notifications enabled!');
-        } else {
-            showToast('error', 'Could not enable: ' + (result.reason || 'denied'));
+        if (window.relaytalkPush?.unsubscribe) {
+            await window.relaytalkPush.unsubscribe();
         }
     } catch (e) {
-        console.error(e);
-        showToast('error', 'Something went wrong');
-    } finally {
-        btn.disabled = false;
-        btn.classList.remove('loading');
+        console.warn('Unsubscribe failed:', e);
     }
-};
+
+    try {
+        if (supabase && currentUser) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
+        }
+    } catch (e) {
+        console.warn('DB cleanup failed:', e);
+    }
+
+    showToast('success', 'Notifications turned off');
+}
+
+// ============================================================
+// NOTIFICATION STATE (button visual)
+// ============================================================
+async function refreshNotificationState() {
+    const btn = document.getElementById('enableNotificationsBtn');
+    const label = document.getElementById('enableBtnLabel');
+    const icon = document.getElementById('enableBtnIcon');
+    if (!btn || !label || !icon) return;
+
+    // Reset classes
+    btn.classList.remove('enabled', 'denied', 'loading');
+
+    // Check browser permission
+    const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+
+    if (perm === 'unsupported') {
+        btn.style.display = 'none';
+        return;
+    }
+
+    if (perm === 'denied') {
+        notificationsEnabled = false;
+        btn.classList.add('denied');
+        label.textContent = 'Blocked';
+        setBellIcon(icon, 'off');
+        return;
+    }
+
+    // Is there an active subscription?
+    let hasSub = false;
+    try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+            const sub = await reg.pushManager.getSubscription();
+            hasSub = !!sub;
+        }
+    } catch (e) {}
+
+    // Also check DB
+    let hasDbRow = false;
+    try {
+        if (supabase && currentUser) {
+            const { data } = await supabase
+                .from('push_subscriptions')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .limit(1);
+            hasDbRow = !!(data && data.length > 0);
+        }
+    } catch (e) {}
+
+    notificationsEnabled = (perm === 'granted') && (hasSub || hasDbRow);
+
+    if (notificationsEnabled) {
+        btn.classList.add('enabled');
+        label.textContent = 'Enabled';
+        setBellIcon(icon, 'on');
+    } else {
+        label.textContent = 'Enable';
+        setBellIcon(icon, 'off');
+    }
+}
+
+function setBellIcon(container, state) {
+    if (!container) return;
+    if (state === 'on') {
+        container.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <polyline points="9 12 11 14 15 10" style="stroke: currentColor; stroke-width: 2.5;"/>
+            </svg>
+        `;
+    } else {
+        container.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+        `;
+    }
+}
 
 // ============================================================
 // NOTIFICATIONS — Reset
@@ -367,106 +485,36 @@ window.resetNotifications = async function() {
     showToast('info', 'Resetting...');
 
     try {
-        if (window.relaytalkPush) await window.relaytalkPush.unsubscribe();
+        if (window.relaytalkPush?.unsubscribe) {
+            await window.relaytalkPush.unsubscribe();
+        }
+    } catch (e) {}
+
+    try {
         if (supabase && currentUser) {
             await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
         }
+    } catch (e) {}
 
-        await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, 700));
 
+    try {
         if (window.relaytalkPush) {
             const result = await window.relaytalkPush.request();
             if (result.success) {
-                markNotifyEnabled();
                 showToast('success', 'Notifications reset!');
             } else {
                 showToast('error', 'Reset failed: ' + (result.reason || 'unknown'));
             }
         }
     } catch (e) {
-        console.error(e);
         showToast('error', 'Reset failed');
     } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
+        await refreshNotificationState();
     }
 };
-
-// ============================================================
-// NOTIFICATIONS — Turn Off
-// ============================================================
-window.disableNotifications = async function() {
-    const btn = document.getElementById('disableNotificationsBtn');
-    if (!btn) return;
-
-    const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
-    if (!ok) return;
-
-    btn.disabled = true;
-    btn.classList.add('loading');
-    showToast('info', 'Turning off...');
-
-    try {
-        // Unsubscribe from push
-        if (window.relaytalkPush?.unsubscribe) {
-            await window.relaytalkPush.unsubscribe();
-        }
-
-        // Also delete any rows for this user in DB (best effort)
-        if (supabase && currentUser) {
-            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
-        }
-
-        // If we can, also clear the browser permission? No — cannot. But we can
-        // mark it visually by resetting button state.
-        setTimeout(() => {
-            resetNotifyButtons();
-            showToast('success', 'Notifications turned off');
-        }, 300);
-
-    } catch (e) {
-        console.error(e);
-        showToast('error', 'Could not turn off');
-    } finally {
-        btn.disabled = false;
-        btn.classList.remove('loading');
-    }
-};
-
-function markNotifyEnabled() {
-    const btn = document.getElementById('enableNotificationsBtn');
-    const label = document.getElementById('enableBtnLabel');
-    if (!btn) return;
-
-    btn.classList.add('enabled');
-    if (label) label.textContent = 'Enabled';
-}
-
-function resetNotifyButtons() {
-    const btn = document.getElementById('enableNotificationsBtn');
-    const label = document.getElementById('enableBtnLabel');
-    if (!btn) return;
-
-    btn.classList.remove('enabled', 'denied', 'loading');
-    if (label) label.textContent = 'Enable';
-}
-
-function updateNotifyButtonState() {
-    const btn = document.getElementById('enableNotificationsBtn');
-    if (!btn) return;
-
-    if (!('Notification' in window)) {
-        btn.style.display = 'none';
-        return;
-    }
-
-    if (Notification.permission === 'granted') {
-        markNotifyEnabled();
-    } else if (Notification.permission === 'denied') {
-        btn.classList.add('denied');
-        document.getElementById('enableBtnLabel').textContent = 'Blocked';
-    }
-}
 
 // ============================================================
 // DETAILS TOGGLE
