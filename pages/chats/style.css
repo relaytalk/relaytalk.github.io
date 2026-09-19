@@ -1917,3 +1917,16 @@ img { display: block; max-width: 100%; }
 }
 
 body { overscroll-behavior-y: contain; }
+
+
+
+
+
+
+
+
+.send-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
