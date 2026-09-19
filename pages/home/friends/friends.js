@@ -1,4 +1,4 @@
-// friends.js - Friends page controller (design updated, backend unchanged)
+// friends.js - Friends page controller
 
 import { initializeSupabase as initMainSupabase } from '../../../utils/supabase.js';
 import {
@@ -353,7 +353,7 @@ window.clearSearch = function() {
 };
 
 // ============================================
-// NAVIGATION — correct paths
+// NAVIGATION
 // ============================================
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
@@ -505,7 +505,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// LOAD CALL HISTORY — call button removed
+// LOAD CALL HISTORY — no call-back button
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -797,11 +797,6 @@ function escapeHtml(str) {
 
 function escapeAttr(str) { return escapeHtml(str); }
 
-function updateLoadingText(text) {
-    const el = document.querySelector('.loading-label');
-    if (el) el.textContent = text;
-}
-
 function showToast(type, message) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -981,4 +976,9 @@ window.addEventListener('beforeunload', () => {
     if (friendRealtimeChannel) mainSupabase?.removeChannel(friendRealtimeChannel);
 });
 
-document.addEventListener('DOMContentLoaded', initFriendsPage);
+// FIX: readyState guard so init always runs
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFriendsPage);
+} else {
+    initFriendsPage();
+}
