@@ -88,8 +88,8 @@ async function loadFriendshipDate() {
 // RENDER
 // ============================================================
 function renderPage() {
-    document.getElementById('loadingIndicator').style.display = 'none';
-    document.getElementById('viewMain').style.display = 'flex';
+    const main = document.getElementById('viewMain');
+    if (main) main.style.display = 'flex';
 
     const initial = viewedUser.username ? viewedUser.username.charAt(0).toUpperCase() : '?';
     const avatarImg = document.getElementById('viewAvatarImg');
@@ -113,10 +113,8 @@ function renderPage() {
     document.getElementById('viewName').textContent = viewedUser.full_name || viewedUser.username;
     document.getElementById('viewUsername').textContent = `@${viewedUser.username}`;
 
-    // Status
     updateStatusUI(viewedUser.status, viewedUser.last_seen);
 
-    // Bio
     const bioBox = document.getElementById('viewBioBox');
     if (viewedUser.bio && viewedUser.bio.trim()) {
         bioBox.textContent = viewedUser.bio.trim();
@@ -126,7 +124,6 @@ function renderPage() {
         bioBox.classList.add('empty');
     }
 
-    // Friends since
     const sinceEl = document.getElementById('viewFriendsSince');
     if (friendSinceDate) {
         const dt = new Date(friendSinceDate);
@@ -229,13 +226,13 @@ window.closeView = function() {
     if (window.history.length > 1) {
         window.history.back();
     } else {
-        window.location.href = '../../home/index.html';
+        // FIX: was '../../home/index.html' (broken path)
+        window.location.href = '../index.html';
     }
 };
 
 window.openChat = function() {
     if (!viewedUser) return;
-    // Path from pages/home/profile/view.js → pages/chats/index.html
     window.location.href = `../../chats/index.html?friendId=${viewedUser.id}`;
 };
 
@@ -247,7 +244,6 @@ window.startCallFromView = function() {
         return;
     }
 
-    // Allow calling regardless of online/offline — call page handles the rest
     window.startCall(viewedUser.id, viewedUser.username || 'Friend');
 };
 
@@ -255,8 +251,8 @@ window.startCallFromView = function() {
 // HELPERS
 // ============================================================
 function showFallback() {
-    document.getElementById('loadingIndicator').style.display = 'none';
-    document.getElementById('fallbackScreen').style.display = 'flex';
+    const fallback = document.getElementById('fallbackScreen');
+    if (fallback) fallback.style.display = 'flex';
 }
 
 function showToast(message, icon = '✅') {
