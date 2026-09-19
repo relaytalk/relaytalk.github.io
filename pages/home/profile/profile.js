@@ -115,10 +115,15 @@ async function loadUserStats() {
             .eq('user_id', currentUser.id);
 
         document.getElementById('friendsCount').textContent = friendsCount || 0;
-        document.getElementById('messagesCount').textContent = '0';
+
+        // Message count element removed from UI — guard so it doesn't throw
+        const msgCountEl = document.getElementById('messagesCount');
+        if (msgCountEl) msgCountEl.textContent = '0';
     } catch {
-        document.getElementById('friendsCount').textContent = '0';
-        document.getElementById('messagesCount').textContent = '0';
+        const friendsEl = document.getElementById('friendsCount');
+        if (friendsEl) friendsEl.textContent = '0';
+        const msgEl = document.getElementById('messagesCount');
+        if (msgEl) msgEl.textContent = '0';
     }
 }
 
@@ -318,10 +323,8 @@ window.toggleNotifications = async function() {
 
     try {
         if (notificationsEnabled) {
-            // Currently enabled → turn OFF
             await disableNotificationsAction();
         } else {
-            // Currently off → turn ON
             await enableNotificationsAction();
         }
     } catch (e) {
@@ -363,10 +366,7 @@ async function enableNotificationsAction() {
 
 async function disableNotificationsAction() {
     const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
-    if (!ok) {
-        // user cancelled — no state change
-        return;
-    }
+    if (!ok) return;
 
     try {
         if (window.relaytalkPush?.unsubscribe) {
@@ -388,7 +388,7 @@ async function disableNotificationsAction() {
 }
 
 // ============================================================
-// NOTIFICATION STATE (button visual)
+// NOTIFICATION STATE
 // ============================================================
 async function refreshNotificationState() {
     const btn = document.getElementById('enableNotificationsBtn');
@@ -396,10 +396,8 @@ async function refreshNotificationState() {
     const icon = document.getElementById('enableBtnIcon');
     if (!btn || !label || !icon) return;
 
-    // Reset classes
     btn.classList.remove('enabled', 'denied', 'loading');
 
-    // Check browser permission
     const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
 
     if (perm === 'unsupported') {
@@ -415,7 +413,6 @@ async function refreshNotificationState() {
         return;
     }
 
-    // Is there an active subscription?
     let hasSub = false;
     try {
         const reg = await navigator.serviceWorker.getRegistration();
@@ -425,7 +422,6 @@ async function refreshNotificationState() {
         }
     } catch (e) {}
 
-    // Also check DB
     let hasDbRow = false;
     try {
         if (supabase && currentUser) {
@@ -614,6 +610,31 @@ function updateDetailsToggle() {
 }
 
 // ============================================================
+// GUIDE MODAL (new — appearance only)
+// ============================================================
+window.openGuide = function() {
+    const modal = document.getElementById('guideModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
+};
+
+window.closeGuide = function() {
+    const modal = document.getElementById('guideModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => modal.style.display = 'none', 200);
+};
+
+// ============================================================
+// BOTTOM NAV — Alerts (stub, routes to home notifications)
+// ============================================================
+window.openNotifications = function(event) {
+    if (event) event.preventDefault();
+    window.location.href = '../../home/index.html';
+};
+
+// ============================================================
 // TOAST
 // ============================================================
 function showToast(type, message) {
@@ -624,10 +645,9 @@ function showToast(type, message) {
     toast.className = `toast ${type}`;
 
     const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-    const color = type === 'success' ? '#22c55e' : type === 'error' ? '#dc3545' : '#007acc';
 
     toast.innerHTML = `
-        <i class="fas fa-${icon}" style="color:${color}"></i>
+        <i class="fas fa-${icon}"></i>
         <span>${message}</span>
     `;
 
