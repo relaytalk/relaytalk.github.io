@@ -336,11 +336,10 @@ async function sendMessage() {
     isSending = true;
     window.isSending = true;
     const sendBtn = document.getElementById('sendBtn');
-    const originalHTML = sendBtn.innerHTML;
 
     try {
-        sendBtn.innerHTML = `<svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>`;
-        sendBtn.disabled = true;
+        // Keep the paper-plane icon visible the whole time — just disable the button.
+        if (sendBtn) sendBtn.disabled = true;
 
         const messageData = {
             sender_id: currentUser.id,
@@ -384,8 +383,7 @@ async function sendMessage() {
     } finally {
         isSending = false;
         window.isSending = false;
-        sendBtn.innerHTML = originalHTML;
-        sendBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
     }
 }
 
