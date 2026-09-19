@@ -7,11 +7,11 @@
     <title>Create Account | RelayTalk</title>
 
     <meta name="description" content="Create your free RelayTalk account. Join our secure messaging platform and start connecting with friends instantly. Simple sign up, no email required.">
-    <meta name="keywords" content="RelayTalk, Create Account, Sign Up, Register, RelayTalk App, RelayTalk Messaging App, Instant Chat, Secure Messaging, Private Chat, Create Account Online, Free Account, Chat App Signup, Messenger Account, Social Messaging">
+    <meta name="keywords" content="RelayTalk, Create Account, Sign Up, Register, RelayTalk App, Instant Chat, Secure Messaging, Private Chat, Free Account, Chat App Signup, Messenger Account">
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="Create Account | RelayTalk">
-    <meta property="og:description" content="Join RelayTalk - Create your free account for secure, private messaging. No email needed, instant sign up.">
+    <meta property="og:description" content="Join RelayTalk — Create your free account for secure, private messaging. No email needed, instant sign up.">
     <meta property="og:url" content="https://relaytalk.vercel.app/pages/auth/">
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta property="og:site_name" content="RelayTalk">
@@ -30,99 +30,44 @@
       "@type": "WebPage",
       "name": "Create Account | RelayTalk",
       "description": "Create your free RelayTalk messaging account",
-      "url": "https://relaytalk.vercel.app/pages/auth/",
-      "breadcrumb": {
-        "@type": "BreadcrumbList",
-        "itemListElement": [{
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://relaytalk.vercel.app/"
-        },{
-          "@type": "ListItem",
-          "position": 2,
-          "name": "Create Account",
-          "item": "https://relaytalk.vercel.app/pages/auth/"
-        }]
-      }
+      "url": "https://relaytalk.vercel.app/pages/auth/"
     }
     </script>
 
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/pages/auth/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="style.css">
 
-    <style>
-        /* Inline SVG icon sizing inside labels and buttons */
-        .form-label-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-        }
-
-        .form-label-icon svg {
-            width: 18px;
-            height: 18px;
-            stroke: #007acc;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .password-toggle svg {
-            width: 18px;
-            height: 18px;
-            stroke: #888888;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            display: block;
-            pointer-events: none;
-        }
-
-        .password-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .password-toggle:hover svg {
-            stroke: #007acc;
-        }
-
-        .terms-btn svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .terms-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-    </style>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/relay.png">
+    <meta name="theme-color" content="#007acc">
 </head>
 <body>
 
     <!-- Simple Header -->
-    <div class="simple-header">
-        <div class="simple-logo">✨Relay</div>
-    </div>
+    <header class="simple-header">
+        <a href="/" class="simple-logo">
+            <img src="/relay.png" alt="RelayTalk" class="simple-logo-img">
+            <span>RelayTalk</span>
+        </a>
+    </header>
 
     <!-- Auth Container -->
     <div class="auth-container">
         <div class="auth-header">
-            <div class="auth-logo">✨</div>
-            <h1 class="auth-title">Join Relay</h1>
+            <div class="auth-logo">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <line x1="19" y1="8" x2="19" y2="14"/>
+                    <line x1="22" y1="11" x2="16" y2="11"/>
+                </svg>
+            </div>
+            <h1 class="auth-title">Join RelayTalk</h1>
             <p class="auth-subtitle">Create your account to connect with friends</p>
         </div>
 
@@ -131,7 +76,6 @@
             <div class="form-group">
                 <label class="form-label" for="username">
                     <span class="form-label-icon">
-                        <!-- User icon -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                             <circle cx="12" cy="7" r="4"/>
@@ -141,7 +85,7 @@
                 </label>
                 <input type="text" id="username" class="form-input"
                        placeholder="e.g., alex_john" required
-                       minlength="3" maxlength="20">
+                       minlength="3" maxlength="20" autocomplete="username">
                 <div class="error-message" id="usernameError"></div>
             </div>
 
@@ -149,7 +93,6 @@
             <div class="form-group">
                 <label class="form-label" for="password">
                     <span class="form-label-icon">
-                        <!-- Lock icon -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -159,9 +102,8 @@
                 </label>
                 <div class="password-input">
                     <input type="password" id="password" class="form-input"
-                           placeholder="Create a strong password" required minlength="6">
+                           placeholder="Create a strong password" required minlength="6" autocomplete="new-password">
                     <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Show password">
-                        <!-- Eye icon (hidden-by-default state) -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
@@ -175,7 +117,6 @@
             <div class="form-group">
                 <label class="form-label" for="confirmPassword">
                     <span class="form-label-icon">
-                        <!-- Check / shield check icon -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                             <polyline points="22 4 12 14.01 9 11.01"/>
@@ -184,7 +125,7 @@
                     Confirm Password
                 </label>
                 <input type="password" id="confirmPassword" class="form-input"
-                       placeholder="Re-enter your password" required>
+                       placeholder="Re-enter your password" required autocomplete="new-password">
                 <div class="error-message" id="confirmError"></div>
             </div>
 
@@ -199,21 +140,18 @@
 
                 <div class="terms-buttons">
                     <button type="button" class="terms-btn" onclick="showTerms()">
-                        <!-- Document icon -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                             <line x1="16" y1="13" x2="8" y2="13"/>
                             <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
                         </svg>
                         Terms &amp; Conditions
                     </button>
                     <button type="button" class="terms-btn" onclick="showPrivacy()">
-                        <!-- Lock icon for privacy -->
                         <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <polyline points="9 12 11 14 15 10"/>
                         </svg>
                         Privacy Policy
                     </button>
@@ -233,21 +171,21 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">
-                    <svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:#005a9e;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;margin-right:6px;" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
                     </svg>
                     Terms &amp; Conditions
                 </h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
-                <h3>Welcome to Relay!</h3>
+                <h3>Welcome to RelayTalk</h3>
                 <p>By creating an account, you agree to these simple terms:</p>
 
                 <h3>Your Account</h3>
                 <ul>
-                    <li>You must be at least 13 years old to use Relay</li>
+                    <li>You must be at least 13 years old to use RelayTalk</li>
                     <li>Your username must be unique and appropriate</li>
                     <li>You are responsible for keeping your password secure</li>
                 </ul>
@@ -261,11 +199,11 @@
                 </ul>
 
                 <div class="security-note">
-                    <strong>⚠️ Important Security Notice:</strong>
+                    <strong>Important Security Notice:</strong>
                     <p>Your password cannot be recovered if forgotten. We don't store passwords in a way that allows recovery. Please write it down securely.</p>
                 </div>
 
-                <h3>Relay's Promise</h3>
+                <h3>RelayTalk's Promise</h3>
                 <p>We provide a secure, simple messaging platform for everyone to connect safely.</p>
 
                 <p><em>Last updated: December 2024 | App Version: 1.0</em></p>
@@ -278,17 +216,16 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">
-                    <svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:#005a9e;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;margin-right:6px;" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     Privacy Policy
                 </h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <h3>Your Privacy Matters</h3>
-                <p>At Relay, we believe in simple, transparent privacy.</p>
+                <p>At RelayTalk, we believe in simple, transparent privacy.</p>
 
                 <h3>What We Store</h3>
                 <ul>
@@ -315,13 +252,13 @@
 
                 <div class="security-note">
                     <strong>Security First:</strong>
-                    <p>Relay is built with security in mind. Created by RelayChat to provide safe, private messaging for everyone.</p>
+                    <p>RelayTalk is built with security in mind. Created by RelayChat to provide safe, private messaging for everyone.</p>
                 </div>
 
                 <h3>Contact</h3>
-                <p>Questions? We're here to help make Relay safe for you.</p>
+                <p>Questions? We're here to help make RelayTalk safe for you.</p>
 
-                <p><em>Privacy is not a feature – it's our foundation.</em></p>
+                <p><em>Privacy is not a feature — it's our foundation.</em></p>
             </div>
         </div>
     </div>
