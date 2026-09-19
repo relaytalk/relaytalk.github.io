@@ -10,6 +10,7 @@ let currentProfile = null;
 let currentShowDetails = true;
 let currentBio = '';
 let notificationsEnabled = false;
+let currentNotifTab = 'main';
 
 // ============================================================
 // INIT
@@ -39,6 +40,7 @@ async function initProfilePage() {
         await refreshNotificationState();
         updateDetailsToggle();
         loadMemberSince();
+        updateNavBadge();
     } catch (error) {
         console.error('Init error:', error);
         showToast('error', 'Failed to load profile');
@@ -117,7 +119,6 @@ async function loadUserStats() {
 
         document.getElementById('friendsCount').textContent = friendsCount || 0;
 
-        // Legacy — element no longer in the DOM, guard in case it comes back
         const msgCountEl = document.getElementById('messagesCount');
         if (msgCountEl) msgCountEl.textContent = '0';
     } catch {
@@ -415,9 +416,6 @@ async function disableNotificationsAction() {
     showToast('success', 'Notifications turned off');
 }
 
-// ============================================================
-// NOTIFICATION STATE
-// ============================================================
 async function refreshNotificationState() {
     const btn = document.getElementById('enableNotificationsBtn');
     const label = document.getElementById('enableBtnLabel');
@@ -494,9 +492,6 @@ function setBellIcon(container, state) {
     }
 }
 
-// ============================================================
-// NOTIFICATIONS — Reset
-// ============================================================
 window.resetNotifications = async function() {
     const btn = document.getElementById('resetNotificationsBtn');
     if (!btn) return;
@@ -638,7 +633,406 @@ function updateDetailsToggle() {
 }
 
 // ============================================================
-// GUIDE MODAL — interactive with section buttons
+// NOTIFICATIONS MODAL (Requests + Calls)
+// ============================================================
+window.openNotifications = function(event) {
+    if (event) event.preventDefault();
+    const modal = document.getElementById('notificationsModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('visible'));
+        switchNotifTab('main');
+    }
+};
+
+window.closeNotifications = function() {
+    const modal = document.getElementById('notificationsModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => { modal.style.display = 'none'; }, 200);
+};
+
+window.switchNotifTab = function(tab) {
+    currentNotifTab = tab;
+
+    const mainTab = document.getElementById('notifTabMain');
+    const callsTab = document.getElementById('notifTabCalls');
+    const mainContent = document.getElementById('notifMainContent');
+    const callsContent = document.getElementById('notifCallsContent');
+
+    if (!mainTab || !callsTab || !mainContent || !callsContent) return;
+
+    if (tab === 'main') {
+        mainTab.classList.add('active');
+        callsTab.classList.remove('active');
+        mainContent.classList.add('active');
+        callsContent.classList.remove('active');
+        loadNotifications();
+    } else {
+        callsTab.classList.add('active');
+        mainTab.classList.remove('active');
+        callsContent.classList.add('active');
+        mainContent.classList.remove('active');
+        loadCallHistory();
+    }
+};
+
+async function loadNotifications() {
+    const container = document.getElementById('notificationsList');
+    if (!container) return;
+
+    try {
+        if (!currentUser || !supabase) {
+            showEmptyNotifications(container);
+            return;
+        }
+
+        const { data: notifications, error } = await supabase
+            .from('friend_requests')
+            .select('id, sender_id, created_at')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        if (error || !notifications || notifications.length === 0) {
+            showEmptyNotifications(container);
+            return;
+        }
+
+        const senderIds = notifications.map(n => n.sender_id);
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', senderIds);
+
+        const profileMap = {};
+        if (profiles) profiles.forEach(p => profileMap[p.id] = p);
+
+        let html = '';
+        notifications.forEach(notification => {
+            const timeAgo = timeAgoShort(notification.created_at);
+            const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
+            const senderName = sender.username;
+            const initial = senderName.charAt(0).toUpperCase();
+            const avatarSrc = sender.avatar_url || '';
+
+            html += `
+                <div class="notification-item">
+                    <div class="notification-avatar">
+                        ${avatarSrc
+                            ? `<img src="${avatarSrc}" alt="${escapeHtml(senderName)}">`
+                            : `<span>${escapeHtml(initial)}</span>`
+                        }
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-text">
+                            <strong>${escapeHtml(senderName)}</strong> wants to be friends
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                    <div class="notification-actions">
+                        <button class="btn-small btn-success" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${escapeAttr(senderName)}', this)" aria-label="Accept">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-small btn-danger" onclick="declineFriendRequest('${notification.id}', this)" aria-label="Decline">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        showEmptyNotifications(container);
+    }
+}
+
+function showEmptyNotifications(container) {
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-bell-slash"></i>
+            </div>
+            <p class="empty-desc">No notifications yet</p>
+        </div>
+    `;
+}
+
+async function loadCallHistory() {
+    const container = document.getElementById('callHistoryList');
+    if (!container) return;
+
+    try {
+        if (!currentUser || !supabase) {
+            container.innerHTML = `<div class="empty-state"><p>Cannot load call history</p></div>`;
+            return;
+        }
+
+        const { data: calls, error } = await supabase
+            .from('calls')
+            .select('*')
+            .or(`caller_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error || !calls || calls.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-phone-slash"></i>
+                    </div>
+                    <h3 class="empty-title">No calls yet</h3>
+                    <p class="empty-desc">Your call history will appear here</p>
+                </div>
+            `;
+            return;
+        }
+
+        const userIds = new Set();
+        calls.forEach(call => {
+            if (call.caller_id !== currentUser.id) userIds.add(call.caller_id);
+            if (call.receiver_id !== currentUser.id) userIds.add(call.receiver_id);
+            if (call.callee_id && call.callee_id !== currentUser.id) userIds.add(call.callee_id);
+        });
+
+        let profileMap = {};
+        if (userIds.size > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', [...userIds]);
+            if (profiles) profiles.forEach(p => profileMap[p.id] = p);
+        }
+
+        let html = '';
+        let lastDate = '';
+
+        calls.forEach(call => {
+            const callDate = new Date(call.created_at).toLocaleDateString();
+            if (callDate !== lastDate) {
+                lastDate = callDate;
+                html += `<div class="call-history-date">${callDate}</div>`;
+            }
+
+            const isOutgoing = call.caller_id === currentUser.id;
+            const otherUserId = isOutgoing ? (call.receiver_id || call.callee_id) : (call.caller_id || call.callee_id);
+            const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
+
+            let metaIcon = 'fa-arrow-down';
+            let metaClass = 'meta-incoming';
+            let metaText = 'Incoming';
+            let isMissed = false;
+
+            if (isOutgoing) {
+                metaIcon = 'fa-arrow-up';
+                metaClass = 'meta-outgoing';
+                metaText = 'Outgoing';
+            }
+
+            if (call.status === 'missed' || call.status === 'cancelled' || call.status === 'rejected') {
+                if (!isOutgoing || call.status === 'rejected') {
+                    metaIcon = 'fa-phone-slash';
+                    metaClass = 'meta-missed';
+                    metaText = 'Missed';
+                    isMissed = true;
+                }
+            } else if (call.status === 'ringing' && !isOutgoing) {
+                metaIcon = 'fa-phone-slash';
+                metaClass = 'meta-missed';
+                metaText = 'Missed';
+                isMissed = true;
+            }
+
+            const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
+            const avatarSrc = otherUser.avatar_url || '';
+
+            html += `
+                <div class="call-history-item">
+                    <div class="call-history-avatar">
+                        ${avatarSrc
+                            ? `<img src="${avatarSrc}" alt="${escapeHtml(otherUser.username || '')}">`
+                            : `<span>${escapeHtml(initial)}</span>`
+                        }
+                    </div>
+                    <div class="call-history-info">
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
+                        <div class="call-history-meta">
+                            <i class="fas ${metaIcon} ${metaClass}"></i>
+                            <span>${metaText}</span>
+                            <span class="dot">•</span>
+                            <span>${time}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading call history:', error);
+        container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
+    }
+}
+
+// ============================================================
+// ACCEPT / DECLINE FRIEND REQUEST
+// ============================================================
+window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
+    if (button) {
+        button.innerHTML = '...';
+        button.disabled = true;
+    }
+
+    try {
+        await supabase
+            .from('friend_requests')
+            .update({ status: 'accepted', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+
+        await supabase.from('friends').insert({
+            user_id: currentUser.id,
+            friend_id: senderId,
+            created_at: new Date().toISOString()
+        });
+
+        await supabase.from('friends').insert({
+            user_id: senderId,
+            friend_id: currentUser.id,
+            created_at: new Date().toISOString()
+        });
+
+        showToast('success', `You are now friends with ${senderName}!`);
+
+        await loadNotifications();
+        await loadUserStats();
+        await updateNavBadge();
+    } catch (error) {
+        console.error('Accept error:', error);
+        showToast('error', 'Could not accept request');
+        if (button) {
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.disabled = false;
+        }
+    }
+};
+
+window.declineFriendRequest = async function(requestId, button) {
+    if (button) {
+        button.innerHTML = '...';
+        button.disabled = true;
+    }
+
+    try {
+        await supabase
+            .from('friend_requests')
+            .update({ status: 'rejected', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+
+        showToast('info', 'Request declined');
+
+        await loadNotifications();
+        await updateNavBadge();
+    } catch (error) {
+        console.error('Decline error:', error);
+        if (button) {
+            button.innerHTML = '<i class="fas fa-times"></i>';
+            button.disabled = false;
+        }
+    }
+};
+
+// ============================================================
+// NAV BADGE
+// ============================================================
+async function updateNavBadge() {
+    try {
+        if (!currentUser || !supabase) return;
+
+        const { data: friendReqs } = await supabase
+            .from('friend_requests')
+            .select('id')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+
+        const pendingCount = friendReqs?.length || 0;
+
+        const { count: missedCount } = await supabase
+            .from('calls')
+            .select('*', { count: 'exact', head: true })
+            .eq('callee_id', currentUser.id)
+            .eq('seen', false)
+            .in('status', ['missed', 'rejected']);
+
+        const total = pendingCount + (missedCount || 0);
+
+        const navBadge = document.getElementById('notificationBadge');
+        if (navBadge) {
+            if (total > 0) {
+                navBadge.textContent = total > 9 ? '9+' : total;
+                navBadge.style.display = 'flex';
+            } else {
+                navBadge.style.display = 'none';
+            }
+        }
+
+        const mainTabBadge = document.getElementById('mainTabBadge');
+        if (mainTabBadge) {
+            if (pendingCount > 0) {
+                mainTabBadge.textContent = pendingCount > 9 ? '9+' : pendingCount;
+                mainTabBadge.style.display = 'inline-flex';
+            } else {
+                mainTabBadge.style.display = 'none';
+            }
+        }
+
+        const callsTabBadge = document.getElementById('callsTabBadge');
+        if (callsTabBadge) {
+            if (missedCount && missedCount > 0) {
+                callsTabBadge.textContent = missedCount > 9 ? '9+' : missedCount;
+                callsTabBadge.style.display = 'inline-flex';
+            } else {
+                callsTabBadge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        // silent
+    }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function timeAgoShort(dateStr) {
+    const now = new Date();
+    const past = new Date(dateStr);
+    const diffMins = Math.floor((now - past) / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return past.toLocaleDateString();
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) { return escapeHtml(str); }
+
+// ============================================================
+// GUIDE MODAL
 // ============================================================
 const GUIDE_CONTENT = {
     home: {
@@ -788,14 +1182,6 @@ window.showGuideSection = function(section, btn) {
 };
 
 // ============================================================
-// BOTTOM NAV — Alerts stub
-// ============================================================
-window.openNotifications = function(event) {
-    if (event) event.preventDefault();
-    window.location.href = '../home/index.html';
-};
-
-// ============================================================
 // TOAST
 // ============================================================
 function showToast(type, message) {
@@ -826,8 +1212,10 @@ function showToast(type, message) {
 // ============================================================
 window.logout = async function() {
     try {
-        document.getElementById('uploadLoading').style.display = 'flex';
-        document.querySelector('#uploadLoading .loading-text').textContent = 'Logging out...';
+        const uploadEl = document.getElementById('uploadLoading');
+        if (uploadEl) uploadEl.style.display = 'flex';
+        const uploadText = document.querySelector('#uploadLoading .loading-text');
+        if (uploadText) uploadText.textContent = 'Logging out...';
 
         try {
             if (window.relaytalkPush?.unsubscribe) {
@@ -853,4 +1241,8 @@ window.logout = async function() {
 window.goToHome = () => window.location.href = '../../home/index.html';
 window.goToFriends = () => window.location.href = '../friends/index.html';
 
-document.addEventListener('DOMContentLoaded', initProfilePage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProfilePage);
+} else {
+    initProfilePage();
+}
