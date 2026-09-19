@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <meta name="theme-color" content="#007ACC">
+    <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
 
@@ -67,9 +67,11 @@
         frame-src 'none';
     ">
 
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="view.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="view.css">
 
     <link rel="icon" href="/favicon.ico">
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
@@ -77,8 +79,13 @@
 </head>
 <body>
     <div class="view-loading" id="loadingIndicator">
-        <div class="view-loading-spinner"></div>
-        <p>Loading profile...</p>
+        <div class="loading-visual">
+            <div class="loading-ring ring-1"></div>
+            <div class="loading-ring ring-2"></div>
+            <div class="loading-ring ring-3"></div>
+            <div class="loading-core"></div>
+        </div>
+        <div class="loading-text">Loading<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
     </div>
 
     <div class="view-fallback" id="fallbackScreen" style="display: none;">
@@ -92,15 +99,20 @@
         </div>
     </div>
 
-    <main class="view-main" id="viewMain" style="display: none;">
-        <button class="view-close" onclick="closeView()" aria-label="Close">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-        </button>
+    <header class="app-bar">
+        <div class="app-bar-inner">
+            <button class="icon-btn back-btn" onclick="closeView()" aria-label="Close">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="app-bar-brand">
+                <img src="/relay.png" alt="RelayTalk" class="brand-logo-img">
+                <span class="brand-name">Profile</span>
+            </div>
+            <div class="app-bar-actions"></div>
+        </div>
+    </header>
 
-        <!-- Avatar -->
+    <main class="view-main" id="viewMain" style="display: none;">
         <div class="view-avatar-wrap">
             <div class="view-avatar" id="viewAvatar">
                 <span class="view-avatar-initial" id="viewAvatarInitial">?</span>
@@ -108,33 +120,25 @@
             </div>
         </div>
 
-        <!-- Name + username -->
         <h1 class="view-name" id="viewName">User</h1>
         <div class="view-username" id="viewUsername">@username</div>
 
-        <!-- Status pill (dot + text) -->
         <div class="view-status-pill" id="viewStatusPill">
             <span class="view-status-dot" id="viewStatusDot"></span>
             <span class="view-status-text" id="viewStatusText">Offline</span>
         </div>
 
-        <!-- Action buttons -->
         <div class="view-actions">
             <button class="view-action-btn view-action-message" onclick="openChat()">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
+                <i class="fas fa-comment-dots"></i>
                 <span>Message</span>
             </button>
             <button class="view-action-btn view-action-call" onclick="startCallFromView()">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8 10a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.574 2.81.7A2 2 0 0 1 22 16.92z"/>
-                </svg>
+                <i class="fas fa-phone"></i>
                 <span>Call</span>
             </button>
         </div>
 
-        <!-- Biography -->
         <div class="view-bio-section">
             <div class="view-bio-label">Biography</div>
             <div class="view-bio-box" id="viewBioBox">
@@ -142,7 +146,6 @@
             </div>
         </div>
 
-        <!-- Friends since -->
         <div class="view-friends-since" id="viewFriendsSince"></div>
     </main>
 
