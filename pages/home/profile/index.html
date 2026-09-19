@@ -25,7 +25,6 @@
     <link rel="apple-touch-icon" href="/relay.png">
 </head>
 <body>
-    <!-- Loading -->
     <div class="loading-overlay" id="loadingIndicator">
         <div class="loading-visual">
             <div class="loading-ring ring-1"></div>
@@ -36,13 +35,11 @@
         <div class="loading-text">Loading<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
     </div>
 
-    <!-- Upload Loading -->
     <div class="loading-overlay" id="uploadLoading">
         <div class="loading-spinner"></div>
         <div class="loading-text">Uploading...</div>
     </div>
 
-    <!-- Top App Bar (matches home) -->
     <header class="app-bar">
         <div class="app-bar-inner">
             <div class="app-bar-brand">
@@ -57,9 +54,7 @@
         </div>
     </header>
 
-    <!-- Main -->
     <main class="profile-main">
-        <!-- Identity Card -->
         <section class="profile-card">
             <div class="avatar-section">
                 <div class="profile-avatar" id="profileAvatar">
@@ -74,7 +69,6 @@
             <h2 class="user-name" id="displayName">User</h2>
             <div class="user-username" id="displayUsername">@username</div>
 
-            <!-- Bio -->
             <div class="bio-section">
                 <div class="bio-header">
                     <span class="bio-label">Biography</span>
@@ -87,16 +81,36 @@
                 </div>
             </div>
 
-            <!-- Stats — Messages removed -->
+            <!-- Stats + member since -->
             <div class="profile-stats">
                 <div class="stat-item">
                     <div class="stat-value" id="friendsCount">0</div>
                     <div class="stat-label">Friends</div>
                 </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-value" id="memberSince">—</div>
+                    <div class="stat-label">Member since</div>
+                </div>
             </div>
         </section>
 
-        <!-- Notifications Card -->
+        <!-- RelayTalk Guide button -->
+        <section class="guide-cta-card">
+            <button class="guide-cta" onclick="openGuide()">
+                <span class="guide-cta-icon">
+                    <i class="fas fa-book-open"></i>
+                </span>
+                <span class="guide-cta-text">
+                    <span class="guide-cta-title">RelayTalk Guide</span>
+                    <span class="guide-cta-desc">Learn how everything works, page by page</span>
+                </span>
+                <span class="guide-cta-chevron">
+                    <i class="fas fa-chevron-right"></i>
+                </span>
+            </button>
+        </section>
+
         <section class="settings-card">
             <div class="settings-header">
                 <div class="settings-icon">
@@ -146,26 +160,19 @@
             </button>
         </section>
 
-        <!-- Actions Card -->
         <section class="actions-card">
             <button class="action-row" onclick="openImagePicker()">
-                <span class="action-row-icon">
-                    <i class="fas fa-camera"></i>
-                </span>
+                <span class="action-row-icon"><i class="fas fa-camera"></i></span>
                 <span class="action-row-text">Change Photo</span>
             </button>
 
             <button class="action-row" onclick="goToFriends()">
-                <span class="action-row-icon">
-                    <i class="fas fa-user-friends"></i>
-                </span>
+                <span class="action-row-icon"><i class="fas fa-user-friends"></i></span>
                 <span class="action-row-text">Find Friends</span>
             </button>
 
             <button class="action-row action-row-danger" onclick="logout()">
-                <span class="action-row-icon">
-                    <i class="fas fa-right-from-bracket"></i>
-                </span>
+                <span class="action-row-icon"><i class="fas fa-right-from-bracket"></i></span>
                 <span class="action-row-text">Logout</span>
             </button>
         </section>
@@ -179,16 +186,8 @@
                 <button class="modal-close" onclick="closeBioEditor()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
-                <textarea
-                    id="bioInput"
-                    class="bio-input"
-                    maxlength="50"
-                    rows="3"
-                    placeholder="Write something about yourself..."
-                ></textarea>
-                <div class="bio-counter">
-                    <span id="bioCharCount">0</span> / 50
-                </div>
+                <textarea id="bioInput" class="bio-input" maxlength="50" rows="3" placeholder="Write something about yourself..."></textarea>
+                <div class="bio-counter"><span id="bioCharCount">0</span> / 50</div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeBioEditor()">Cancel</button>
                     <button class="btn-primary" onclick="saveBio()">Save</button>
@@ -197,7 +196,6 @@
         </div>
     </div>
 
-    <!-- Details Info Modal -->
     <div class="modal-overlay" id="detailsInfoModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -206,14 +204,11 @@
             </div>
             <div class="modal-body" id="detailsInfoBody"></div>
             <div class="modal-body modal-body-actions">
-                <button class="btn-primary modal-full-btn" onclick="confirmDetailsToggle()">
-                    Got it
-                </button>
+                <button class="btn-primary modal-full-btn" onclick="confirmDetailsToggle()">Got it</button>
             </div>
         </div>
     </div>
 
-    <!-- Image Picker Modal -->
     <div class="modal-overlay" id="imagePickerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -223,126 +218,57 @@
             <div class="modal-body">
                 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageSelect(event)">
                 <div class="picker-option" onclick="uploadFromCamera()">
-                    <span class="picker-option-icon">
-                        <i class="fas fa-camera"></i>
-                    </span>
+                    <span class="picker-option-icon"><i class="fas fa-camera"></i></span>
                     <span class="picker-option-text">Take Photo</span>
                 </div>
 
                 <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
                 <div class="picker-option" onclick="uploadFromGallery()">
-                    <span class="picker-option-icon">
-                        <i class="fas fa-image"></i>
-                    </span>
+                    <span class="picker-option-icon"><i class="fas fa-image"></i></span>
                     <span class="picker-option-text">Choose from Gallery</span>
                 </div>
 
                 <div class="picker-option picker-option-danger" onclick="removeAvatar()">
-                    <span class="picker-option-icon">
-                        <i class="fas fa-trash"></i>
-                    </span>
+                    <span class="picker-option-icon"><i class="fas fa-trash"></i></span>
                     <span class="picker-option-text">Remove Current Photo</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Guide Modal — sections for the whole app -->
+    <!-- Guide Modal — interactive with section buttons -->
     <div class="modal-overlay guide-modal" id="guideModal">
         <div class="modal-content guide-content">
             <div class="modal-header">
-                <h3 class="modal-title"><i class="fas fa-circle-question guide-title-icon"></i> RelayTalk Guide</h3>
+                <h3 class="modal-title"><i class="fas fa-book-open guide-title-icon"></i> RelayTalk Guide</h3>
                 <button class="modal-close" onclick="closeGuide()" aria-label="Close">×</button>
             </div>
-            <div class="modal-body guide-body">
-                <p class="guide-intro">Everything you can do across RelayTalk, organized by page.</p>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#e8f0fe;color:#1a73e8;"><i class="fas fa-home"></i></span>
-                        <h4 class="guide-section-title">Home</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>See friends who are online at a glance</li>
-                        <li>Search for new people to add</li>
-                        <li>Tap any friend to start chatting</li>
-                        <li>Check notifications and missed calls from the top-right bell</li>
-                    </ul>
-                </div>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#e6f4ea;color:#1e8e3e;"><i class="fas fa-comment-dots"></i></span>
-                        <h4 class="guide-section-title">Chats</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>Send text messages instantly</li>
-                        <li>Share images and photos in the conversation</li>
-                        <li>Start an audio or video call from the top of the chat</li>
-                        <li>Messages deliver in real time — no refresh needed</li>
-                    </ul>
-                </div>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#fef7e0;color:#b06000;"><i class="fas fa-user-friends"></i></span>
-                        <h4 class="guide-section-title">Friends</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>Browse all your connected friends</li>
-                        <li>See who's online right now</li>
-                        <li>Tap the message button to open a chat</li>
-                        <li>Tap the call button to start a call — works even if they're offline</li>
-                        <li>Tap a friend's name or avatar to view their profile</li>
-                    </ul>
-                </div>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#f3e8fd;color:#7c3aed;"><i class="fas fa-user"></i></span>
-                        <h4 class="guide-section-title">Profile</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>Update your display photo from camera or gallery</li>
-                        <li>Write a short bio (up to 50 characters)</li>
-                        <li>Enable or reset push notifications</li>
-                        <li>Choose whether notifications show details (sender, message, avatar)</li>
-                    </ul>
-                </div>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#fce8e6;color:#d93025;"><i class="fas fa-id-badge"></i></span>
-                        <h4 class="guide-section-title">Friend's Profile</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>View a friend's photo, name, and username</li>
-                        <li>Read their bio</li>
-                        <li>Message or call them from the action buttons</li>
-                        <li>All data is loaded live from their profile</li>
-                    </ul>
-                </div>
-
-                <div class="guide-section">
-                    <div class="guide-section-head">
-                        <span class="guide-section-icon" style="background:#f1f3f4;color:#5f6368;"><i class="fas fa-ellipsis-h"></i></span>
-                        <h4 class="guide-section-title">Others</h4>
-                    </div>
-                    <ul class="guide-list">
-                        <li>Add RelayTalk to your home screen for a native app experience</li>
-                        <li>On iPhone, use Share → Add to Home Screen before enabling notifications</li>
-                        <li>Log out any time from Profile → Logout</li>
-                        <li>Missed calls and friend requests are grouped under Alerts</li>
-                    </ul>
-                </div>
+            <div class="guide-nav" id="guideNav">
+                <button class="guide-nav-btn active" data-guide="home" onclick="showGuideSection('home', this)">
+                    <i class="fas fa-home"></i> Home
+                </button>
+                <button class="guide-nav-btn" data-guide="chats" onclick="showGuideSection('chats', this)">
+                    <i class="fas fa-comment-dots"></i> Chats
+                </button>
+                <button class="guide-nav-btn" data-guide="friends" onclick="showGuideSection('friends', this)">
+                    <i class="fas fa-user-friends"></i> Friends
+                </button>
+                <button class="guide-nav-btn" data-guide="profile" onclick="showGuideSection('profile', this)">
+                    <i class="fas fa-user"></i> Profiles
+                </button>
+                <button class="guide-nav-btn" data-guide="view" onclick="showGuideSection('view', this)">
+                    <i class="fas fa-id-badge"></i> Friend's Profile
+                </button>
+                <button class="guide-nav-btn" data-guide="others" onclick="showGuideSection('others', this)">
+                    <i class="fas fa-ellipsis-h"></i> Others
+                </button>
             </div>
+            <div class="guide-body" id="guideBody"></div>
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Bottom Nav — matches Home page -->
     <nav class="bottom-nav">
         <a href="#" class="nav-item" onclick="goToHome(); return false;">
             <i class="fas fa-home"></i>
