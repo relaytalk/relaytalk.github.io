@@ -48,7 +48,6 @@
 </head>
 <body>
 
-    <!-- Simple Header -->
     <header class="simple-header">
         <a href="/" class="simple-logo">
             <img src="/relay.png" alt="RelayTalk" class="simple-logo-img">
@@ -56,7 +55,6 @@
         </a>
     </header>
 
-    <!-- Auth Container -->
     <div class="auth-container">
         <div class="auth-header">
             <div class="auth-logo">
@@ -71,7 +69,7 @@
             <p class="auth-subtitle">Create your account to connect with friends</p>
         </div>
 
-        <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+        <form class="auth-form" id="signupForm" novalidate>
             <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="username">
@@ -137,6 +135,7 @@
                         I agree to the Terms &amp; Conditions and Privacy Policy
                     </label>
                 </div>
+                <div class="error-message" id="termsError"></div>
 
                 <div class="terms-buttons">
                     <button type="button" class="terms-btn" onclick="showTerms()">
