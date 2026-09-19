@@ -1,4 +1,4 @@
-// profile.js - Profile with IMGBB Avatar + Notifications + Bio
+// profile.js - Profile with IMGBB Avatar + Notifications + Bio + Guide
 
 import { initializeSupabase } from '../../../utils/supabase.js';
 
@@ -38,6 +38,7 @@ async function initProfilePage() {
 
         await refreshNotificationState();
         updateDetailsToggle();
+        loadMemberSince();
     } catch (error) {
         console.error('Init error:', error);
         showToast('error', 'Failed to load profile');
@@ -116,7 +117,7 @@ async function loadUserStats() {
 
         document.getElementById('friendsCount').textContent = friendsCount || 0;
 
-        // Message count element removed from UI — guard so it doesn't throw
+        // Legacy — element no longer in the DOM, guard in case it comes back
         const msgCountEl = document.getElementById('messagesCount');
         if (msgCountEl) msgCountEl.textContent = '0';
     } catch {
@@ -124,6 +125,33 @@ async function loadUserStats() {
         if (friendsEl) friendsEl.textContent = '0';
         const msgEl = document.getElementById('messagesCount');
         if (msgEl) msgEl.textContent = '0';
+    }
+}
+
+// ============================================================
+// MEMBER SINCE
+// ============================================================
+async function loadMemberSince() {
+    try {
+        if (!supabase || !currentUser) return;
+        const el = document.getElementById('memberSince');
+        if (!el) return;
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('created_at')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+        if (error || !data?.created_at) {
+            el.textContent = '—';
+            return;
+        }
+        const dt = new Date(data.created_at);
+        el.textContent = dt.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    } catch (e) {
+        const el = document.getElementById('memberSince');
+        if (el) el.textContent = '—';
     }
 }
 
@@ -610,28 +638,161 @@ function updateDetailsToggle() {
 }
 
 // ============================================================
-// GUIDE MODAL (new — appearance only)
+// GUIDE MODAL — interactive with section buttons
 // ============================================================
+const GUIDE_CONTENT = {
+    home: {
+        icon: 'fa-home',
+        color: '#1a73e8',
+        bg: '#e8f0fe',
+        title: 'Home',
+        sub: 'Your starting point',
+        items: [
+            { icon: 'fa-search', title: 'Find friends', desc: 'Tap "Find friends" on the home page and search by username to send a friend request.' },
+            { icon: 'fa-bell', title: 'Notifications & Alerts', desc: 'Tap the bell icon at the top right to see friend requests and call logs. The red badge clears once you view them.' },
+            { icon: 'fa-comments', title: 'Open a chat', desc: 'Tap any friend in the list to open a chat with them instantly.' },
+            { icon: 'fa-user-plus', title: 'Accept requests', desc: 'When someone accepts your friend request, they appear in your friends list automatically.' },
+            { icon: 'fa-circle', title: 'Online status', desc: 'A green dot next to a friend means they are online right now. Grey means offline — you can still chat and call them.' }
+        ]
+    },
+    chats: {
+        icon: 'fa-comment-dots',
+        color: '#1e8e3e',
+        bg: '#e6f4ea',
+        title: 'Chats',
+        sub: 'Talk, react, share',
+        items: [
+            { icon: 'fa-paper-plane', title: 'Send a message', desc: 'Type in the box at the bottom and tap the send button.' },
+            { icon: 'fa-image', title: 'Share images', desc: 'Tap the paperclip icon, choose Camera or Gallery. You can send up to 10 images at once.' },
+            { icon: 'fa-palette', title: 'Color your message', desc: 'Type "/" in the message box → pick a color → your next message uses it.' },
+            { icon: 'fa-face-smile', title: 'React to messages', desc: 'Long-press any message → pick an emoji. Tap the same emoji to remove it. Tap "+" for more options.' },
+            { icon: 'fa-copy', title: 'Copy a message', desc: 'Long-press → tap the copy icon in the top of the bar.' },
+            { icon: 'fa-pen', title: 'Edit your message', desc: 'Long-press your own message → tap the pencil icon. Edited messages show a small (edited) label.' },
+            { icon: 'fa-trash', title: 'Delete your message', desc: 'Long-press your own message → tap the trash icon. Deleted messages show as "This message was deleted" for both people.' },
+            { icon: 'fa-user', title: "Open friend's profile", desc: "Tap your friend's name or avatar at the top of the chat to see their bio and profile." },
+            { icon: 'fa-phone', title: 'Voice / video call', desc: 'Tap the phone icon in the top-right corner.' }
+        ]
+    },
+    friends: {
+        icon: 'fa-user-friends',
+        color: '#b06000',
+        bg: '#fef7e0',
+        title: 'Friends',
+        sub: "Everyone you're connected with",
+        items: [
+            { icon: 'fa-magnifying-glass', title: 'Search friends', desc: 'Use the search bar at the top to filter your friends by username.' },
+            { icon: 'fa-comment-dots', title: 'Message button', desc: 'Tap the message icon to open a chat with that friend.' },
+            { icon: 'fa-phone', title: 'Call button', desc: "Tap the phone icon to start a call. Works even if the friend is offline — they'll get a missed-call notification." },
+            { icon: 'fa-id-badge', title: 'Open profile', desc: "Tap a friend's avatar or name to view their profile page." },
+            { icon: 'fa-circle', title: 'Online / Offline', desc: 'A green circle means online. A white circle with a light border means offline — you can still call and message.' }
+        ]
+    },
+    profile: {
+        icon: 'fa-user',
+        color: '#7c3aed',
+        bg: '#f3e8fd',
+        title: 'Your Profile',
+        sub: 'Everything about you',
+        items: [
+            { icon: 'fa-camera', title: 'Change your photo', desc: 'Tap the camera badge on your avatar to upload a new photo from your camera or gallery.' },
+            { icon: 'fa-pen', title: 'Edit your bio', desc: 'Tap the pencil next to "Biography" to write up to 50 characters about yourself.' },
+            { icon: 'fa-bell', title: 'Enable notifications', desc: 'Turn on push notifications so you get alerts even when the app is closed.' },
+            { icon: 'fa-rotate', title: 'Reset notifications', desc: 'Notifications not working? Reset them and re-enable — this creates a fresh subscription.' },
+            { icon: 'fa-eye', title: 'Show / Hide details', desc: 'Control whether notifications show the sender name, avatar, message content, and images. Hide them for privacy.' },
+            { icon: 'fa-right-from-bracket', title: 'Log out', desc: 'Sign out of this device. Your account stays safe — you can log back in any time.' }
+        ]
+    },
+    view: {
+        icon: 'fa-id-badge',
+        color: '#d93025',
+        bg: '#fce8e6',
+        title: "Friend's Profile",
+        sub: 'Viewing someone else',
+        items: [
+            { icon: 'fa-circle', title: 'Live status', desc: 'See whether your friend is online, or when they were last seen — updates in real time.' },
+            { icon: 'fa-comment-dots', title: 'Message', desc: 'Tap "Message" to open a chat with this friend.' },
+            { icon: 'fa-phone', title: 'Call', desc: "Tap 'Call' to start an audio call — works whether they're online or offline." },
+            { icon: 'fa-quote-left', title: 'Biography', desc: 'Read their bio if they\'ve written one. If not, you\'ll see "No biography yet."' },
+            { icon: 'fa-clock', title: 'Friends since', desc: 'See the date you two became friends.' }
+        ]
+    },
+    others: {
+        icon: 'fa-ellipsis-h',
+        color: '#5f6368',
+        bg: '#f1f3f4',
+        title: 'Others',
+        sub: 'Tips and extras',
+        items: [
+            { icon: 'fa-mobile-screen', title: 'Install as an app', desc: 'Add RelayTalk to your home screen for a native app experience. On iPhone: Share → Add to Home Screen.' },
+            { icon: 'fa-shield-halved', title: 'Privacy', desc: 'Choose whether notifications show details. Turn off for more privacy on lock screen.' },
+            { icon: 'fa-moon', title: 'Calls when offline', desc: 'You can call anyone anytime — online or offline. If they miss it, it shows up in their Alerts tab.' },
+            { icon: 'fa-circle-info', title: 'Need help?', desc: 'Come back to this guide any time from Profile → RelayTalk Guide.' }
+        ]
+    }
+};
+
 window.openGuide = function() {
     const modal = document.getElementById('guideModal');
     if (!modal) return;
     modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('visible'));
+    showGuideSection('home', document.querySelector('.guide-nav-btn[data-guide="home"]'));
 };
 
 window.closeGuide = function() {
     const modal = document.getElementById('guideModal');
     if (!modal) return;
     modal.classList.remove('visible');
-    setTimeout(() => modal.style.display = 'none', 200);
+    setTimeout(() => { modal.style.display = 'none'; }, 220);
+};
+
+window.showGuideSection = function(section, btn) {
+    const data = GUIDE_CONTENT[section];
+    if (!data) return;
+
+    document.querySelectorAll('.guide-nav-btn').forEach(b => b.classList.remove('active'));
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        const fallback = document.querySelector(`.guide-nav-btn[data-guide="${section}"]`);
+        if (fallback) fallback.classList.add('active');
+    }
+
+    const body = document.getElementById('guideBody');
+    if (!body) return;
+
+    body.innerHTML = `
+        <div class="guide-section">
+            <div class="guide-section-head">
+                <span class="guide-section-icon" style="background:${data.bg};color:${data.color};">
+                    <i class="fas ${data.icon}"></i>
+                </span>
+                <div>
+                    <h4 class="guide-section-title">${data.title}</h4>
+                    <div class="guide-section-sub">${data.sub}</div>
+                </div>
+            </div>
+            <div class="guide-items">
+                ${data.items.map(it => `
+                    <div class="guide-item">
+                        <span class="guide-item-icon"><i class="fas ${it.icon}"></i></span>
+                        <div class="guide-item-text">
+                            <div class="guide-item-title">${it.title}</div>
+                            <p class="guide-item-desc">${it.desc}</p>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
 };
 
 // ============================================================
-// BOTTOM NAV — Alerts (stub, routes to home notifications)
+// BOTTOM NAV — Alerts stub
 // ============================================================
 window.openNotifications = function(event) {
     if (event) event.preventDefault();
-    window.location.href = '../../home/index.html';
+    window.location.href = '../home/index.html';
 };
 
 // ============================================================
