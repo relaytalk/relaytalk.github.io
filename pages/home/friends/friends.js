@@ -32,7 +32,6 @@ async function initFriendsPage() {
 
     const loader = document.getElementById('loadingIndicator');
 
-    // Safety timeout — force-hide loader after 4s no matter what
     const forceHideTimeout = setTimeout(() => {
         if (loader && !loader.classList.contains('hidden')) {
             console.warn('⏱️ Loading timeout reached — hiding loader');
@@ -361,14 +360,12 @@ window.openChat = function(friendId, friendName) {
         id: friendId,
         username: friendName
     }));
-    // Chat page lives at pages/chats/index.html
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
 window.openProfile = function(userId) {
     if (!userId) return;
-    // Friend's profile lives at pages/home/profiles/view.html
-    window.location.href = `../profiles/view.html?id=${encodeURIComponent(userId)}`;
+    window.location.href = `../profile/view.html?userId=${encodeURIComponent(userId)}`;
 };
 
 window.goToHome = () => window.location.href = '../index.html';
@@ -381,7 +378,6 @@ window.startCall = function(friendId, friendName) {
         username: friendName || 'Friend'
     }));
 
-    // Route to chat page with call=1 (chatHub/callHub picks it up)
     window.location.href = `../../chats/index.html?friendId=${friendId}&call=1`;
 };
 
@@ -509,7 +505,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// LOAD CALL HISTORY
+// LOAD CALL HISTORY — call button removed
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -616,14 +612,6 @@ async function loadCallHistory() {
                             <span class="dot">•</span>
                             <span>${time}</span>
                         </div>
-                    </div>
-                    <div class="call-history-actions">
-                        <button class="call-back-btn"
-                                onclick="event.stopPropagation(); startCall('${otherUserId}', '${escapeAttr(otherUser.username || 'Friend')}')"
-                                aria-label="Call back"
-                                title="Call back">
-                            <i class="fas fa-phone"></i>
-                        </button>
                     </div>
                 </div>
             `;
