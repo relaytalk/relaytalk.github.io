@@ -1,4 +1,6 @@
 // utils/callHub.js
+
+// utils/callHub.js
 // Universal incoming-call listener + outgoing-call launcher + presence.
 // Import once per page with:
 //   <script type="module" src="/utils/callHub.js"></script>
@@ -80,9 +82,7 @@ function startPresence() {
     window.addEventListener('beforeunload', () => {
         try {
             if (presenceTimer) clearInterval(presenceTimer)
-            // Use sendBeacon-style fire-and-forget if possible
             if (supabase && currentUser) {
-                // Fire & forget — do not await
                 supabase
                     .from('profiles')
                     .update({
@@ -495,26 +495,32 @@ function injectBannerStyles() {
     const style = document.createElement('style')
     style.id = 'callHubStyles'
     style.textContent = `
+        /* ============================================================ */
+        /* RelayTalk — Incoming call banner                             */
+        /* ============================================================ */
+
         #callHubBanner {
             position: fixed;
             top: 14px;
             left: 50%;
             transform: translateX(-50%);
-            width: min(92%, 380px);
-            background: rgba(20, 20, 30, 0.96);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 18px;
+            width: min(92%, 400px);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: saturate(180%) blur(16px);
+            -webkit-backdrop-filter: saturate(180%) blur(16px);
+            border: 1px solid #e6ecf3;
+            border-radius: 22px;
             padding: 14px 16px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            box-shadow: 0 12px 40px rgba(10, 37, 64, 0.18), 0 2px 6px rgba(10, 37, 64, 0.06);
             z-index: 2147483647 !important;
             display: flex;
             align-items: center;
             gap: 12px;
             transition: opacity 0.18s ease, transform 0.18s ease;
-            animation: callHubSlideDown 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+            animation: callHubSlideDown 0.3s cubic-bezier(0.22, 1, 0.36, 1);
             pointer-events: auto !important;
             user-select: none;
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
         @keyframes callHubSlideDown {
@@ -522,29 +528,42 @@ function injectBannerStyles() {
             to   { opacity: 1; transform: translate(-50%, 0); }
         }
 
+        /* Avatar */
         .callHub-avatar {
             width: 48px;
             height: 48px;
+            min-width: 48px;
+            min-height: 48px;
             border-radius: 50%;
-            background: linear-gradient(45deg, #007acc, #00b4d8);
+            background: linear-gradient(135deg, #007acc, #00b4d8);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            color: white;
-            font-weight: 700;
-            font-size: 20px;
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 1.15rem;
             flex-shrink: 0;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.22);
         }
 
-        .callHub-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .callHub-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+        }
 
+        /* Info */
         .callHub-info { flex: 1; min-width: 0; }
 
         .callHub-name {
-            color: white;
-            font-weight: 600;
-            font-size: 15px;
+            color: #0a2540;
+            font-weight: 500;
+            font-size: 0.98rem;
+            letter-spacing: -0.01em;
             margin-bottom: 3px;
             white-space: nowrap;
             overflow: hidden;
@@ -555,25 +574,27 @@ function injectBannerStyles() {
             display: flex;
             align-items: center;
             gap: 6px;
-            color: rgba(255,255,255,0.7);
-            font-size: 12.5px;
+            color: #5f6368;
+            font-size: 0.8rem;
         }
 
         .callHub-pulse {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
+            background: #1e8e3e;
+            box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.55);
             animation: callHubPulse 1.6s infinite;
+            flex-shrink: 0;
         }
 
         @keyframes callHubPulse {
-            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
-            70%  { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
-            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+            0%   { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.55); }
+            70%  { box-shadow: 0 0 0 12px rgba(30, 142, 62, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
         }
 
+        /* Actions */
         .callHub-actions {
             display: flex;
             gap: 8px;
@@ -591,8 +612,10 @@ function injectBannerStyles() {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.15s ease, background 0.2s ease;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+                        background 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 4px 14px rgba(10, 37, 64, 0.18);
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
@@ -601,19 +624,67 @@ function injectBannerStyles() {
         .callHub-btn:active { transform: scale(0.94); }
 
         .callHub-accept {
-            background: #22c55e;
+            background: #1e8e3e;
             animation: callHubRing 1.6s infinite;
         }
 
-        .callHub-decline { background: #ef4444; }
+        .callHub-accept:hover {
+            background: #1a7d37;
+            box-shadow: 0 6px 18px rgba(30, 142, 62, 0.35);
+        }
+
+        .callHub-decline {
+            background: #d93025;
+        }
+
+        .callHub-decline:hover {
+            background: #b9251c;
+            box-shadow: 0 6px 18px rgba(217, 48, 37, 0.35);
+        }
 
         @keyframes callHubRing {
-            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
-            70%  { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
-            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+            0%   { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.55); }
+            70%  { box-shadow: 0 0 0 14px rgba(30, 142, 62, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
         }
 
         .callHub-btn svg { pointer-events: none !important; }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            #callHubBanner {
+                top: 10px;
+                width: calc(100% - 20px);
+                padding: 12px 14px;
+                border-radius: 20px;
+                gap: 10px;
+            }
+
+            .callHub-avatar {
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 1.05rem;
+            }
+
+            .callHub-name { font-size: 0.94rem; }
+            .callHub-sub  { font-size: 0.76rem; }
+
+            .callHub-btn {
+                width: 42px;
+                height: 42px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #callHubBanner,
+            .callHub-pulse,
+            .callHub-accept {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+        }
     `
     document.head.appendChild(style)
 }
