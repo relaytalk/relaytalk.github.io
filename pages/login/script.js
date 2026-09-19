@@ -108,15 +108,36 @@ const usernameError = document.getElementById('usernameError');
 const passwordError = document.getElementById('passwordError');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
-// Toggle password visibility
+// ============================================================
+// PASSWORD TOGGLE — SVG icons (no emoji)
+// ============================================================
+const EYE_OPEN_SVG = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>
+`;
+
+const EYE_OFF_SVG = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+`;
+
 if (passwordToggle) {
+    // Initialize with eye-open icon (password hidden)
+    passwordToggle.innerHTML = EYE_OPEN_SVG;
+
     passwordToggle.addEventListener('click', function() {
         if (loginPassword.type === 'password') {
             loginPassword.type = 'text';
-            this.textContent = '🙈';
+            this.innerHTML = EYE_OFF_SVG;
         } else {
             loginPassword.type = 'password';
-            this.textContent = '👁️';
+            this.innerHTML = EYE_OPEN_SVG;
         }
     });
 }
@@ -212,12 +233,15 @@ async function handleLogin(event) {
             if (successMessage) {
                 successMessage.style.display = 'block';
                 successMessage.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🎉</div>
-                        <h3 style="color: #28a745; margin-bottom: 10px;">Login Successful!</h3>
-                        <p style="color: #c0c0e0;">Redirecting to home page...</p>
-                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 15px; overflow: hidden;">
-                            <div style="width: 0%; height: 100%; background: #667eea; animation: progress 2s linear forwards;"></div>
+                    <div class="success-block">
+                        <svg class="success-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="8 12 11 15 16 9"/>
+                        </svg>
+                        <h3>Login Successful</h3>
+                        <p>Redirecting to home page...</p>
+                        <div class="progress-track">
+                            <div class="progress-fill"></div>
                         </div>
                     </div>
                 `;
@@ -265,10 +289,13 @@ async function initLoginPage() {
         if (successMessage) {
             successMessage.style.display = 'block';
             successMessage.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2rem; margin-bottom: 10px;">👋</div>
-                    <h3 style="color: #667eea; margin-bottom: 10px;">Already Logged In!</h3>
-                    <p style="color: #c0c0e0;">Redirecting to home page...</p>
+                <div class="success-block">
+                    <svg class="success-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="8 12 11 15 16 9"/>
+                    </svg>
+                    <h3>Already Logged In</h3>
+                    <p>Redirecting to home page...</p>
                 </div>
             `;
         }
@@ -319,10 +346,10 @@ window.togglePassword = function() {
     if (passwordInput && toggleBtn) {
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
-            toggleBtn.textContent = '🙈';
+            toggleBtn.innerHTML = EYE_OFF_SVG;
         } else {
             passwordInput.type = 'password';
-            toggleBtn.textContent = '👁️';
+            toggleBtn.innerHTML = EYE_OPEN_SVG;
         }
     }
 };
@@ -330,4 +357,8 @@ window.togglePassword = function() {
 window.handleLogin = handleLogin;
 
 // Initialize on load
-document.addEventListener('DOMContentLoaded', initLoginPage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLoginPage);
+} else {
+    initLoginPage();
+}
