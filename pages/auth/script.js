@@ -1,4 +1,4 @@
-// auth/script.js - COMPLETE FIXED VERSION (NO DUPLICATE PROFILE ERROR)
+// auth/script.js — Complete version
 
 // Modal functions
 function showTerms() {
@@ -25,7 +25,7 @@ document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') closeModal();
 });
 
-// Password toggle — uses inline SVGs (no emojis)
+// Password toggle — inline SVGs
 function togglePassword() {
     const passwordInput = document.getElementById('password');
     const toggleBtn = document.querySelector('.password-toggle');
@@ -35,7 +35,6 @@ function togglePassword() {
     passwordInput.type = isHidden ? 'text' : 'password';
 
     if (isHidden) {
-        // Eye-off icon (password now visible)
         toggleBtn.innerHTML = `
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
@@ -45,7 +44,6 @@ function togglePassword() {
             </svg>
         `;
     } else {
-        // Eye icon (password now hidden)
         toggleBtn.innerHTML = `
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -234,18 +232,23 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
     successContainer.style.display = 'block';
 
     const message = autoLoggedIn
-        ? `Welcome to RelayTalk, <strong style="color: white;">${username}</strong>!<br>Redirecting to home page...`
-        : `Account created, <strong style="color: white;">${username}</strong>!<br>Please log in with your credentials.`;
+        ? `Welcome to RelayTalk, <strong>${username}</strong>!<br>Redirecting to home page…`
+        : `Account created, <strong>${username}</strong>!<br>Please log in with your credentials.`;
 
     successContainer.innerHTML = `
-        <div class="success-icon">✨</div>
-        <h2 style="color: #28a745; margin-bottom: 15px;">${autoLoggedIn ? 'Account Created!' : 'Almost Done!'}</h2>
-        <p style="color: #c0c0e0; margin-bottom: 10px;">${message}</p>
-        <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 15px; margin: 20px 0;">
-            <p style="color: #a0a0c0; font-size: 0.9rem; margin-bottom: 8px;">🔐 Remember your password securely</p>
-            <p style="color: #667eea; font-size: 0.9rem;">
+        <div class="success-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="8 12 11 15 16 9"/>
+            </svg>
+        </div>
+        <h2>${autoLoggedIn ? 'Account Created' : 'Almost Done'}</h2>
+        <p>${message}</p>
+        <div style="background: var(--bg-sub); padding: 14px 16px; border-radius: 12px; margin: 18px 0; border: 1px solid var(--border-soft);">
+            <p style="color: var(--text-2); font-size: 0.85rem; margin-bottom: 6px;">Remember your password securely</p>
+            <p style="color: var(--primary); font-size: 0.88rem; font-weight: 500;">
                 Username: <strong>${username}</strong><br>
-                We cannot recover passwords if forgotten
+                <span style="color: var(--text-2); font-weight: 400;">We cannot recover passwords if forgotten</span>
             </p>
         </div>
         <div class="progress-bar">
@@ -303,7 +306,11 @@ async function initAuthPage() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', initAuthPage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAuthPage);
+} else {
+    initAuthPage();
+}
 
 window.showTerms = showTerms;
 window.showPrivacy = showPrivacy;
