@@ -41,7 +41,6 @@ async function initFriendsPage() {
         }
     }, 4000);
 
-    // Helper to hide the loader once and clean up
     const hideLoader = () => {
         clearTimeout(forceHideTimeout);
         if (loader && !loader.classList.contains('hidden')) {
@@ -94,7 +93,6 @@ async function initFriendsPage() {
         setInterval(() => checkMissedCalls(), 10000);
         startStatusUpdates();
 
-        // ✅ Hide loader only after everything is really ready
         hideLoader();
 
     } catch (error) {
@@ -356,34 +354,34 @@ window.clearSearch = function() {
 };
 
 // ============================================
-// NAVIGATION
+// NAVIGATION — correct paths
 // ============================================
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
         username: friendName
     }));
+    // Chat page lives at pages/chats/index.html
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
 window.openProfile = function(userId) {
     if (!userId) return;
-    window.location.href = `../home/profile/view.html?id=${encodeURIComponent(userId)}`;
+    // Friend's profile lives at pages/home/profiles/view.html
+    window.location.href = `../profiles/view.html?id=${encodeURIComponent(userId)}`;
 };
 
-window.goToHome = () => window.location.href = '../../home/index.html';
+window.goToHome = () => window.location.href = '../index.html';
 
-// Start a call — allowed even if the friend is offline
 window.startCall = function(friendId, friendName) {
     if (!friendId) return;
 
-    // Persist the target so the call page knows who to dial
     sessionStorage.setItem('currentCallTarget', JSON.stringify({
         id: friendId,
         username: friendName || 'Friend'
     }));
 
-    // Route to your existing call page. Adjust if the route differs.
+    // Route to chat page with call=1 (chatHub/callHub picks it up)
     window.location.href = `../../chats/index.html?friendId=${friendId}&call=1`;
 };
 
@@ -812,7 +810,7 @@ function escapeHtml(str) {
 function escapeAttr(str) { return escapeHtml(str); }
 
 function updateLoadingText(text) {
-    const el = document.querySelector('.loading-text');
+    const el = document.querySelector('.loading-label');
     if (el) el.textContent = text;
 }
 
@@ -852,7 +850,7 @@ function startStatusUpdates() {
 }
 
 // ============================================
-// LEGACY: search users (kept for compat, unreachable UI)
+// LEGACY: search users (kept for compat)
 // ============================================
 window.openSearch = () => {
     const modal = document.getElementById('searchModal');
