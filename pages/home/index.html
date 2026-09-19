@@ -115,8 +115,11 @@
 <body>
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Loading screen — same as Friends page -->
     <div class="loading-indicator" id="loadingIndicator">
-        <div class="loading-spinner"></div>
+        <div class="loading-text">
+            <span class="loading-label">Loading</span><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
     </div>
 
     <!-- Top App Bar -->
@@ -140,14 +143,12 @@
 
     <!-- Main -->
     <main class="page">
-        <!-- Greeting -->
         <section class="greeting">
             <p class="greeting-small" id="greetingSmall">Hello</p>
             <h1 class="greeting-title" id="welcomeTitle">Friend</h1>
             <p class="greeting-sub">Welcome back to RelayTalk</p>
         </section>
 
-        <!-- Primary action -->
         <button class="primary-action" onclick="openSearch()">
             <span class="primary-action-icon">
                 <i class="fas fa-user-plus"></i>
@@ -161,7 +162,6 @@
             </span>
         </button>
 
-        <!-- Friends list -->
         <section class="section">
             <div class="section-head">
                 <h2 class="section-title">Friends</h2>
@@ -171,7 +171,6 @@
         </section>
     </main>
 
-    <!-- Bottom Navigation -->
     <nav class="bottom-nav">
         <a href="#" class="nav-item active" onclick="goToHome(); return false;">
             <i class="fas fa-home"></i>
@@ -192,7 +191,6 @@
         </a>
     </nav>
 
-    <!-- Search Modal -->
     <div class="modal" id="searchModal">
         <div class="modal-panel">
             <div class="modal-head">
@@ -211,7 +209,6 @@
         </div>
     </div>
 
-    <!-- Notifications Modal -->
     <div class="modal" id="notificationsModal">
         <div class="modal-panel">
             <div class="modal-head">
