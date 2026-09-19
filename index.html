@@ -3,59 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> 
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <title>RelayTalk - Connect with Friends Instantly</title>
+    <title>RelayTalk — Connect with friends instantly</title>
 
-    <!-- Basic SEO -->
-    <meta name="description" content="RelayTalk - Connect with friends instantly. Secure, private messaging platform.">
+    <meta name="description" content="RelayTalk — Connect with friends instantly. Secure, private messaging.">
     <meta name="keywords" content="RelayTalk, messaging, chat, friends, secure messaging">
     <meta name="robots" content="index, follow">
 
-    <!-- Canonical - ROOT PAGE -->
     <link rel="canonical" href="https://relaytalk.vercel.app/">
 
-    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk - Connect with Friends Instantly">
-    <meta property="og:description" content="RelayTalk - Connect with friends instantly. Secure, private messaging.">
+    <meta property="og:title" content="RelayTalk — Connect with friends instantly">
+    <meta property="og:description" content="RelayTalk — Connect with friends instantly. Secure, private messaging.">
     <meta property="og:url" content="https://relaytalk.vercel.app/">
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk - Connect with Friends Instantly">
-    <meta name="twitter:description" content="RelayTalk - Connect with friends instantly. Secure, private messaging.">
+    <meta name="twitter:title" content="RelayTalk — Connect with friends instantly">
+    <meta name="twitter:description" content="RelayTalk — Connect with friends instantly.">
     <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
 
-    <!-- Favicon / Icons -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#007ACC">
+    <meta name="theme-color" content="#007acc">
 
     <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
 
-    <!-- ✅  FIXED: ONLY redirect if LOGGED IN -->
     <script>
         (function() {
             try {
-                // Check for Supabase session token
                 let hasSession = false;
-                
-                // Check localStorage
                 const localToken = localStorage.getItem('supabase.auth.token');
-                // Check sessionStorage
                 const sessionToken = sessionStorage.getItem('supabase.auth.token');
-                
                 hasSession = !!(localToken || sessionToken);
-                
-                // Additional check: if we have persisted session in localStorage
+
                 if (!hasSession) {
                     try {
                         const persistedSession = localStorage.getItem('supabase.auth.token');
@@ -65,72 +53,92 @@
                     } catch (e) {}
                 }
 
-                // ✅ ONLY redirect if LOGGED IN
                 if (hasSession) {
                     console.log('✅ User has session - redirecting to home');
                     window.location.replace('/pages/home/index.html?v=' + Date.now());
                 }
-                // ❌ NEVER redirect if not logged in - stay on root page
             } catch (e) {
                 console.log('Session check error:', e);
             }
         })();
     </script>
 
-    <!-- Stylesheets -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/opening.css">
 </head>
 <body>
-    <!-- Opening Animation -->
+    <!-- Opening screen — logo only -->
     <div class="opening-screen" id="openingScreen">
-        <div class="luster-text">✨Relay</div>
+        <img src="/relay.png" alt="RelayTalk" class="opening-logo">
     </div>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="welcome-container">
-            <div class="logo">✨</div>
-            <h1 class="title">RelayTalk</h1>
-            <p class="subtitle">Connect with friends instantly</p>
 
-            <div class="features">
-                <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Search Friends</h3>
-                    <p>Find and connect with friends</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔔</div>
-                    <h3>Notifications</h3>
-                    <p>Stay updated with messages</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💬</div>
-                    <h3>Instant Chat</h3>
-                    <p>Real-time messaging</p>
-                </div>
-            </div>
+            <header class="hero">
+                <img src="/relay.png" alt="RelayTalk" class="hero-logo">
+                <h1 class="title">RelayTalk</h1>
+                <p class="subtitle">Connect with friends instantly</p>
+            </header>
+
+            <ul class="features" role="list">
+                <li class="feature-card">
+                    <span class="feature-icon">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <div class="feature-text">
+                        <h3>Search Friends</h3>
+                        <p>Find and connect with friends</p>
+                    </div>
+                </li>
+
+                <li class="feature-card">
+                    <span class="feature-icon">
+                        <i class="fas fa-bell"></i>
+                    </span>
+                    <div class="feature-text">
+                        <h3>Notifications</h3>
+                        <p>Stay updated with messages</p>
+                    </div>
+                </li>
+
+                <li class="feature-card">
+                    <span class="feature-icon">
+                        <i class="fas fa-comment-dots"></i>
+                    </span>
+                    <div class="feature-text">
+                        <h3>Instant Chat</h3>
+                        <p>Real-time messaging</p>
+                    </div>
+                </li>
+            </ul>
 
             <div class="action-buttons">
                 <button class="btn-primary" onclick="goToSignup()">Create Account</button>
                 <button class="btn-secondary" onclick="goToLogin()">Login</button>
             </div>
+
+            <p class="footer-note">
+                RelayTalk is a fast, private way to stay close to the people who matter — simple, secure, and made for real conversations.
+            </p>
         </div>
     </div>
 
     <script>
-        window.goToLogin = function() { 
+        window.goToLogin = function() {
             window.location.href = '/pages/login/index.html';
         };
 
-        window.goToSignup = function() { 
+        window.goToSignup = function() {
             window.location.href = '/pages/auth/index.html';
         };
 
-        // ✅ FIXED: Only redirect if LOGGED IN - and wait for opening animation
         document.addEventListener('DOMContentLoaded', async function() {
-            // Always show content first
             const openingScreen = document.getElementById('openingScreen');
             const mainContent = document.getElementById('mainContent');
 
@@ -145,33 +153,27 @@
                 mainContent.style.opacity = '1';
             }
 
-            // THEN check auth, but only redirect if logged in
             try {
-                // Check if we have a session first to avoid unnecessary imports
                 let hasSession = false;
                 const localToken = localStorage.getItem('supabase.auth.token');
                 const sessionToken = sessionStorage.getItem('supabase.auth.token');
                 hasSession = !!(localToken || sessionToken);
-                
+
                 if (!hasSession) {
                     console.log('No session detected - staying on main page');
-                    return; // ✅ CRITICAL: DON'T redirect if no session
+                    return;
                 }
-                
-                // Only try to import if we have a session
+
                 try {
                     const module = await import('/utils/auth.js');
                     const { success } = await module.auth.getCurrentUser();
 
-                    // ✅ ONLY redirect if actually logged in
                     if (success) {
                         console.log('✅ User authenticated - redirecting to home');
                         window.location.replace('/pages/home/index.html');
                     }
-                    // ❌ NEVER redirect if not logged in - stay on root page
                 } catch (e) {
                     console.log('Auth import error:', e);
-                    // Even if import fails, if we have session, try to redirect anyway
                     if (hasSession) {
                         window.location.replace('/pages/home/index.html');
                     }
