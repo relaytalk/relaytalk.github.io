@@ -709,7 +709,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// CALL HISTORY
+// CALL HISTORY — no call-back button
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -811,11 +811,6 @@ async function loadCallHistory() {
                             <span class="dot">•</span>
                             <span>${time}</span>
                         </div>
-                    </div>
-                    <div class="call-history-actions">
-                        <button class="call-back-btn" onclick="event.stopPropagation(); callBack('${otherUserId}', '${escapeAttr(otherUser.username || 'Friend')}')" aria-label="Call back" title="Call back">
-                            <i class="fas fa-phone"></i>
-                        </button>
                     </div>
                 </div>
             `;
@@ -1208,4 +1203,9 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-document.addEventListener('DOMContentLoaded', initHomePage);
+// FIX: readyState guard
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHomePage);
+} else {
+    initHomePage();
+}
