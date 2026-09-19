@@ -81,7 +81,6 @@
                 </div>
             </div>
 
-            <!-- Stats + member since -->
             <div class="profile-stats">
                 <div class="stat-item">
                     <div class="stat-value" id="friendsCount">0</div>
@@ -95,7 +94,6 @@
             </div>
         </section>
 
-        <!-- RelayTalk Guide button -->
         <section class="guide-cta-card">
             <button class="guide-cta" onclick="openGuide()">
                 <span class="guide-cta-icon">
@@ -236,7 +234,41 @@
         </div>
     </div>
 
-    <!-- Guide Modal — interactive with section buttons -->
+    <!-- NOTIFICATIONS MODAL — same as Friends page (Requests + Calls) -->
+    <div class="modal" id="notificationsModal">
+        <div class="modal-panel">
+            <div class="modal-head">
+                <h2 class="modal-title">Notifications</h2>
+                <button class="modal-close" onclick="closeNotifications()" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs" role="tablist">
+                    <button class="tab active" id="notifTabMain" onclick="switchNotifTab('main')">
+                        <i class="fas fa-user-plus tab-icon"></i>
+                        Requests
+                        <span class="tab-badge" id="mainTabBadge" style="display: none;">0</span>
+                    </button>
+                    <button class="tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
+                        <i class="fas fa-comment-dots tab-icon"></i>
+                        Calls
+                        <span class="tab-badge" id="callsTabBadge" style="display: none;">0</span>
+                    </button>
+                </div>
+
+                <div class="tab-content active" id="notifMainContent">
+                    <div id="notificationsList"></div>
+                </div>
+
+                <div class="tab-content" id="notifCallsContent">
+                    <div id="callHistoryList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
     <div class="modal-overlay guide-modal" id="guideModal">
         <div class="modal-content guide-content">
             <div class="modal-header">
