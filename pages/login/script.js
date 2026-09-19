@@ -1,7 +1,9 @@
-// login/script.js - COMPLETE VERSION
+// login/script.js - Complete version
 console.log('✨ Login Page Loaded');
 
-// Wait for Supabase
+// ============================================================
+// Supabase
+// ============================================================
 async function ensureSupabase() {
     console.log('⏳ Ensuring Supabase is loaded...');
 
@@ -11,11 +13,9 @@ async function ensureSupabase() {
     }
 
     try {
-        // Load Supabase module
         const modulePath = '../../utils/supabase.js';
         await import(modulePath);
 
-        // Wait for initialization
         let attempts = 0;
         while (!window.supabase && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 150));
@@ -36,7 +36,9 @@ async function ensureSupabase() {
     }
 }
 
-// Simple login function
+// ============================================================
+// Login
+// ============================================================
 async function loginUser(username, password) {
     try {
         if (!window.supabase?.auth) {
@@ -81,7 +83,6 @@ async function loginUser(username, password) {
     }
 }
 
-// Check if already logged in
 async function checkExistingLogin() {
     try {
         if (!window.supabase?.auth) return false;
@@ -99,7 +100,9 @@ async function checkExistingLogin() {
     }
 }
 
-// DOM Elements
+// ============================================================
+// DOM
+// ============================================================
 const loginForm = document.getElementById('loginForm');
 const loginUsername = document.getElementById('loginUsername');
 const loginPassword = document.getElementById('loginPassword');
@@ -109,7 +112,7 @@ const passwordError = document.getElementById('passwordError');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
 // ============================================================
-// PASSWORD TOGGLE — SVG icons (no emoji)
+// Password toggle — SVGs
 // ============================================================
 const EYE_OPEN_SVG = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -128,10 +131,10 @@ const EYE_OFF_SVG = `
 `;
 
 if (passwordToggle) {
-    // Initialize with eye-open icon (password hidden)
     passwordToggle.innerHTML = EYE_OPEN_SVG;
 
     passwordToggle.addEventListener('click', function() {
+        if (!loginPassword) return;
         if (loginPassword.type === 'password') {
             loginPassword.type = 'text';
             this.innerHTML = EYE_OFF_SVG;
@@ -142,30 +145,35 @@ if (passwordToggle) {
     });
 }
 
-// Show error
+// ============================================================
+// Errors
+// ============================================================
 function showError(element, message) {
     if (!element) return;
     element.textContent = message;
     element.style.display = 'block';
 
-    // Add shake animation
     element.parentElement.classList.add('shake');
     setTimeout(() => {
         element.parentElement.classList.remove('shake');
     }, 500);
 }
 
-// Hide error
 function hideError(element) {
     if (!element) return;
     element.style.display = 'none';
 }
 
-// Validate form
+// ============================================================
+// Validation — null-safe
+// ============================================================
 function validateForm() {
     let isValid = true;
 
-    // Username validation
+    if (!loginUsername) {
+        return false;
+    }
+
     if (!loginUsername.value.trim()) {
         showError(usernameError, 'Please enter username');
         isValid = false;
@@ -176,7 +184,10 @@ function validateForm() {
         hideError(usernameError);
     }
 
-    // Password validation
+    if (!loginPassword) {
+        return false;
+    }
+
     if (!loginPassword.value) {
         showError(passwordError, 'Please enter password');
         isValid = false;
@@ -190,20 +201,22 @@ function validateForm() {
     return isValid;
 }
 
-// Handle form submission
+// ============================================================
+// Submit
+// ============================================================
 async function handleLogin(event) {
-    event.preventDefault();
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
 
     if (!validateForm()) return;
 
     const username = loginUsername.value.trim();
     const password = loginPassword.value;
 
-    // Get login button
     const loginBtn = document.getElementById('loginBtn');
     if (!loginBtn) return;
 
-    // Show loading
     const originalText = loginBtn.textContent;
     loginBtn.textContent = 'Logging in...';
     loginBtn.disabled = true;
@@ -213,7 +226,6 @@ async function handleLogin(event) {
     }
 
     try {
-        // Ensure Supabase is ready
         const supabaseReady = await ensureSupabase();
         if (!supabaseReady) {
             showError(passwordError, 'Cannot connect to server');
@@ -222,13 +234,11 @@ async function handleLogin(event) {
             return;
         }
 
-        // Attempt login
         const result = await loginUser(username, password);
 
         if (result.success) {
             console.log('✅ Login successful, redirecting to home...');
 
-            // Show success message
             const successMessage = document.getElementById('successMessage');
             if (successMessage) {
                 successMessage.style.display = 'block';
@@ -247,7 +257,6 @@ async function handleLogin(event) {
                 `;
             }
 
-            // Redirect after delay
             setTimeout(() => {
                 window.location.href = '../home/index.html';
             }, 1500);
@@ -266,25 +275,23 @@ async function handleLogin(event) {
     }
 }
 
-// Reset button state
 function resetButton(button, originalText) {
     button.textContent = originalText;
     button.disabled = false;
 }
 
-// Initialize login page
+// ============================================================
+// Init
+// ============================================================
 async function initLoginPage() {
     console.log('Initializing login page...');
 
-    // Ensure Supabase is loaded
     await ensureSupabase();
 
-    // Check if already logged in
     const isLoggedIn = await checkExistingLogin();
     if (isLoggedIn) {
         console.log('✅ User already logged in, redirecting to home...');
 
-        // Show redirect message
         const successMessage = document.getElementById('successMessage');
         if (successMessage) {
             successMessage.style.display = 'block';
@@ -300,7 +307,6 @@ async function initLoginPage() {
             `;
         }
 
-        // Redirect
         setTimeout(() => {
             window.location.href = '../home/index.html';
         }, 1000);
@@ -309,12 +315,10 @@ async function initLoginPage() {
 
     console.log('User not logged in, showing login form');
 
-    // Setup event listeners
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
 
-    // Clear errors on input
     if (loginUsername) {
         loginUsername.addEventListener('input', function() {
             if (this.value.trim()) hideError(usernameError);
@@ -327,18 +331,18 @@ async function initLoginPage() {
         });
     }
 
-    // Auto-focus username field
     if (loginUsername) {
         setTimeout(() => loginUsername.focus(), 300);
     }
 
-    // Hide loading overlay if shown
     if (loadingOverlay) {
         loadingOverlay.style.display = 'none';
     }
 }
 
-// Global functions
+// ============================================================
+// Global helpers
+// ============================================================
 window.togglePassword = function() {
     const passwordInput = document.getElementById('loginPassword');
     const toggleBtn = document.querySelector('#passwordToggle');
@@ -356,7 +360,9 @@ window.togglePassword = function() {
 
 window.handleLogin = handleLogin;
 
-// Initialize on load
+// ============================================================
+// Boot — safe against late module load
+// ============================================================
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initLoginPage);
 } else {
