@@ -305,7 +305,6 @@ img { display: block; max-width: 100%; }
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    margin-bottom: 14px;
 }
 
 .terms-checkbox input[type="checkbox"] {
@@ -328,6 +327,7 @@ img { display: block; max-width: 100%; }
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 14px;
 }
 
 .terms-btn {
