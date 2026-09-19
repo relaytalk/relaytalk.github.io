@@ -78,35 +78,25 @@
     <link rel="apple-touch-icon" href="/relay.png">
 </head>
 <body>
-    <div class="view-loading" id="loadingIndicator">
-        <div class="loading-visual">
-            <div class="loading-ring ring-1"></div>
-            <div class="loading-ring ring-2"></div>
-            <div class="loading-ring ring-3"></div>
-            <div class="loading-core"></div>
-        </div>
-        <div class="loading-text">Loading<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
-    </div>
-
     <div class="view-fallback" id="fallbackScreen" style="display: none;">
         <div class="fallback-card">
             <div class="fallback-emoji">🔎</div>
             <h2 class="fallback-title">Account not found</h2>
             <p class="fallback-message">This account does not exist or may have been removed.</p>
             <div class="fallback-actions">
-                <a href="../../home/index.html" class="fallback-btn primary">Go to Home</a>
+                <a href="../../index.html" class="fallback-btn primary">Go to Home</a>
             </div>
         </div>
     </div>
 
     <header class="app-bar">
         <div class="app-bar-inner">
-            <button class="icon-btn back-btn" onclick="closeView()" aria-label="Close">
+            <button class="icon-btn back-btn" onclick="closeView()" aria-label="Back">
                 <i class="fas fa-arrow-left"></i>
             </button>
             <div class="app-bar-brand">
                 <img src="/relay.png" alt="RelayTalk" class="brand-logo-img">
-                <span class="brand-name">Profile</span>
+                <span class="brand-name">Friend's Profile</span>
             </div>
             <div class="app-bar-actions"></div>
         </div>
