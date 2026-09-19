@@ -212,11 +212,17 @@ async function initHomePage() {
         const supabaseReady = await waitForSupabase();
         if (!supabaseReady) {
             toast.error("Connection Error", "Cannot connect to server.");
-            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            if (loadingIndicator) {
+                loadingIndicator.classList.add('hidden');
+                setTimeout(() => { loadingIndicator.style.display = 'none'; }, 400);
+            }
             return;
         }
 
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+            setTimeout(() => { loadingIndicator.style.display = 'none'; }, 400);
+        }
 
         await loadUserProfile();
         updateWelcomeMessage();
@@ -229,7 +235,10 @@ async function initHomePage() {
         console.log('✅ Home page initialized successfully');
     } catch (error) {
         console.error('❌ Init failed:', error);
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+            setTimeout(() => { loadingIndicator.style.display = 'none'; }, 400);
+        }
         toast.error("Initialization Error", "Failed to load page.");
     }
 }
@@ -330,7 +339,6 @@ async function loadUserProfile() {
     }
 }
 
-// Greeting — original structure: small = greeting, title = username
 function updateWelcomeMessage() {
     if (!currentProfile) return;
 
@@ -349,7 +357,7 @@ function updateWelcomeMessage() {
 }
 
 // ============================================
-// AVATAR HTML — image OR initial. No layers.
+// AVATAR HTML
 // ============================================
 function buildAvatarHTML(profile) {
     const username = (profile && profile.username) ? profile.username : '?';
@@ -357,7 +365,6 @@ function buildAvatarHTML(profile) {
     const avatarUrl = profile && profile.avatar_url ? profile.avatar_url : '';
 
     if (avatarUrl) {
-        // Only the <img>, nothing behind or in front of it.
         return `<img src="${escapeAttr(avatarUrl)}" alt="${escapeAttr(username)}">`;
     }
     return `<span>${escapeHtml(firstLetter)}</span>`;
@@ -373,9 +380,7 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function escapeAttr(str) {
-    return escapeHtml(str);
-}
+function escapeAttr(str) { return escapeHtml(str); }
 
 // ============================================
 // LOAD FRIENDS
@@ -704,7 +709,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// CALL HISTORY — new professional layout with call-back buttons
+// CALL HISTORY
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -766,7 +771,6 @@ async function loadCallHistory() {
             const otherUserId = isOutgoing ? (call.receiver_id || call.callee_id) : (call.caller_id || call.callee_id);
             const otherUser = profileMap[otherUserId] || { username: 'Unknown' };
 
-            // Determine type / status
             let metaIcon = 'fa-arrow-down';
             let metaClass = 'meta-incoming';
             let metaText = 'Incoming';
@@ -819,7 +823,6 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // Mark calls as seen
         const seenIds = calls.map(c => String(c.id)).filter(Boolean);
         if (seenIds.length > 0) {
             addSeenIds(SEEN_CALLS_KEY, seenIds);
@@ -842,14 +845,12 @@ async function loadCallHistory() {
     }
 }
 
-// Call back — routes to your chat page (or dedicated call page if you have one)
 function callBack(userId, username) {
     if (!userId) return;
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: userId,
         username: username
     }));
-    // Change this to your real call route if different
     window.location.href = `../chats/index.html?friendId=${userId}&call=1`;
 }
 
