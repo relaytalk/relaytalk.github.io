@@ -9,18 +9,26 @@
     <meta name="description" content="Create your free RelayTalk account. Join our secure messaging platform and start connecting with friends instantly. Simple sign up, no email required.">
     <meta name="keywords" content="RelayTalk, Create Account, Sign Up, Register, RelayTalk App, Instant Chat, Secure Messaging, Private Chat, Free Account, Chat App Signup, Messenger Account">
 
+    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Create Account | RelayTalk">
-    <meta property="og:description" content="Join RelayTalk — Create your free account for secure, private messaging. No email needed, instant sign up.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/pages/auth/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:title" content="Create Account | RelayTalk">
+    <meta property="og:description" content="Join RelayTalk — create your free account for fast, private messaging.">
+    <meta property="og:url" content="https://relaytalk.vercel.app/pages/auth/">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
 
+    <!-- ===== Twitter / X ===== -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Create Account | RelayTalk">
-    <meta name="twitter:description" content="Create your RelayTalk account in seconds. Free secure messaging with friends and family.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta name="twitter:site" content="@relaytalk">
+    <meta name="twitter:title" content="Create Account | RelayTalk">
+    <meta name="twitter:description" content="Join RelayTalk — create your free account for fast, private messaging.">
+    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
 
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/auth/">
 
@@ -70,7 +78,6 @@
         </div>
 
         <form class="auth-form" id="signupForm" novalidate>
-            <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="username">
                     <span class="form-label-icon">
@@ -87,7 +94,6 @@
                 <div class="error-message" id="usernameError"></div>
             </div>
 
-            <!-- Password -->
             <div class="form-group">
                 <label class="form-label" for="password">
                     <span class="form-label-icon">
@@ -111,7 +117,6 @@
                 <div class="error-message" id="passwordError"></div>
             </div>
 
-            <!-- Confirm Password -->
             <div class="form-group">
                 <label class="form-label" for="confirmPassword">
                     <span class="form-label-icon">
@@ -127,7 +132,6 @@
                 <div class="error-message" id="confirmError"></div>
             </div>
 
-            <!-- Terms -->
             <div class="terms-container">
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms" required>
