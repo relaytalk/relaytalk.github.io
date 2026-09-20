@@ -19,19 +19,26 @@
     <link rel="icon" type="image/png" sizes="16x16" href="https://relaytalk.vercel.app/favicon-16x16.png">
     <link rel="manifest" href="https://relaytalk.vercel.app/site.webmanifest">
 
+    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="RelayTalk Login | Secure Private Messaging Platform">
-    <meta property="og:description" content="Sign in to RelayTalk — secure, private messaging with friends, family, and colleagues.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/pages/login/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relay-og-image.png">
     <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:locale" content="en_US">
+    <meta property="og:title" content="RelayTalk — Sign in">
+    <meta property="og:description" content="Sign in to RelayTalk — fast, private messaging with friends, family, and close circles.">
+    <meta property="og:url" content="https://relaytalk.vercel.app/pages/login/">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
 
+    <!-- ===== Twitter / X ===== -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="RelayTalk Login | Secure Messaging App Sign In">
-    <meta name="twitter:description" content="Login to RelayTalk for secure, private messaging. Group chats, voice and video calls.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relay-twitter-card.png">
     <meta name="twitter:site" content="@relaytalk">
+    <meta name="twitter:title" content="RelayTalk — Sign in">
+    <meta name="twitter:description" content="Sign in to RelayTalk — fast, private messaging with friends, family, and close circles.">
+    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
 
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/login/">
 
@@ -83,7 +90,6 @@
         </div>
 
         <form class="login-form" id="loginForm" method="post" action="#">
-            <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="loginUsername">
                     <span class="form-label-icon">
@@ -101,7 +107,6 @@
                 <div class="error-message" id="usernameError"></div>
             </div>
 
-            <!-- Password -->
             <div class="form-group">
                 <label class="form-label" for="loginPassword">
                     <span class="form-label-icon">
@@ -127,7 +132,6 @@
                 <div class="error-message" id="passwordError"></div>
             </div>
 
-            <!-- Remember Me -->
             <div class="login-options">
                 <div class="remember-me">
                     <input type="checkbox" id="rememberMe" name="remember">
@@ -135,25 +139,20 @@
                 </div>
             </div>
 
-            <!-- Submit -->
             <button type="submit" class="login-btn" id="loginBtn">
                 Sign In
             </button>
         </form>
 
-        <!-- Success -->
         <div class="success-message" id="successMessage"></div>
 
-        <!-- Divider -->
         <div class="divider">or</div>
 
-        <!-- Sign up -->
         <div class="signup-link">
             Don't have a RelayTalk account?
             <a href="../auth/index.html">Create Free Account</a>
         </div>
 
-        <!-- Security badges -->
         <div class="security-badges">
             <div class="badge">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -170,7 +169,6 @@
         </div>
     </main>
 
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="login-loader"></div>
         <p class="loading-text">Signing you in…</p>
