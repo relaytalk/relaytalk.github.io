@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>About RelayTalk — Details, Features, Claims &amp; Help</title>
+
+    <meta name="description" content="Everything about RelayTalk in one place: what it is, the features it offers, how messages and calls are secured, and a full help guide.">
+    <meta name="keywords" content="RelayTalk, about RelayTalk, RelayTalk features, RelayTalk encryption, RelayTalk help, secure messaging">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+
+    <link rel="canonical" href="https://relaytalk.vercel.app/about/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:title" content="About RelayTalk — Details, Features, Claims &amp; Help">
+    <meta property="og:description" content="What RelayTalk is, what it does, how it protects your messages and calls, and a full help guide.">
+    <meta property="og:url" content="https://relaytalk.vercel.app/about/">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="About RelayTalk">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@RelayTalk">
+    <meta name="twitter:title" content="About RelayTalk — Details, Features, Claims &amp; Help">
+    <meta name="twitter:description" content="What RelayTalk is, what it does, how it protects your messages and calls, and a full help guide.">
+    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
+
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/relay.png">
+    <meta name="theme-color" content="#007acc">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="/about/style.css">
+
+    <!-- Structured data for search engines & AI -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://relaytalk.vercel.app/#website",
+          "url": "https://relaytalk.vercel.app/",
+          "name": "RelayTalk",
+          "description": "Fast, private, and simple messaging — made for real conversations.",
+          "publisher": { "@id": "https://relaytalk.vercel.app/#org" }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://relaytalk.vercel.app/#org",
+          "name": "RelayTalk",
+          "url": "https://relaytalk.vercel.app/",
+          "logo": "https://relaytalk.vercel.app/relay.png"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "RelayTalk",
+          "applicationCategory": "CommunicationApplication",
+          "operatingSystem": "Web, iOS, Android (installable PWA)",
+          "url": "https://relaytalk.vercel.app/",
+          "description": "RelayTalk is a real-time messaging and calling app. Text messages and calls are encrypted so only the sender and receiver can read or hear them. Image messages are stored server-side and are not end-to-end encrypted.",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Are RelayTalk text messages encrypted?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Text messages in RelayTalk are encrypted so that only the sender and the receiver can read them. RelayTalk cannot read your text messages."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Are image messages end-to-end encrypted?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Image messages are not end-to-end encrypted. Images you send are stored on our servers and the app owner can view them. Please do not send sensitive images."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Are RelayTalk calls encrypted?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Voice and video calls placed through RelayTalk are encrypted in transit so they cannot be listened in on by third parties."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I call someone when they are offline?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. You can start a call at any time. If the other person is offline or does not answer, they receive a missed-call notification in their Alerts tab."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is RelayTalk free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Creating an account and using RelayTalk's messaging, calling and notification features is free."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+
+    <a href="/" class="back-button" aria-label="Back to RelayTalk home">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+    </a>
+
+    <main class="about-main">
+
+        <header class="about-hero">
+            <img src="/relay.png" alt="RelayTalk logo" class="about-logo">
+            <h1 class="about-title">About RelayTalk</h1>
+            <p class="about-subtitle">
+                Everything you might want to know — what it is, what it does,
+                how your messages and calls are protected, and how to use it.
+            </p>
+            <p class="about-meta">Last updated · September 2026</p>
+        </header>
+
+        <!-- ===== Tabs ===== -->
+        <nav class="about-tabs" role="tablist" aria-label="About sections">
+            <button class="about-tab active" role="tab" aria-selected="true" data-target="details">
+                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                <span>Details</span>
+            </button>
+            <button class="about-tab" role="tab" aria-selected="false" data-target="features">
+                <i class="fas fa-star" aria-hidden="true"></i>
+                <span>Features</span>
+            </button>
+            <button class="about-tab" role="tab" aria-selected="false" data-target="claims">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                <span>Claims &amp; Rights</span>
+            </button>
+            <button class="about-tab" role="tab" aria-selected="false" data-target="help">
+                <i class="fas fa-life-ring" aria-hidden="true"></i>
+                <span>Help</span>
+            </button>
+        </nav>
+
+        <!-- ===== DETAILS ===== -->
+        <section id="details" class="about-section active" role="tabpanel" aria-labelledby="tab-details">
+            <h2 class="section-title">Details</h2>
+            <p class="section-lead">
+                RelayTalk is a lightweight messaging and calling app built for people who
+                just want to talk — without clutter, ads, or noise.
+            </p>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-bullseye" aria-hidden="true"></i> What RelayTalk is</h3>
+                <p>
+                    RelayTalk is a real-time chat app that lets you find friends by username,
+                    send text and image messages, and place voice or video calls. It runs in
+                    the browser and can be installed on your phone like a native app.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-users" aria-hidden="true"></i> Who it&rsquo;s for</h3>
+                <ul class="bullet-list">
+                    <li>People who want a simple way to message close friends and family.</li>
+                    <li>Anyone who finds mainstream chat apps too heavy or too noisy.</li>
+                    <li>Users who want their text messages and calls kept private.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-list-check" aria-hidden="true"></i> What you can do</h3>
+                <ul class="bullet-list">
+                    <li>Create a free account in seconds and pick a username.</li>
+                    <li>Search for friends by username and send friend requests.</li>
+                    <li>Chat one-to-one in real time with text and images.</li>
+                    <li>Start a voice or video call at any time — online or offline.</li>
+                    <li>Get push notifications for new messages and missed calls.</li>
+                    <li>Control whether notification previews show sender and content.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-circle-xmark" aria-hidden="true"></i> What RelayTalk is not</h3>
+                <ul class="bullet-list">
+                    <li>It is not a group chat or a channel-based platform — it is one-to-one.</li>
+                    <li>It is not an anonymous network. You connect with people you know.</li>
+                    <li>Image messages are not end-to-end encrypted (see Claims &amp; Rights).</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ===== FEATURES ===== -->
+        <section id="features" class="about-section" role="tabpanel" aria-labelledby="tab-features">
+            <h2 class="section-title">Features</h2>
+            <p class="section-lead">
+                Everything RelayTalk actually does, in plain language.
+            </p>
+
+            <div class="feature-grid">
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-user-plus" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Find &amp; add friends</h3>
+                    <p>Search by username, send a request, and start talking once they accept.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-comment-dots" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Real-time chat</h3>
+                    <p>Messages appear instantly for both sides. No refresh, no delay.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-image" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Image messages</h3>
+                    <p>Send photos directly inside a chat alongside your text messages.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-pen" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Edit &amp; delete messages</h3>
+                    <p>Long-press your own message to edit or delete it. Edited messages show an <em>(edited)</em> label.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-phone" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Voice &amp; video calls</h3>
+                    <p>Call any friend at any time. If they miss it, it shows up in their Alerts tab.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-bell" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Push notifications</h3>
+                    <p>Get alerts for new messages and missed calls, even when the app is closed.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-eye-slash" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Privacy controls</h3>
+                    <p>Choose whether notifications show sender name, avatar, message text and images.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-mobile-screen" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Install as an app</h3>
+                    <p>Add RelayTalk to your home screen. On iPhone: Share &rarr; Add to Home Screen.</p>
+                </div>
+
+                <div class="card feature-tile">
+                    <div class="tile-icon"><i class="fas fa-user-pen" aria-hidden="true"></i></div>
+                    <h3 class="card-title">Your profile</h3>
+                    <p>Set an avatar, write a short bio, and see how many friends you have.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== CLAIMS & RIGHTS ===== -->
+        <section id="claims" class="about-section" role="tabpanel" aria-labelledby="tab-claims">
+            <h2 class="section-title">Claims &amp; Rights</h2>
+            <p class="section-lead">
+                Straight answers about how your data is treated. No marketing language.
+            </p>
+
+            <div class="claim claim-secure">
+                <div class="claim-head">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
+                    <h3>Text messages are encrypted</h3>
+                </div>
+                <p>
+                    Text messages you send through RelayTalk are encrypted so that
+                    <strong>only the sender and the receiver</strong> can read them.
+                    RelayTalk cannot read the contents of your text messages.
+                </p>
+            </div>
+
+            <div class="claim claim-caution">
+                <div class="claim-head">
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    <h3>Image messages are <em>not</em> end-to-end encrypted</h3>
+                </div>
+                <p>
+                    Image messages are stored on our servers and
+                    <strong>the app owner can view them</strong>.
+                    They are not end-to-end encrypted.
+                    Please do not send sensitive or private images through RelayTalk.
+                </p>
+            </div>
+
+            <div class="claim claim-secure">
+                <div class="claim-head">
+                    <i class="fas fa-phone-volume" aria-hidden="true"></i>
+                    <h3>Calls are encrypted</h3>
+                </div>
+                <p>
+                    Voice and video calls placed through RelayTalk are encrypted in transit,
+                    so third parties cannot listen in on your call.
+                </p>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-user-shield" aria-hidden="true"></i> Your rights</h3>
+                <ul class="bullet-list">
+                    <li>You can edit or delete any message you have sent.</li>
+                    <li>You can change your profile photo, bio and notification privacy at any time.</li>
+                    <li>You can log out of any device, and your account stays safe.</li>
+                    <li>You can ask for your account and its data to be removed.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-scale-balanced" aria-hidden="true"></i> Fair use</h3>
+                <p>
+                    RelayTalk is meant for personal conversations between people who know each other.
+                    Harassment, spam, and illegal activity are not welcome and may result in account removal.
+                </p>
+            </div>
+        </section>
+
+        <!-- ===== HELP ===== -->
+        <section id="help" class="about-section" role="tabpanel" aria-labelledby="tab-help">
+            <h2 class="section-title">Help</h2>
+            <p class="section-lead">
+                Short answers to the things people ask most.
+            </p>
+
+            <div class="faq">
+                <details class="faq-item">
+                    <summary>How do I find and add a friend?</summary>
+                    <p>Open the home page, tap <em>Find friends</em>, and search by their username. Send a request — once they accept, they appear in your friends list.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>How do I open a chat?</summary>
+                    <p>Tap any friend in your list to open a chat instantly. You can also open a chat from their profile page.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>How do I edit or delete a message?</summary>
+                    <p>Long-press your own message. Tap the pencil icon to edit, or the trash icon to delete. Edited messages show a small <em>(edited)</em> label, and deleted messages appear as <em>&ldquo;This message was deleted&rdquo;</em> for both people.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>How do I start a call?</summary>
+                    <p>Tap the phone icon in the top-right corner of a chat, or use the call button next to a friend in your list. You can call whether they are online or offline.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>What does the green or grey dot next to a friend mean?</summary>
+                    <p>A green dot means they are online right now. Grey means offline — you can still message and call them.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Notifications aren&rsquo;t working. What do I do?</summary>
+                    <p>Open your Profile, then tap <em>Reset</em> under Notifications and enable them again. This creates a fresh subscription. Make sure notifications are allowed for RelayTalk in your device settings.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Can I hide message previews from my lock screen?</summary>
+                    <p>Yes. In your Profile, turn off <em>Details Visible</em>. Notifications will still arrive, but they won&rsquo;t show the sender name, avatar, message content or images.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>How do I install RelayTalk on my phone?</summary>
+                    <p>On iPhone: open the site in Safari, tap Share, then <em>Add to Home Screen</em>. On Android: open it in Chrome and choose <em>Install app</em> from the menu.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Is RelayTalk free?</summary>
+                    <p>Yes. Creating an account and using messaging, calls and notifications is free.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>I still need help. Where do I go?</summary>
+                    <p>Open the app and go to <em>Profile &rarr; RelayTalk Guide</em>. It explains every screen, page by page.</p>
+                </details>
+            </div>
+
+            <div class="card card-cta">
+                <h3 class="card-title"><i class="fas fa-rocket" aria-hidden="true"></i> Ready to try it?</h3>
+                <p>Create a free account and start talking in under a minute.</p>
+                <div class="cta-buttons">
+                    <a href="/pages/auth/index.html" class="btn-primary">Create Account</a>
+                    <a href="/pages/login/index.html" class="btn-secondary">Login</a>
+                </div>
+            </div>
+        </section>
+
+        <footer class="about-footer">
+            <a href="/" class="about-footer-link"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back to RelayTalk</a>
+            <span class="about-footer-sep" aria-hidden="true">·</span>
+            <span class="about-footer-copy">© 2026 RelayTalk</span>
+        </footer>
+
+    </main>
+
+    <script src="/about/script.js"></script>
+</body>
+</html>
