@@ -2,7 +2,7 @@
 // Caching + Rich Push (with image support)
 
 const CACHE_NAME = 'relaytalk-cache-v5-3';
-const APP_VERSION = '5.3.0';
+const APP_VERSION = '5.3.1';
 
 const CAR_GAME_FILES = [
     '/cargame/index.html',
