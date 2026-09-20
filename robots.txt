@@ -1,22 +1,34 @@
-# robots.txt for RelayTalk GitHub Pages
+# robots.txt for RelayTalk
+# https://relaytalk.vercel.app/
+
+# ---- Default: allow all well-behaved crawlers ----
 User-agent: *
 Allow: /
 Allow: /pages/
 Allow: /utils/
+Allow: /about/
 Allow: /favicon.ico
 Allow: /*.png
 Allow: /*.jpg
 Allow: /*.jpeg
+Allow: /*.svg
+Allow: /*.css
+Allow: /*.js
+Disallow: /api/
+Disallow: /private/
 
-# Sitemap location (CRITICAL)
-Sitemap: https://relaytalk.github.io/sitemap.xml
-
-# Crawl delay for rate limiting
 Crawl-delay: 1
 
-# Special rules for search engines
+# ---- Sitemap ----
+Sitemap: https://relaytalk.vercel.app/sitemap.xml
+
+# ============================================================
+# Search engines — explicitly allowed
+# ============================================================
+
 User-agent: Googlebot
 Allow: /
+Allow: /about/
 Allow: /favicon.ico
 Allow: /*.css
 Allow: /*.js
@@ -24,6 +36,8 @@ Allow: /*.json
 Allow: /*.png
 Allow: /*.jpg
 Allow: /manifest.json
+Disallow: /api/
+Disallow: /private/
 
 User-agent: Googlebot-Image
 Allow: /
@@ -36,32 +50,90 @@ Allow: /*.svg
 
 User-agent: Bingbot
 Allow: /
+Allow: /about/
 Allow: /favicon.ico
+Disallow: /api/
+Disallow: /private/
 
 User-agent: Yandex
 Allow: /
+Allow: /about/
 Allow: /favicon.ico
+Disallow: /api/
+Disallow: /private/
 Crawl-delay: 2
 
 User-agent: Baiduspider
 Allow: /
+Allow: /about/
 Allow: /favicon.ico
+Disallow: /api/
+Disallow: /private/
 Crawl-delay: 3
 
-# Block AI crawlers that steal content
+# ============================================================
+# AI crawlers — ALLOWED (so AI assistants can read and cite
+# your public content: /, /about/, features, claims, help)
+# ============================================================
+
+User-agent: GPTBot
+Allow: /
+Allow: /about/
+Allow: /*.png
+Allow: /*.css
+Allow: /*.js
+Disallow: /api/
+Disallow: /private/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /about/
+Disallow: /api/
+Disallow: /private/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /about/
+Disallow: /api/
+Disallow: /private/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /about/
+Disallow: /api/
+Disallow: /private/
+
+User-agent: Claude-Web
+Allow: /
+Allow: /about/
+Disallow: /api/
+Disallow: /private/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /about/
+Disallow: /api/
+Disallow: /private/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /about/
+
+User-agent: Applebot
+Allow: /
+Allow: /about/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /about/
+
+# ============================================================
+# Blocked — scrapers & SEO tools we do not want
+# ============================================================
+
 User-agent: CCBot
 Disallow: /
 
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ChatGPT-User
-Disallow: /
-
-User-agent: Claude-Web
-Disallow: /
-
-# Block spam bots
 User-agent: AhrefsBot
 Disallow: /
 
@@ -72,4 +144,10 @@ User-agent: MJ12bot
 Disallow: /
 
 User-agent: DotBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PetalBot
 Disallow: /
