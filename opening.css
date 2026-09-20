@@ -11,7 +11,7 @@
     align-items: center;
     z-index: 1000;
     animation: fadeOut 0.5s ease-in-out 1.5s forwards;
-}
+} 
 
 .luster-text {
     font-size: 5rem;
