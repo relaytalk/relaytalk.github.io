@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p www
           if [ ! -f www/index.html ]; then
-            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RelayTalk</title></head><body></body></html>' > www/index.html
+            printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RelayTalk</title></head><body></body></html>' > www/index.html
           fi
 
       - name: Add Android platform (if missing)
@@ -61,106 +61,84 @@ jobs:
             echo "No resources/icon.png found - skipping"
           else
             echo "Found resources/icon.png - generating Android assets"
-            npx --yes @capacitor/assets@3 generate \
-              --android \
-              --iconBackgroundColor '#ffffff' \
-              --iconBackgroundColorDark '#ffffff' \
-              --splashBackgroundColor '#ffffff' \
-              --splashBackgroundColorDark '#ffffff'
+            npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#ffffff' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#ffffff'
           fi
 
       - name: Inject google-services.json from secret
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "GOOGLE_SERVICES_JSON secret is not set - push notifications will not work"
           else
-            printf '%s' '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
             echo "google-services.json written ($(wc -c < android/app/google-services.json) bytes)"
           fi
 
-      - name: Apply google-services Gradle plugin
+      - name: Patch root build.gradle.kts for google-services
         run: |
-          ROOT_KTS=android/build.gradle.kts
-          if [ -f "$ROOT_KTS" ] && ! grep -q "com.google.gms.google-services" "$ROOT_KTS"; then
-            python3 - <<'PY'
-p = "android/build.gradle.kts"
-with open(p) as f: g = f.read()
-if "com.google.gms.google-services" not in g:
-    if "plugins {" in g:
-        g = g.replace("plugins {", "plugins {\n    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false", 1)
-    else:
-        g = "plugins {\n    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false\n}\n\n" + g
-    with open(p, "w") as f: f.write(g)
-    print("Root build.gradle.kts patched")
-PY
+          FILE=android/build.gradle.kts
+          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
+            if grep -q "plugins {" "$FILE"; then
+              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            else
+              printf 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false\n}\n\n' | cat - "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            fi
+            echo "Root build.gradle.kts patched"
+          else
+            echo "Root build.gradle.kts already patched or missing"
           fi
 
-          APP_KTS=android/app/build.gradle.kts
-          if [ -f "$APP_KTS" ] && ! grep -q "com.google.gms.google-services" "$APP_KTS"; then
-            python3 - <<'PY'
-p = "android/app/build.gradle.kts"
-with open(p) as f: g = f.read()
-if "com.google.gms.google-services" not in g:
-    if "plugins {" in g:
-        g = g.replace("plugins {", "plugins {\n    id(\"com.google.gms.google-services\")", 1)
-    else:
-        g = "plugins {\n    id(\"com.google.gms.google-services\")\n}\n\n" + g
-    with open(p, "w") as f: f.write(g)
-    print("App build.gradle.kts patched")
-PY
+      - name: Patch app build.gradle.kts for google-services
+        run: |
+          FILE=android/app/build.gradle.kts
+          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
+            if grep -q "plugins {" "$FILE"; then
+              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\")"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            else
+              printf 'plugins {\n    id("com.google.gms.google-services")\n}\n\n' | cat - "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            fi
+            echo "App build.gradle.kts patched"
+          else
+            echo "App build.gradle.kts already patched or missing"
           fi
 
-          APP_GROOVY=android/app/build.gradle
-          if [ -f "$APP_GROOVY" ] && ! grep -q "com.google.gms.google-services" "$APP_GROOVY"; then
-            echo "" >> "$APP_GROOVY"
-            echo "apply plugin: 'com.google.gms.google-services'" >> "$APP_GROOVY"
+      - name: Patch Groovy gradle files if present
+        run: |
+          APP=android/app/build.gradle
+          if [ -f "$APP" ] && ! grep -q "com.google.gms.google-services" "$APP"; then
+            printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$APP"
             echo "App build.gradle (Groovy) patched"
           fi
 
-          ROOT_GROOVY=android/build.gradle
-          if [ -f "$ROOT_GROOVY" ] && ! grep -q "com.google.gms:google-services" "$ROOT_GROOVY"; then
-            python3 - <<'PY'
-p = "android/build.gradle"
-with open(p) as f: g = f.read()
-needle = "classpath 'com.android.tools.build:gradle"
-if "com.google.gms:google-services" not in g and needle in g:
-    idx = g.find(needle)
-    line_end = g.find("\n", idx)
-    insert = "\n        classpath 'com.google.gms:google-services:4.4.2'"
-    g = g[:line_end] + insert + g[line_end:]
-    with open(p, "w") as f: f.write(g)
-    print("Root build.gradle (Groovy) patched")
-PY
+          ROOT=android/build.gradle
+          if [ -f "$ROOT" ] && ! grep -q "com.google.gms:google-services" "$ROOT"; then
+            awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$ROOT" > "$ROOT.tmp" && mv "$ROOT.tmp" "$ROOT"
+            echo "Root build.gradle (Groovy) patched"
           fi
 
-      - name: Patch AndroidManifest for push notifications
+      - name: Patch AndroidManifest for push permissions
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          if [ ! -f "$MANIFEST" ]; then
+          FILE=android/app/src/main/AndroidManifest.xml
+          if [ ! -f "$FILE" ]; then
             echo "Manifest not found"; exit 0
           fi
 
-          if ! grep -q "POST_NOTIFICATIONS" "$MANIFEST"; then
-            python3 - <<'PY'
-p = "android/app/src/main/AndroidManifest.xml"
-with open(p) as f: xml = f.read()
-
-perms = '''
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-'''
-if "POST_NOTIFICATIONS" not in xml:
-    xml = xml.replace("</manifest>", perms + "\n</manifest>")
-
-with open(p, "w") as f: f.write(xml)
-print("AndroidManifest.xml patched")
-PY
-          else
+          if grep -q "POST_NOTIFICATIONS" "$FILE"; then
             echo "Permissions already present"
+          else
+            awk '/<\/manifest>/ && !done {
+              print "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />";
+              print "    <uses-permission android:name=\"android.permission.VIBRATE\" />";
+              print "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />";
+              print "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />";
+              print "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />";
+              print "    <uses-permission android:name=\"android.permission.USE_FULL_SCREEN_INTENT\" />";
+              print;
+              done=1;
+              next
+            } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "AndroidManifest.xml patched"
           fi
 
       - name: Sync Capacitor
@@ -180,8 +158,7 @@ PY
       - name: Rename APK with version
         run: |
           mkdir -p release
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             release/relaytalk-${GITHUB_RUN_NUMBER}.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/relaytalk-${{ github.run_number }}.apk
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
