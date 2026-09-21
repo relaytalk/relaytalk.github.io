@@ -80,7 +80,6 @@ jobs:
 
       - name: Apply google-services Gradle plugin
         run: |
-          # Root build.gradle.kts
           ROOT_KTS=android/build.gradle.kts
           if [ -f "$ROOT_KTS" ] && ! grep -q "com.google.gms.google-services" "$ROOT_KTS"; then
             python3 - <<'PY'
@@ -96,7 +95,6 @@ if "com.google.gms.google-services" not in g:
 PY
           fi
 
-          # App build.gradle.kts
           APP_KTS=android/app/build.gradle.kts
           if [ -f "$APP_KTS" ] && ! grep -q "com.google.gms.google-services" "$APP_KTS"; then
             python3 - <<'PY'
@@ -112,7 +110,6 @@ if "com.google.gms.google-services" not in g:
 PY
           fi
 
-          # Fallback: Groovy files (older Capacitor)
           APP_GROOVY=android/app/build.gradle
           if [ -f "$APP_GROOVY" ] && ! grep -q "com.google.gms.google-services" "$APP_GROOVY"; then
             echo "" >> "$APP_GROOVY"
