@@ -13,6 +13,17 @@ let notificationsEnabled = false;
 let currentNotifTab = 'main';
 
 // ============================================================
+// NATIVE DETECTION
+// ============================================================
+function isNativeShell() {
+    return !!(
+        window.Capacitor &&
+        window.Capacitor.isNativePlatform &&
+        window.Capacitor.isNativePlatform()
+    );
+}
+
+// ============================================================
 // INIT
 // ============================================================
 async function initProfilePage() {
@@ -336,13 +347,115 @@ window.removeAvatar = async function() {
 };
 
 // ============================================================
-// NOTIFICATIONS — Toggle (Enable / Disable)
+// NOTIFICATIONS — Enable (native FCM or web push)
 // ============================================================
+async function enableNativeNotifications() {
+    const Plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+    const PushNotifications = Plugins.PushNotifications;
+
+    if (!PushNotifications) {
+        showToast('error', 'Push plugin missing. Reinstall the app.');
+        return false;
+    }
+
+    try {
+        let perm = await PushNotifications.checkPermissions();
+        if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
+            perm = await PushNotifications.requestPermissions();
+        }
+
+        if (perm.receive !== 'granted') {
+            showToast('error', 'Notifications blocked in system settings');
+            return false;
+        }
+
+        await PushNotifications.register();
+
+        showToast('success', 'Notifications enabled!');
+        return true;
+    } catch (e) {
+        console.error('Native enable error:', e);
+        showToast('error', 'Could not enable notifications');
+        return false;
+    }
+}
+
+async function enableWebNotifications() {
+    if (Notification.permission === 'granted') {
+        if (window.relaytalkPush) await window.relaytalkPush.init();
+        showToast('success', 'Notifications enabled');
+        return true;
+    }
+
+    if (!window.relaytalkPush) {
+        showToast('error', 'Notifications not ready. Please refresh.');
+        return false;
+    }
+
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true;
+    if (isIOS && !isStandalone) {
+        alert('On iPhone, please tap Share → Add to Home Screen first, then reopen this page and tap Enable again.');
+        return false;
+    }
+
+    const result = await window.relaytalkPush.request();
+    if (result.success) {
+        showToast('success', 'Notifications enabled!');
+        return true;
+    } else {
+        showToast('error', 'Could not enable: ' + (result.reason || 'denied'));
+        return false;
+    }
+}
+
+async function enableNotificationsAction() {
+    if (isNativeShell()) {
+        return await enableNativeNotifications();
+    }
+    return await enableWebNotifications();
+}
+
+async function disableNotificationsAction() {
+    const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
+    if (!ok) return;
+
+    if (isNativeShell()) {
+        try {
+            if (supabase && currentUser) {
+                await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('Native cleanup failed:', e);
+        }
+        showToast('success', 'Notifications turned off');
+        return;
+    }
+
+    try {
+        if (window.relaytalkPush?.unsubscribe) {
+            await window.relaytalkPush.unsubscribe();
+        }
+    } catch (e) {
+        console.warn('Unsubscribe failed:', e);
+    }
+
+    try {
+        if (supabase && currentUser) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
+        }
+    } catch (e) {
+        console.warn('DB cleanup failed:', e);
+    }
+
+    showToast('success', 'Notifications turned off');
+}
+
 window.toggleNotifications = async function() {
     const btn = document.getElementById('enableNotificationsBtn');
     if (!btn) return;
 
-    if (!('Notification' in window)) {
+    if (!isNativeShell() && !('Notification' in window)) {
         showToast('error', 'Notifications not supported');
         return;
     }
@@ -366,62 +479,50 @@ window.toggleNotifications = async function() {
     }
 };
 
-async function enableNotificationsAction() {
-    if (Notification.permission === 'granted') {
-        if (window.relaytalkPush) await window.relaytalkPush.init();
-        showToast('success', 'Notifications enabled');
-        return;
-    }
-
-    if (!window.relaytalkPush) {
-        showToast('error', 'Notifications not ready. Please refresh.');
-        return;
-    }
-
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isStandalone = window.navigator.standalone === true;
-    if (isIOS && !isStandalone) {
-        alert('On iPhone, please tap Share → Add to Home Screen first, then reopen this page and tap Enable again.');
-        return;
-    }
-
-    const result = await window.relaytalkPush.request();
-    if (result.success) {
-        showToast('success', 'Notifications enabled!');
-    } else {
-        showToast('error', 'Could not enable: ' + (result.reason || 'denied'));
-    }
-}
-
-async function disableNotificationsAction() {
-    const ok = confirm('Turn off notifications for this device?\n\nYou will need to enable them again to receive alerts.');
-    if (!ok) return;
-
-    try {
-        if (window.relaytalkPush?.unsubscribe) {
-            await window.relaytalkPush.unsubscribe();
-        }
-    } catch (e) {
-        console.warn('Unsubscribe failed:', e);
-    }
-
-    try {
-        if (supabase && currentUser) {
-            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
-        }
-    } catch (e) {
-        console.warn('DB cleanup failed:', e);
-    }
-
-    showToast('success', 'Notifications turned off');
-}
-
 async function refreshNotificationState() {
     const btn = document.getElementById('enableNotificationsBtn');
     const label = document.getElementById('enableBtnLabel');
     const icon = document.getElementById('enableBtnIcon');
     if (!btn || !label || !icon) return;
 
+    // ---- Native shell path ----
+    if (isNativeShell()) {
+        btn.classList.remove('enabled', 'denied', 'loading');
+        try {
+            const Plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+            const PushNotifications = Plugins.PushNotifications;
+            let granted = false;
+            if (PushNotifications) {
+                const p = await PushNotifications.checkPermissions();
+                granted = p.receive === 'granted';
+            }
+
+            let hasToken = false;
+            if (supabase && currentUser) {
+                const { data } = await supabase
+                    .from('device_tokens')
+                    .select('id')
+                    .eq('user_id', currentUser.id)
+                    .limit(1);
+                hasToken = !!(data && data.length > 0);
+            }
+
+            notificationsEnabled = granted && hasToken;
+            if (notificationsEnabled) {
+                btn.classList.add('enabled');
+                label.textContent = 'Enabled';
+                setBellIcon(icon, 'on');
+            } else {
+                label.textContent = 'Enable';
+                setBellIcon(icon, 'off');
+            }
+        } catch (e) {
+            console.warn('Native state check failed:', e);
+        }
+        return;
+    }
+
+    // ---- Web path ----
     btn.classList.remove('enabled', 'denied', 'loading');
 
     const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
@@ -503,6 +604,34 @@ window.resetNotifications = async function() {
     btn.classList.add('loading');
     showToast('info', 'Resetting...');
 
+    // ---- Native shell path ----
+    if (isNativeShell()) {
+        try {
+            if (supabase && currentUser) {
+                await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
+            }
+
+            await new Promise(r => setTimeout(r, 500));
+
+            const Plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+            const PushNotifications = Plugins.PushNotifications;
+            if (PushNotifications) {
+                await PushNotifications.register();
+            }
+
+            showToast('success', 'Notifications reset!');
+        } catch (e) {
+            console.error('Native reset failed:', e);
+            showToast('error', 'Reset failed');
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            await refreshNotificationState();
+        }
+        return;
+    }
+
+    // ---- Web path ----
     try {
         if (window.relaytalkPush?.unsubscribe) {
             await window.relaytalkPush.unsubscribe();
@@ -1217,11 +1346,19 @@ window.logout = async function() {
         const uploadText = document.querySelector('#uploadLoading .loading-text');
         if (uploadText) uploadText.textContent = 'Logging out...';
 
-        try {
-            if (window.relaytalkPush?.unsubscribe) {
-                await window.relaytalkPush.unsubscribe();
-            }
-        } catch (e) {}
+        if (isNativeShell()) {
+            try {
+                if (supabase && currentUser) {
+                    await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
+                }
+            } catch (e) {}
+        } else {
+            try {
+                if (window.relaytalkPush?.unsubscribe) {
+                    await window.relaytalkPush.unsubscribe();
+                }
+            } catch (e) {}
+        }
 
         if (supabase) await supabase.auth.signOut();
 
