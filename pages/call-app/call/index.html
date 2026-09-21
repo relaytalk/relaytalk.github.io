@@ -200,14 +200,21 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
+        /* ---------- INCOMING CALL ---------- */
         .incoming-call-screen {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: #000;
+            background: radial-gradient(circle at 50% 35%, #0a2540 0%, #000 70%);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1500;
+            z-index: 2500;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .incoming-call-content {
@@ -217,7 +224,7 @@
             max-width: 400px;
         }
 
-        .caller-avatar { margin-bottom: 20px; }
+        .caller-avatar { margin-bottom: 20px; display: flex; justify-content: center; }
         .caller-avatar i { font-size: 100px; color: #f5b342; }
         .caller-avatar img {
             width: 100px;
@@ -225,6 +232,7 @@
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid #f5b342;
+            display: block;
         }
 
         .caller-info h2 { font-size: 28px; color: white; margin-bottom: 10px; }
@@ -251,8 +259,10 @@
         }
 
         .call-btn:active { transform: scale(0.95); }
-        .accept-btn { background: #28a745; }
-        .decline-btn { background: #dc3545; }
+        .accept-btn { background: #28a745; box-shadow: 0 8px 20px rgba(40, 167, 69, 0.35); }
+        .accept-btn:hover { background: #218838; }
+        .decline-btn { background: #dc3545; box-shadow: 0 8px 20px rgba(220, 53, 69, 0.35); }
+        .decline-btn:hover { background: #c82333; }
 
         video {
             width: 100% !important;
@@ -264,6 +274,7 @@
             .hang-up-btn { width: 52px; height: 52px; bottom: 16px; right: 16px; }
             .hang-up-btn svg { width: 24px; height: 24px; }
             .caller-avatar i { font-size: 80px; }
+            .caller-avatar img { width: 88px; height: 88px; }
             .caller-info h2 { font-size: 24px; }
             .call-btn { width: 60px; height: 60px; font-size: 24px; }
         }
@@ -292,10 +303,10 @@
                 <p>Voice call · CallApp</p>
             </div>
             <div class="call-actions">
-                <button class="call-btn decline-btn" onclick="window.declineCall()">
+                <button class="call-btn decline-btn" onclick="window.declineCall()" aria-label="Decline">
                     <i class="fas fa-phone-slash"></i>
                 </button>
-                <button class="call-btn accept-btn" onclick="window.acceptCall()">
+                <button class="call-btn accept-btn" onclick="window.acceptCall()" aria-label="Accept">
                     <i class="fas fa-phone-alt"></i>
                 </button>
             </div>
@@ -352,11 +363,14 @@
                 window.location.href = getReturnUrl();
             };
 
-            window.acceptCall = function() {
+            // These are defined more fully in call.js. Fallbacks only apply
+            // if the module hasn't loaded yet.
+            window.acceptCall = window.acceptCall || function() {
                 document.getElementById('incomingCallScreen').style.display = 'none';
             };
 
-            window.declineCall = function() {
+            window.declineCall = window.declineCall || function() {
+                document.getElementById('incomingCallScreen').style.display = 'none';
                 window.location.href = getReturnUrl();
             };
         })();
