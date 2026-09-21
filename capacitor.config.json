@@ -4,7 +4,7 @@
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://relaytalk.vercel.app",
+    "url": "https://relaytalk.github.io",
     "cleartext": false,
     "androidScheme": "https",
     "allowNavigation": [
