@@ -1,5 +1,5 @@
 // utils/native-init.js
-// FCM push registration + incoming-call notification handling.
+// FCM push + incoming call handling + runtime permission request.
 
 (function () {
   'use strict';
@@ -21,9 +21,34 @@
   const PushNotifications = Plugins.PushNotifications;
   const App = Plugins.App;
 
-  if (!PushNotifications) {
-    console.warn('[native-init] PushNotifications plugin not available');
-    return;
+  // ---------- Runtime permission for mic + camera ----------
+  // Capacitor's WebView on Android will request the OS permission when the
+  // WebView asks for mic/camera IF the AndroidManifest declares them AND
+  // the user has already granted them. So we prompt up-front on launch.
+  async function requestMediaPermissions() {
+    try {
+      if (navigator.permissions && navigator.permissions.query) {
+        // On some Capacitor setups these go through the WebView prompt.
+        // We trigger it by opening a tiny getUserMedia request.
+      }
+
+      // Best-effort: attempt to access getUserMedia so Android shows the prompt.
+      // If permissions were already granted this is a silent no-op.
+      const wantsAudio = true;
+      const wantsVideo = true;
+
+      const constraints = {};
+      if (wantsAudio) constraints.audio = true;
+      if (wantsVideo) constraints.video = { facingMode: 'user' };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Immediately release — we only wanted the prompt/grants
+      stream.getTracks().forEach(t => t.stop());
+      console.log('[native-init] Media permissions granted');
+    } catch (e) {
+      console.warn('[native-init] Media permission request failed:', e.message);
+      // Not fatal — Jitsi will prompt again if needed
+    }
   }
 
   async function getSupabase() {
@@ -58,6 +83,10 @@
   }
 
   async function registerDevice() {
+    if (!PushNotifications) {
+      console.warn('[native-init] PushNotifications plugin missing');
+      return;
+    }
     try {
       let perm = await PushNotifications.checkPermissions();
       if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
@@ -71,16 +100,17 @@
     }
   }
 
-  PushNotifications.addListener('registration', async (token) => {
-    console.log('[native-init] FCM token received');
-    await saveToken(token.value);
-  });
+  if (PushNotifications) {
+    PushNotifications.addListener('registration', async (token) => {
+      console.log('[native-init] FCM token received');
+      await saveToken(token.value);
+    });
 
-  PushNotifications.addListener('registrationError', (err) => {
-    console.error('[native-init] Registration error:', err);
-  });
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('[native-init] Registration error:', err);
+    });
+  }
 
-  // Build the deep-link URL to the call page in "incoming" mode.
   function buildIncomingCallUrl(data) {
     const params = new URLSearchParams({
       incoming: 'true',
@@ -94,66 +124,51 @@
     return '/pages/call-app/call/?' + params.toString();
   }
 
-  // Centralized navigation — dedupes if the call page is already loading.
   let navigatingTo = null;
   function navigateToCall(data) {
     const url = buildIncomingCallUrl(data);
-    if (navigatingTo === url) {
-      console.log('[native-init] Already navigating to this call, skipping');
-      return;
-    }
+    if (navigatingTo === url) return;
     navigatingTo = url;
     console.log('[native-init] Navigating to:', url);
-    // If already on the call page, just let the page handle it (avoid reload)
     if (window.location.pathname.includes('/call-app/call/')) {
-      console.log('[native-init] Already on call page — dispatching event');
       window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
       return;
     }
     window.location.replace(url);
   }
 
-  // 1. TAP HANDLER — fires when user taps the notification while app is
-  //    backgrounded, foregrounded, or cold-started.
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    const data = (action.notification && action.notification.data) || {};
-    console.log('[native-init] Push tapped:', action.actionId, data);
+  if (PushNotifications) {
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const data = (action.notification && action.notification.data) || {};
+      console.log('[native-init] Push tapped:', action.actionId, data);
 
-    if (data.type === 'incoming_call' && data.room && data.callId) {
-      // Persist so a page reload also picks it up
-      try {
-        sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
-      } catch (e) {}
-      navigateToCall(data);
-    }
-  });
-
-  // 2. FOREGROUND PUSH HANDLER — app already showing.
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    const data = notification.data || {};
-    console.log('[native-init] Push received (foreground):', data);
-
-    if (data.type === 'incoming_call' && data.room && data.callId) {
-      // If already on the call page, just dispatch and let it render
-      if (window.location.pathname.includes('/call-app/call/')) {
-        window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
-        return;
+      if (data.type === 'incoming_call' && data.room && data.callId) {
+        try {
+          sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
+        } catch (e) {}
+        navigateToCall(data);
       }
-      // Otherwise, save and navigate
-      try {
-        sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
-      } catch (e) {}
-      navigateToCall(data);
-    }
-  });
+    });
 
-  // 3. COLD-START RECOVERY — when the app is launched *by* the notification,
-  //    Android delivers the intent to MainActivity, but the JS listener may
-  //    not be attached in time. Capacitor buffers it briefly, but we also
-  //    check the app's launch URL and sessionStorage as a fallback.
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      const data = notification.data || {};
+      console.log('[native-init] Push received (foreground):', data);
+
+      if (data.type === 'incoming_call' && data.room && data.callId) {
+        if (window.location.pathname.includes('/call-app/call/')) {
+          window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
+          return;
+        }
+        try {
+          sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
+        } catch (e) {}
+        navigateToCall(data);
+      }
+    });
+  }
+
   function checkColdStart() {
     try {
-      // Check for a pending call saved by a previous tap
       const pending = sessionStorage.getItem('pending_incoming_call');
       if (pending) {
         const data = JSON.parse(pending);
@@ -164,34 +179,26 @@
           return;
         }
       }
-
-      // Also check the URL — Capacitor sometimes rewrites location with the intent extras
-      const url = new URL(window.location.href);
-      const isCall = url.searchParams.get('incoming') === 'true';
-      if (isCall && url.searchParams.get('callId')) {
-        console.log('[native-init] URL already has incoming call params');
-        // Nothing to do — call.js will handle it
-        return;
-      }
     } catch (e) {
       console.warn('[native-init] Cold-start check failed:', e);
     }
   }
 
-  // Run cold-start check as soon as possible
   checkColdStart();
 
-  // Also run it again whenever the app resumes
   if (App && App.addListener) {
     App.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) {
-        console.log('[native-init] App resumed');
-        checkColdStart();
-      }
+      if (isActive) checkColdStart();
     });
   }
 
+  // Kick off registration + permission prompt
   registerDevice();
+
+  // Prompt for mic/camera on first launch (after a short delay so UI is up)
+  setTimeout(() => {
+    requestMediaPermissions();
+  }, 1500);
 
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
