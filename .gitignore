@@ -36,3 +36,29 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Capacitor / Android build outputs
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/captures/
+android/app/release/
+android/app/debug/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Keystores — NEVER commit these
+*.keystore
+*.jks
+keystore.properties
+
+# OS
+.DS_Store
+Thumbs.db
