@@ -71,6 +71,28 @@ function unregisterTab() {
 }
 
 // ============================================================
+// FETCH CALLER PROFILE (fixes "Someone" when arriving from site)
+// ============================================================
+async function fetchCallerProfile(callerId) {
+    if (!callerId || !supabase) return null
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .eq('id', callerId)
+            .maybeSingle()
+        if (error) {
+            console.warn('[call] Profile fetch error:', error.message)
+            return null
+        }
+        return data
+    } catch (e) {
+        console.warn('[call] Profile fetch failed:', e)
+        return null
+    }
+}
+
+// ============================================================
 // IN-APP INCOMING UI (created dynamically)
 // ============================================================
 function showInAppIncomingScreen(info) {
@@ -87,7 +109,12 @@ function showInAppIncomingScreen(info) {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `
 
-    const initial = (info.callerName || '?').charAt(0).toUpperCase()
+    const name = info.callerName && info.callerName.trim() && info.callerName !== 'Someone'
+        ? info.callerName
+        : 'Incoming Call'
+
+    const initial = name.charAt(0).toUpperCase()
+
     const avatarHtml = info.callerAvatar
         ? `<img src="${info.callerAvatar}" alt="" style="width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid #f5b342;display:block;">`
         : `<div style="width:110px;height:110px;border-radius:50%;background:#f5b342;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:600;color:#0a2540;">${initial}</div>`
@@ -112,11 +139,11 @@ function showInAppIncomingScreen(info) {
         </style>
 
         <div style="text-align:center;padding:20px;max-width:420px;width:100%;">
-            <div style="margin-bottom:24px;display:flex;justify-content:center;">
+            <div id="riAvatarWrap" style="margin-bottom:24px;display:flex;justify-content:center;">
                 ${avatarHtml}
             </div>
-            <h2 style="font-size:28px;color:#fff;margin-bottom:8px;font-weight:500;">
-                ${info.callerName || 'Incoming Call'}
+            <h2 id="riName" style="font-size:28px;color:#fff;margin-bottom:8px;font-weight:500;">
+                ${name}
             </h2>
             <p style="color:#aab;font-size:15px;margin-bottom:0;">
                 Incoming call · RelayTalk
@@ -164,6 +191,24 @@ function showInAppIncomingScreen(info) {
             overlay.__ringCtx = ctx
         }
     } catch (e) {}
+}
+
+// Update the incoming screen with the loaded profile (used after async fetch)
+function updateIncomingScreenProfile(profile) {
+    if (!profile) return
+    const nameEl = document.getElementById('riName')
+    const avatarWrap = document.getElementById('riAvatarWrap')
+    if (!nameEl || !avatarWrap) return
+
+    const name = profile.full_name || profile.username || 'Incoming Call'
+    nameEl.textContent = name
+
+    if (profile.avatar_url) {
+        avatarWrap.innerHTML = `<img src="${profile.avatar_url}" alt="" style="width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid #f5b342;display:block;">`
+    } else {
+        const initial = name.charAt(0).toUpperCase()
+        avatarWrap.innerHTML = `<div style="width:110px;height:110px;border-radius:50%;background:#f5b342;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:600;color:#0a2540;">${initial}</div>`
+    }
 }
 
 function stopInAppRinging() {
@@ -214,11 +259,24 @@ async function initCall() {
         if (incoming === 'true' && roomName && callId) {
             pendingIncoming = { callId, room: roomName, callerId, callerName, callerAvatar }
             document.getElementById('loadingScreen').style.display = 'none'
+
+            // Show screen immediately (may show "Incoming Call" placeholder)
             showInAppIncomingScreen({
                 callId, room: roomName, callerId,
-                callerName: callerName || 'Someone',
+                callerName: callerName || '',
                 callerAvatar: callerAvatar || ''
             })
+
+            // If callerName was missing, fetch it from Supabase and update
+            if ((!callerName || !callerName.trim()) && callerId) {
+                console.log('[call] callerName missing — fetching profile for', callerId)
+                fetchCallerProfile(callerId).then((profile) => {
+                    if (!profile) return
+                    pendingIncoming.callerName = profile.full_name || profile.username || 'Incoming Call'
+                    pendingIncoming.callerAvatar = profile.avatar_url || ''
+                    updateIncomingScreenProfile(profile)
+                })
+            }
         } else if (friendId) {
             await startOutgoingCall(friendId, friendName)
         } else {
@@ -573,19 +631,31 @@ function showError(message) {
 // LIVE INCOMING CALL EVENT (dispatched by native-init.js when the
 // app is already on this page and a new call arrives)
 // ============================================================
-window.addEventListener('relay:incoming-call', (e) => {
+window.addEventListener('relay:incoming-call', async (e) => {
     const data = e.detail || {}
     console.log('[call] relay:incoming-call event:', data)
 
     if (!data.room || !data.callId) return
     if (pendingIncoming || currentCall) return
 
+    let callerName = data.callerName || ''
+    let callerAvatar = data.callerAvatar || ''
+
+    // If name is missing, fetch it
+    if ((!callerName || !callerName.trim()) && data.callerId) {
+        const profile = await fetchCallerProfile(data.callerId)
+        if (profile) {
+            callerName = profile.full_name || profile.username || 'Incoming Call'
+            callerAvatar = profile.avatar_url || ''
+        }
+    }
+
     pendingIncoming = {
         callId: data.callId,
         room: data.room,
         callerId: data.callerId,
-        callerName: data.callerName,
-        callerAvatar: data.callerAvatar
+        callerName,
+        callerAvatar
     }
 
     const ls = document.getElementById('loadingScreen')
@@ -595,8 +665,8 @@ window.addEventListener('relay:incoming-call', (e) => {
         callId: data.callId,
         room: data.room,
         callerId: data.callerId,
-        callerName: data.callerName || 'Someone',
-        callerAvatar: data.callerAvatar || ''
+        callerName,
+        callerAvatar
     })
 })
 
