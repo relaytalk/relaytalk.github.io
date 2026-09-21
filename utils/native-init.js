@@ -19,7 +19,7 @@
 
   const Plugins = window.Capacitor.Plugins || {};
   const PushNotifications = Plugins.PushNotifications;
-  const LocalNotifications = Plugins.LocalNotifications;
+  const App = Plugins.App;
 
   if (!PushNotifications) {
     console.warn('[native-init] PushNotifications plugin not available');
@@ -81,7 +81,6 @@
   });
 
   // Build the deep-link URL to the call page in "incoming" mode.
-  // The call page itself will show the in-app Accept/Decline screen.
   function buildIncomingCallUrl(data) {
     const params = new URLSearchParams({
       incoming: 'true',
@@ -95,34 +94,102 @@
     return '/pages/call-app/call/?' + params.toString();
   }
 
-  // User tapped the notification (from background, foreground, or cold start)
+  // Centralized navigation — dedupes if the call page is already loading.
+  let navigatingTo = null;
+  function navigateToCall(data) {
+    const url = buildIncomingCallUrl(data);
+    if (navigatingTo === url) {
+      console.log('[native-init] Already navigating to this call, skipping');
+      return;
+    }
+    navigatingTo = url;
+    console.log('[native-init] Navigating to:', url);
+    // If already on the call page, just let the page handle it (avoid reload)
+    if (window.location.pathname.includes('/call-app/call/')) {
+      console.log('[native-init] Already on call page — dispatching event');
+      window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
+      return;
+    }
+    window.location.replace(url);
+  }
+
+  // 1. TAP HANDLER — fires when user taps the notification while app is
+  //    backgrounded, foregrounded, or cold-started.
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
     const data = (action.notification && action.notification.data) || {};
     console.log('[native-init] Push tapped:', action.actionId, data);
 
     if (data.type === 'incoming_call' && data.room && data.callId) {
-      const url = buildIncomingCallUrl(data);
-      console.log('[native-init] Navigating to:', url);
-      // Use location.replace so back button doesn't return to notification
-      window.location.replace(url);
+      // Persist so a page reload also picks it up
+      try {
+        sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
+      } catch (e) {}
+      navigateToCall(data);
     }
   });
 
-  // Foreground push received — app already showing. Show in-app banner via callHub.
+  // 2. FOREGROUND PUSH HANDLER — app already showing.
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
     const data = notification.data || {};
     console.log('[native-init] Push received (foreground):', data);
 
     if (data.type === 'incoming_call' && data.room && data.callId) {
-      // If callHub is already on this page, let it handle. Otherwise navigate.
-      // For safety, we still navigate — the call page has its own guard.
-      if (!document.querySelector('.incoming-call-screen') &&
-          !window.__callPageActive) {
-        const url = buildIncomingCallUrl(data);
-        window.location.href = url;
+      // If already on the call page, just dispatch and let it render
+      if (window.location.pathname.includes('/call-app/call/')) {
+        window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
+        return;
       }
+      // Otherwise, save and navigate
+      try {
+        sessionStorage.setItem('pending_incoming_call', JSON.stringify(data));
+      } catch (e) {}
+      navigateToCall(data);
     }
   });
+
+  // 3. COLD-START RECOVERY — when the app is launched *by* the notification,
+  //    Android delivers the intent to MainActivity, but the JS listener may
+  //    not be attached in time. Capacitor buffers it briefly, but we also
+  //    check the app's launch URL and sessionStorage as a fallback.
+  function checkColdStart() {
+    try {
+      // Check for a pending call saved by a previous tap
+      const pending = sessionStorage.getItem('pending_incoming_call');
+      if (pending) {
+        const data = JSON.parse(pending);
+        sessionStorage.removeItem('pending_incoming_call');
+        if (data && data.type === 'incoming_call' && data.room && data.callId) {
+          console.log('[native-init] Cold-start pending call found');
+          navigateToCall(data);
+          return;
+        }
+      }
+
+      // Also check the URL — Capacitor sometimes rewrites location with the intent extras
+      const url = new URL(window.location.href);
+      const isCall = url.searchParams.get('incoming') === 'true';
+      if (isCall && url.searchParams.get('callId')) {
+        console.log('[native-init] URL already has incoming call params');
+        // Nothing to do — call.js will handle it
+        return;
+      }
+    } catch (e) {
+      console.warn('[native-init] Cold-start check failed:', e);
+    }
+  }
+
+  // Run cold-start check as soon as possible
+  checkColdStart();
+
+  // Also run it again whenever the app resumes
+  if (App && App.addListener) {
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        console.log('[native-init] App resumed');
+        checkColdStart();
+      }
+    });
+  }
 
   registerDevice();
 
