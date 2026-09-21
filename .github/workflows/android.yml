@@ -54,23 +54,23 @@ jobs:
             npx --yes @capacitor/cli@6 add android
           fi
 
-      - name: Verify icon exists (loud failure if missing)
+      - name: Check icon exists
         run: |
-          echo "=== Looking for icon ==="
-          ls -la resources/ || echo "resources/ folder does not exist"
-          ls -la . | head -40
+          echo "Looking for resources/icon.png ..."
+          ls -la resources/ || echo "resources folder missing"
           if [ ! -f resources/icon.png ]; then
             echo ""
-            echo "❌ ERROR: resources/icon.png is MISSING."
-            echo "   Create a folder 'resources' at the repo root and put icon.png in it."
-            echo "   The file must be a square PNG at least 1024x1024."
+            echo "########################################"
+            echo "ERROR: resources/icon.png NOT FOUND"
+            echo "Make sure the file exists and is committed."
+            echo "########################################"
             echo ""
             exit 1
           fi
           SIZE=$(wc -c < resources/icon.png)
-          echo "✅ Found resources/icon.png ($SIZE bytes)"
-          if [ "$SIZE" -lt 5000 ]; then
-            echo "⚠️ Warning: icon.png is smaller than 5KB — it might be low quality"
+          echo "OK: resources/icon.png found, size = $SIZE bytes"
+          if [ "$SIZE" -lt 3000 ]; then
+            echo "WARNING: icon.png is very small, image quality may be poor."
           fi
 
       - name: Prepare splash fallbacks
@@ -85,19 +85,19 @@ jobs:
           if [ ! -f resources/icon-dark.png ]; then
             cp resources/icon.png resources/icon-dark.png
           fi
-          echo "=== Final resources/ contents ==="
+          echo "Resources ready:"
           ls -la resources/
 
       - name: Generate app icon and splash
         run: |
-          echo "=== Running @capacitor/assets ==="
+          echo "Running @capacitor/assets generate ..."
           npx --yes @capacitor/assets@3 generate \
             --android \
             --iconBackgroundColor '#007acc' \
             --iconBackgroundColorDark '#007acc' \
             --splashBackgroundColor '#007acc' \
             --splashBackgroundColorDark '#007acc'
-          echo "=== Mipmaps after generation ==="
+          echo "Mipmaps after generation:"
           ls -la android/app/src/main/res/mipmap-hdpi/ 2>/dev/null || true
           ls -la android/app/src/main/res/mipmap-xxxhdpi/ 2>/dev/null || true
 
@@ -142,7 +142,7 @@ jobs:
             awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$ROOT" > "$ROOT.tmp" && mv "$ROOT.tmp" "$ROOT"
           fi
 
-      - name: Patch AndroidManifest (push, call, mic, camera)
+      - name: Patch AndroidManifest
         run: |
           FILE=android/app/src/main/AndroidManifest.xml
           if [ ! -f "$FILE" ]; then echo "Manifest not found"; exit 1; fi
@@ -167,7 +167,7 @@ jobs:
               done=1;
               next
             } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "All permissions added (notifications + mic + camera)"
+            echo "Permissions added"
           else
             echo "Permissions already present"
           fi
@@ -178,7 +178,6 @@ jobs:
               else { sub(/<activity/, "<activity android:launchMode=\"singleTask\""); print }
               done=1; next
             } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "MainActivity launchMode=singleTask ensured"
           fi
 
           if ! grep -q "FCM_PLUGIN_ACTIVITY" "$FILE"; then
@@ -190,27 +189,28 @@ jobs:
               print;
               done=1; next
             } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "FCM_PLUGIN_ACTIVITY intent-filter added"
           fi
 
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
-      - name: Verify icons landed in Android res
+      - name: Verify icons are in the APK
         run: |
-          echo "=== Verifying mipmaps ==="
+          echo "Checking icons in android res folder:"
           FAIL=0
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             F="android/app/src/main/res/$d/ic_launcher.png"
             if [ -f "$F" ]; then
-              echo "✅ $d/ic_launcher.png — $(wc -c < $F) bytes"
+              echo "  $d = $(wc -c < $F) bytes"
             else
-              echo "❌ $d/ic_launcher.png — MISSING"
+              echo "  $d MISSING"
               FAIL=1
             fi
           done
           if [ $FAIL -eq 1 ]; then
-            echo "⚠️ Some mipmaps are missing. Icons may not be applied."
+            echo "Some icons are missing. Icon may not apply correctly."
+          else
+            echo "All icons look good."
           fi
 
       - name: Write local.properties
@@ -243,11 +243,6 @@ jobs:
           name: RelayTalk Build ${{ github.run_number }}
           body: |
             Automatic build from commit ${{ github.sha }}.
-
-            **Install on Android:**
-            1. Download the APK below.
-            2. Tap it and allow "Install unknown apps" when prompted.
-            3. Open RelayTalk.
           files: release/relaytalk-*.apk
           draft: false
           prerelease: false
