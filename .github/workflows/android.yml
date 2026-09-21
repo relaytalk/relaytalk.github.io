@@ -58,15 +58,112 @@ jobs:
         run: |
           mkdir -p resources
           if [ ! -f resources/icon.png ]; then
-            echo "❌ resources/icon.png not found — skipping"
+            echo "No resources/icon.png found - skipping"
           else
-            echo "✅ Found resources/icon.png — generating Android assets"
+            echo "Found resources/icon.png - generating Android assets"
             npx --yes @capacitor/assets@3 generate \
               --android \
               --iconBackgroundColor '#ffffff' \
               --iconBackgroundColorDark '#ffffff' \
               --splashBackgroundColor '#ffffff' \
               --splashBackgroundColorDark '#ffffff'
+          fi
+
+      - name: Inject google-services.json from secret
+        run: |
+          if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "GOOGLE_SERVICES_JSON secret is not set - push notifications will not work"
+          else
+            printf '%s' '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+            echo "google-services.json written ($(wc -c < android/app/google-services.json) bytes)"
+          fi
+
+      - name: Apply google-services Gradle plugin
+        run: |
+          # Root build.gradle.kts
+          ROOT_KTS=android/build.gradle.kts
+          if [ -f "$ROOT_KTS" ] && ! grep -q "com.google.gms.google-services" "$ROOT_KTS"; then
+            python3 - <<'PY'
+p = "android/build.gradle.kts"
+with open(p) as f: g = f.read()
+if "com.google.gms.google-services" not in g:
+    if "plugins {" in g:
+        g = g.replace("plugins {", "plugins {\n    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false", 1)
+    else:
+        g = "plugins {\n    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false\n}\n\n" + g
+    with open(p, "w") as f: f.write(g)
+    print("Root build.gradle.kts patched")
+PY
+          fi
+
+          # App build.gradle.kts
+          APP_KTS=android/app/build.gradle.kts
+          if [ -f "$APP_KTS" ] && ! grep -q "com.google.gms.google-services" "$APP_KTS"; then
+            python3 - <<'PY'
+p = "android/app/build.gradle.kts"
+with open(p) as f: g = f.read()
+if "com.google.gms.google-services" not in g:
+    if "plugins {" in g:
+        g = g.replace("plugins {", "plugins {\n    id(\"com.google.gms.google-services\")", 1)
+    else:
+        g = "plugins {\n    id(\"com.google.gms.google-services\")\n}\n\n" + g
+    with open(p, "w") as f: f.write(g)
+    print("App build.gradle.kts patched")
+PY
+          fi
+
+          # Fallback: Groovy files (older Capacitor)
+          APP_GROOVY=android/app/build.gradle
+          if [ -f "$APP_GROOVY" ] && ! grep -q "com.google.gms.google-services" "$APP_GROOVY"; then
+            echo "" >> "$APP_GROOVY"
+            echo "apply plugin: 'com.google.gms.google-services'" >> "$APP_GROOVY"
+            echo "App build.gradle (Groovy) patched"
+          fi
+
+          ROOT_GROOVY=android/build.gradle
+          if [ -f "$ROOT_GROOVY" ] && ! grep -q "com.google.gms:google-services" "$ROOT_GROOVY"; then
+            python3 - <<'PY'
+p = "android/build.gradle"
+with open(p) as f: g = f.read()
+needle = "classpath 'com.android.tools.build:gradle"
+if "com.google.gms:google-services" not in g and needle in g:
+    idx = g.find(needle)
+    line_end = g.find("\n", idx)
+    insert = "\n        classpath 'com.google.gms:google-services:4.4.2'"
+    g = g[:line_end] + insert + g[line_end:]
+    with open(p, "w") as f: f.write(g)
+    print("Root build.gradle (Groovy) patched")
+PY
+          fi
+
+      - name: Patch AndroidManifest for push notifications
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if [ ! -f "$MANIFEST" ]; then
+            echo "Manifest not found"; exit 0
+          fi
+
+          if ! grep -q "POST_NOTIFICATIONS" "$MANIFEST"; then
+            python3 - <<'PY'
+p = "android/app/src/main/AndroidManifest.xml"
+with open(p) as f: xml = f.read()
+
+perms = '''
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+'''
+if "POST_NOTIFICATIONS" not in xml:
+    xml = xml.replace("</manifest>", perms + "\n</manifest>")
+
+with open(p, "w") as f: f.write(xml)
+print("AndroidManifest.xml patched")
+PY
+          else
+            echo "Permissions already present"
           fi
 
       - name: Sync Capacitor
