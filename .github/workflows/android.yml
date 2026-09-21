@@ -54,57 +54,71 @@ jobs:
             npx --yes @capacitor/cli@6 add android
           fi
 
-      - name: Generate app icon and splash from resources/
+      - name: Prepare icon/splash resources
         run: |
           mkdir -p resources
-          if [ ! -f resources/icon.png ]; then
-            echo "No resources/icon.png found - skipping"
-          else
-            echo "Found resources/icon.png - generating Android assets"
-            npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#ffffff' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#ffffff'
+          if [ -f resources/icon.png ] && [ ! -f resources/splash.png ]; then
+            echo "No splash.png — using icon.png as splash fallback"
+            cp resources/icon.png resources/splash.png
           fi
+          if [ -f resources/splash.png ] && [ ! -f resources/splash-dark.png ]; then
+            cp resources/splash.png resources/splash-dark.png
+          fi
+          if [ -f resources/icon.png ] && [ ! -f resources/icon-dark.png ]; then
+            cp resources/icon.png resources/icon-dark.png
+          fi
+          echo "Resources ready:"
+          ls -la resources/ || true
+
+      - name: Generate app icon and splash
+        run: |
+          if [ ! -f resources/icon.png ]; then
+            echo "No resources/icon.png found — skipping"
+            exit 0
+          fi
+          echo "Generating Android assets from resources/icon.png"
+          npx --yes @capacitor/assets@3 generate \
+            --android \
+            --iconBackgroundColor '#007acc' \
+            --iconBackgroundColorDark '#007acc' \
+            --splashBackgroundColor '#007acc' \
+            --splashBackgroundColorDark '#007acc'
+          echo "Generated. Files in android/app/src/main/res:"
+          ls android/app/src/main/res/mipmap-hdpi/ 2>/dev/null || true
 
       - name: Inject google-services.json from secret
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "GOOGLE_SERVICES_JSON secret is not set - push notifications will not work"
+            echo "GOOGLE_SERVICES_JSON secret is not set"
           else
             printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
             echo "google-services.json written ($(wc -c < android/app/google-services.json) bytes)"
           fi
 
-      - name: Patch root build.gradle.kts for google-services
+      - name: Apply google-services Gradle plugin
         run: |
-          FILE=android/build.gradle.kts
-          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
-            if grep -q "plugins {" "$FILE"; then
-              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          ROOT_KTS=android/build.gradle.kts
+          if [ -f "$ROOT_KTS" ] && ! grep -q "com.google.gms.google-services" "$ROOT_KTS"; then
+            if grep -q "plugins {" "$ROOT_KTS"; then
+              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false"; done=1; next } { print }' "$ROOT_KTS" > "$ROOT_KTS.tmp" && mv "$ROOT_KTS.tmp" "$ROOT_KTS"
             else
-              printf 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false\n}\n\n' | cat - "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+              printf 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false\n}\n\n' | cat - "$ROOT_KTS" > "$ROOT_KTS.tmp" && mv "$ROOT_KTS.tmp" "$ROOT_KTS"
             fi
             echo "Root build.gradle.kts patched"
-          else
-            echo "Root build.gradle.kts already patched or missing"
           fi
 
-      - name: Patch app build.gradle.kts for google-services
-        run: |
-          FILE=android/app/build.gradle.kts
-          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
-            if grep -q "plugins {" "$FILE"; then
-              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\")"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          APP_KTS=android/app/build.gradle.kts
+          if [ -f "$APP_KTS" ] && ! grep -q "com.google.gms.google-services" "$APP_KTS"; then
+            if grep -q "plugins {" "$APP_KTS"; then
+              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\")"; done=1; next } { print }' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
             else
-              printf 'plugins {\n    id("com.google.gms.google-services")\n}\n\n' | cat - "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+              printf 'plugins {\n    id("com.google.gms.google-services")\n}\n\n' | cat - "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
             fi
             echo "App build.gradle.kts patched"
-          else
-            echo "App build.gradle.kts already patched or missing"
           fi
 
-      - name: Patch Groovy gradle files if present
-        run: |
           APP=android/app/build.gradle
           if [ -f "$APP" ] && ! grep -q "com.google.gms.google-services" "$APP"; then
             printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$APP"
@@ -143,6 +157,19 @@ jobs:
 
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
+
+      - name: Verify icons landed in android res
+        run: |
+          echo "=== Checking generated mipmaps ==="
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            if [ -f "android/app/src/main/res/$d/ic_launcher.png" ]; then
+              echo "$d/ic_launcher.png — $(wc -c < android/app/src/main/res/$d/ic_launcher.png) bytes"
+            else
+              echo "$d/ic_launcher.png — MISSING"
+            fi
+          done
+          echo "=== Checking splash ==="
+          ls android/app/src/main/res/drawable*/splash.png 2>/dev/null || echo "no splash drawable"
 
       - name: Write local.properties
         run: |
