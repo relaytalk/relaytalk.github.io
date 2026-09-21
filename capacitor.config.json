@@ -1,0 +1,49 @@
+{
+  "appId": "app.relaytalk.mobile",
+  "appName": "RelayTalk",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://relaytalk.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "relaytalk.vercel.app",
+      "*.relaytalk.vercel.app",
+      "kponqaktavkrchebmiwr.supabase.co",
+      "*.supabase.co",
+      "8x8.vc",
+      "*.8x8.vc",
+      "i.ibb.co",
+      "*.ibb.co",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "cdnjs.cloudflare.com",
+      "cdn.jsdelivr.net"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffff",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#ffffff"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}
