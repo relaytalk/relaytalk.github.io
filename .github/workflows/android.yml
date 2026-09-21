@@ -54,6 +54,21 @@ jobs:
             npx --yes @capacitor/cli@6 add android
           fi
 
+      - name: Generate app icon and splash from resources/
+        run: |
+          mkdir -p resources
+          if [ ! -f resources/icon.png ]; then
+            echo "❌ resources/icon.png not found — skipping"
+          else
+            echo "✅ Found resources/icon.png — generating Android assets"
+            npx --yes @capacitor/assets@3 generate \
+              --android \
+              --iconBackgroundColor '#ffffff' \
+              --iconBackgroundColorDark '#ffffff' \
+              --splashBackgroundColor '#ffffff' \
+              --splashBackgroundColorDark '#ffffff'
+          fi
+
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
