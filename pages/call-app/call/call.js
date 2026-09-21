@@ -1,4 +1,4 @@
-// /pages/call-app/call/call.js - NEW MUMBAI PROJECT (return-to-page)
+// /pages/call-app/call/call.js — call app (with incoming call support)
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
@@ -9,6 +9,10 @@ let currentCall
 let jitsiIframe
 let callRoom
 let isVideoOn = false
+
+// Incoming call state
+let incomingCallRow = null
+let incomingCallChannel = null
 
 // Tab Management
 const TAB_ID = Math.random().toString(36).substring(7)
@@ -122,8 +126,16 @@ async function initCall() {
             await handleIncomingCall(roomName, callerId, callId)
         } else if (friendId) {
             await startOutgoingCall(friendId, friendName)
+            // Also start watching for incoming calls while idle on this page
+            startIncomingCallWatcher()
         } else {
-            showError('No call information provided')
+            // No explicit params — treat as idle call page, watch for incoming
+            document.getElementById('loadingText').textContent = 'Ready'
+            setTimeout(() => {
+                const ls = document.getElementById('loadingScreen')
+                if (ls) ls.style.display = 'none'
+            }, 400)
+            startIncomingCallWatcher()
         }
     } catch (error) {
         console.error('❌ Init error:', error)
@@ -217,11 +229,11 @@ async function startOutgoingCall(friendId, friendName) {
 }
 
 // ============================================================
-// INCOMING CALL
+// INCOMING CALL — direct handoff (URL params)
 // ============================================================
 async function handleIncomingCall(roomName, callerId, callId) {
     try {
-        console.log('📞 Handling incoming call:', { roomName, callerId, callId })
+        console.log('📞 Handling incoming call (handoff):', { roomName, callerId, callId })
         document.getElementById('loadingText').textContent = 'Connecting...'
 
         currentCall = { id: callId, room_name: roomName }
@@ -239,7 +251,193 @@ async function handleIncomingCall(roomName, callerId, callId) {
 }
 
 // ============================================================
-// CALL STATUS LISTENER
+// INCOMING CALL WATCHER (live, while on call page)
+// ============================================================
+function startIncomingCallWatcher() {
+    if (incomingCallChannel) return
+
+    console.log('👂 Watching for incoming calls for user:', currentUser.id)
+
+    incomingCallChannel = supabase
+        .channel(`incoming-calls-${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'calls',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, (payload) => {
+            const row = payload.new
+            if (!row) return
+            if (row.status !== 'ringing') return
+            if (currentCall) return  // already in a call
+            if (incomingCallRow) return // already showing one
+
+            console.log('📥 Incoming call detected:', row)
+            showIncomingCallUI(row)
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calls',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, (payload) => {
+            const row = payload.new
+            if (!row || !incomingCallRow) return
+            if (row.id !== incomingCallRow.id) return
+
+            if (row.status === 'cancelled' || row.status === 'ended') {
+                console.log('📴 Caller cancelled before we answered')
+                hideIncomingCallUI()
+            }
+        })
+        .subscribe((status) => {
+            console.log('Incoming watcher status:', status)
+        })
+}
+
+function showIncomingCallUI(callRow) {
+    incomingCallRow = callRow
+
+    // Try to render caller name / avatar
+    const nameEl = document.getElementById('callerName')
+    const avatarEl = document.getElementById('callerAvatar')
+
+    // Show placeholder immediately
+    if (nameEl) nameEl.textContent = 'Incoming Call'
+    if (avatarEl) {
+        avatarEl.innerHTML = '<i class="fas fa-user-circle"></i>'
+    }
+
+    // Play a simple ring using the Web Audio API (no asset needed)
+    playRingTone()
+
+    // Look up caller profile
+    ;(async () => {
+        try {
+            const { data: prof } = await supabase
+                .from('profiles')
+                .select('username, full_name, avatar_url')
+                .eq('id', callRow.caller_id)
+                .maybeSingle()
+
+            if (prof) {
+                if (nameEl) nameEl.textContent = prof.full_name || prof.username || 'Incoming Call'
+                if (avatarEl && prof.avatar_url) {
+                    avatarEl.innerHTML = `<img src="${prof.avatar_url}" alt="">`
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load caller profile:', e)
+        }
+    })()
+
+    const screen = document.getElementById('incomingCallScreen')
+    if (screen) screen.style.display = 'flex'
+}
+
+function hideIncomingCallUI() {
+    stopRingTone()
+    incomingCallRow = null
+    const screen = document.getElementById('incomingCallScreen')
+    if (screen) screen.style.display = 'none'
+}
+
+// Simple ring tone via Web Audio
+let ringCtx = null
+let ringTimer = null
+
+function playRingTone() {
+    try {
+        stopRingTone()
+        const Ctx = window.AudioContext || window.webkitAudioContext
+        if (!Ctx) return
+        ringCtx = new Ctx()
+
+        const beep = () => {
+            if (!ringCtx) return
+            const osc = ringCtx.createOscillator()
+            const gain = ringCtx.createGain()
+            osc.type = 'sine'
+            osc.frequency.value = 480
+            gain.gain.value = 0.0001
+            osc.connect(gain)
+            gain.connect(ringCtx.destination)
+            const t = ringCtx.currentTime
+            gain.gain.exponentialRampToValueAtTime(0.15, t + 0.05)
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
+            osc.start(t)
+            osc.stop(t + 0.6)
+        }
+
+        beep()
+        ringTimer = setInterval(beep, 1400)
+    } catch (e) {
+        console.warn('Ring tone error:', e)
+    }
+}
+
+function stopRingTone() {
+    try {
+        if (ringTimer) { clearInterval(ringTimer); ringTimer = null }
+        if (ringCtx) { ringCtx.close(); ringCtx = null }
+    } catch (e) {}
+}
+
+// ============================================================
+// ACCEPT / DECLINE (called from the incoming UI)
+// ============================================================
+window.acceptCall = async function () {
+    if (!incomingCallRow) return
+    stopRingTone()
+
+    const row = incomingCallRow
+    incomingCallRow = null
+
+    const screen = document.getElementById('incomingCallScreen')
+    if (screen) screen.style.display = 'none'
+
+    try {
+        currentCall = { id: row.id, room_name: row.room_name }
+
+        await supabase
+            .from('calls')
+            .update({ status: 'active', answered_at: new Date().toISOString(), seen: true })
+            .eq('id', row.id)
+
+        document.getElementById('loadingScreen').style.display = 'flex'
+        document.getElementById('loadingText').textContent = 'Connecting...'
+
+        await joinCall(row.room_name)
+    } catch (e) {
+        console.error('Accept error:', e)
+        showError('Failed to accept call')
+    }
+}
+
+window.declineCall = async function () {
+    stopRingTone()
+
+    const row = incomingCallRow
+    incomingCallRow = null
+
+    const screen = document.getElementById('incomingCallScreen')
+    if (screen) screen.style.display = 'none'
+
+    try {
+        if (row) {
+            await supabase
+                .from('calls')
+                .update({ status: 'rejected', ended_at: new Date().toISOString(), seen: true })
+                .eq('id', row.id)
+        }
+    } catch (e) {
+        console.warn('Decline error:', e)
+    }
+    // stay on page — user can receive another call
+}
+
+// ============================================================
+// CALL STATUS LISTENER (for outgoing call we initiated)
 // ============================================================
 function setupCallListener(callId) {
     console.log('5️⃣ Setting up call listener for ID:', callId)
@@ -508,9 +706,6 @@ window.cancelCall = async function() {
     console.log('📞 [call] Cancelling → redirecting to:', returnUrl)
     window.location.href = returnUrl
 }
-
-window.acceptCall = function() {}
-window.declineCall = function() {}
 
 // ============================================================
 // ENDED / ERROR
