@@ -71,10 +71,9 @@ function unregisterTab() {
 }
 
 // ============================================================
-// IN-APP INCOMING UI (created dynamically, no HTML changes needed)
+// IN-APP INCOMING UI (created dynamically)
 // ============================================================
 function showInAppIncomingScreen(info) {
-    // Remove any previous one
     const prev = document.getElementById('relayIncomingOverlay')
     if (prev) prev.remove()
 
@@ -143,7 +142,7 @@ function showInAppIncomingScreen(info) {
     document.getElementById('relayAcceptBtn').onclick = () => handleIncomingAccept()
     document.getElementById('relayDeclineBtn').onclick = () => handleIncomingDecline()
 
-    // Simple ring: use a repeating tone via Web Audio
+    // Ring tone via Web Audio
     try {
         const Ctx = window.AudioContext || window.webkitAudioContext
         if (Ctx) {
@@ -213,7 +212,6 @@ async function initCall() {
         window.addEventListener('beforeunload', handleBeforeUnload)
 
         if (incoming === 'true' && roomName && callId) {
-            // Show in-app Accept/Decline screen; wait for tap
             pendingIncoming = { callId, room: roomName, callerId, callerName, callerAvatar }
             document.getElementById('loadingScreen').style.display = 'none'
             showInAppIncomingScreen({
@@ -570,5 +568,36 @@ function showError(message) {
     document.getElementById('errorScreen').style.display = 'flex'
     document.getElementById('errorMessage').textContent = message
 }
+
+// ============================================================
+// LIVE INCOMING CALL EVENT (dispatched by native-init.js when the
+// app is already on this page and a new call arrives)
+// ============================================================
+window.addEventListener('relay:incoming-call', (e) => {
+    const data = e.detail || {}
+    console.log('[call] relay:incoming-call event:', data)
+
+    if (!data.room || !data.callId) return
+    if (pendingIncoming || currentCall) return
+
+    pendingIncoming = {
+        callId: data.callId,
+        room: data.room,
+        callerId: data.callerId,
+        callerName: data.callerName,
+        callerAvatar: data.callerAvatar
+    }
+
+    const ls = document.getElementById('loadingScreen')
+    if (ls) ls.style.display = 'none'
+
+    showInAppIncomingScreen({
+        callId: data.callId,
+        room: data.room,
+        callerId: data.callerId,
+        callerName: data.callerName || 'Someone',
+        callerAvatar: data.callerAvatar || ''
+    })
+})
 
 initCall()
