@@ -58,7 +58,6 @@ jobs:
         run: |
           mkdir -p resources
           if [ -f resources/icon.png ] && [ ! -f resources/splash.png ]; then
-            echo "No splash.png — using icon.png as splash fallback"
             cp resources/icon.png resources/splash.png
           fi
           if [ -f resources/splash.png ] && [ ! -f resources/splash-dark.png ]; then
@@ -67,8 +66,6 @@ jobs:
           if [ -f resources/icon.png ] && [ ! -f resources/icon-dark.png ]; then
             cp resources/icon.png resources/icon-dark.png
           fi
-          echo "Resources ready:"
-          ls -la resources/ || true
 
       - name: Generate app icon and splash
         run: |
@@ -76,15 +73,12 @@ jobs:
             echo "No resources/icon.png found — skipping"
             exit 0
           fi
-          echo "Generating Android assets from resources/icon.png"
           npx --yes @capacitor/assets@3 generate \
             --android \
             --iconBackgroundColor '#007acc' \
             --iconBackgroundColorDark '#007acc' \
             --splashBackgroundColor '#007acc' \
             --splashBackgroundColorDark '#007acc'
-          echo "Generated. Files in android/app/src/main/res:"
-          ls android/app/src/main/res/mipmap-hdpi/ 2>/dev/null || true
 
       - name: Inject google-services.json from secret
         env:
@@ -106,7 +100,6 @@ jobs:
             else
               printf 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false\n}\n\n' | cat - "$ROOT_KTS" > "$ROOT_KTS.tmp" && mv "$ROOT_KTS.tmp" "$ROOT_KTS"
             fi
-            echo "Root build.gradle.kts patched"
           fi
 
           APP_KTS=android/app/build.gradle.kts
@@ -116,31 +109,25 @@ jobs:
             else
               printf 'plugins {\n    id("com.google.gms.google-services")\n}\n\n' | cat - "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
             fi
-            echo "App build.gradle.kts patched"
           fi
 
           APP=android/app/build.gradle
           if [ -f "$APP" ] && ! grep -q "com.google.gms.google-services" "$APP"; then
             printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$APP"
-            echo "App build.gradle (Groovy) patched"
           fi
 
           ROOT=android/build.gradle
           if [ -f "$ROOT" ] && ! grep -q "com.google.gms:google-services" "$ROOT"; then
             awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$ROOT" > "$ROOT.tmp" && mv "$ROOT.tmp" "$ROOT"
-            echo "Root build.gradle (Groovy) patched"
           fi
 
-      - name: Patch AndroidManifest for push permissions
+      - name: Patch AndroidManifest for push + notification tap
         run: |
           FILE=android/app/src/main/AndroidManifest.xml
-          if [ ! -f "$FILE" ]; then
-            echo "Manifest not found"; exit 0
-          fi
+          if [ ! -f "$FILE" ]; then echo "Manifest not found"; exit 0; fi
 
-          if grep -q "POST_NOTIFICATIONS" "$FILE"; then
-            echo "Permissions already present"
-          else
+          # 1. Add permissions once
+          if ! grep -q "POST_NOTIFICATIONS" "$FILE"; then
             awk '/<\/manifest>/ && !done {
               print "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />";
               print "    <uses-permission android:name=\"android.permission.VIBRATE\" />";
@@ -152,28 +139,57 @@ jobs:
               done=1;
               next
             } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "AndroidManifest.xml patched"
+            echo "Permissions added"
           fi
+
+          # 2. Ensure MainActivity has launchMode="singleTask" so tapping
+          #    the notification resumes the existing task instead of
+          #    launching a new one silently.
+          if ! grep -q 'android:launchMode="singleTask"' "$FILE"; then
+            # Add launchMode to the MainActivity <activity> tag
+            awk '
+              /<activity/ && /MainActivity/ && !done {
+                if ($0 ~ /android:launchMode=/) {
+                  print
+                } else {
+                  sub(/<activity/, "<activity android:launchMode=\"singleTask\"")
+                  print
+                }
+                done=1
+                next
+              }
+              { print }
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "MainActivity launchMode=singleTask ensured"
+          fi
+
+          # 3. Ensure the MainActivity has an intent-filter that catches
+          #    FCM_PLUGIN_ACTIVITY so notification taps route back to the app.
+          if ! grep -q "FCM_PLUGIN_ACTIVITY" "$FILE"; then
+            awk '
+              /<\/activity>/ && /MainActivity/ { }
+              /<\/activity>/ && !done {
+                print "            <intent-filter>";
+                print "                <action android:name=\"FCM_PLUGIN_ACTIVITY\" />";
+                print "                <category android:name=\"android.intent.category.DEFAULT\" />";
+                print "            </intent-filter>";
+                print;
+                done=1;
+                next
+              }
+              { print }
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "FCM_PLUGIN_ACTIVITY intent-filter added"
+          fi
+
+          echo "=== AndroidManifest.xml (activity section) ==="
+          grep -A6 "<activity" "$FILE" | head -40 || true
 
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
-      - name: Verify icons landed in android res
-        run: |
-          echo "=== Checking generated mipmaps ==="
-          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            if [ -f "android/app/src/main/res/$d/ic_launcher.png" ]; then
-              echo "$d/ic_launcher.png — $(wc -c < android/app/src/main/res/$d/ic_launcher.png) bytes"
-            else
-              echo "$d/ic_launcher.png — MISSING"
-            fi
-          done
-          echo "=== Checking splash ==="
-          ls android/app/src/main/res/drawable*/splash.png 2>/dev/null || echo "no splash drawable"
-
       - name: Write local.properties
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
