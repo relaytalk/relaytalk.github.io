@@ -13,6 +13,7 @@
     "@capacitor/core": "^6.1.2",
     "@capacitor/haptics": "^6.0.1",
     "@capacitor/keyboard": "^6.0.2",
+    "@capacitor/local-notifications": "^6.0.4",
     "@capacitor/network": "^6.0.2",
     "@capacitor/push-notifications": "^6.0.2",
     "@capacitor/splash-screen": "^6.0.2",
