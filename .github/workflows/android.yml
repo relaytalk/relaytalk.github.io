@@ -38,6 +38,11 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
 
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick
+
       - name: Install npm dependencies
         run: npm install --no-audit --no-fund
 
@@ -54,52 +59,60 @@ jobs:
             npx --yes @capacitor/cli@6 add android
           fi
 
-      - name: Check icon exists
+      - name: Verify icon exists
         run: |
           echo "Looking for resources/icon.png ..."
-          ls -la resources/ || echo "resources folder missing"
+          ls -la resources/ || (echo "resources folder missing" && exit 1)
           if [ ! -f resources/icon.png ]; then
-            echo ""
-            echo "########################################"
             echo "ERROR: resources/icon.png NOT FOUND"
-            echo "Make sure the file exists and is committed."
-            echo "########################################"
-            echo ""
             exit 1
           fi
           SIZE=$(wc -c < resources/icon.png)
           echo "OK: resources/icon.png found, size = $SIZE bytes"
-          if [ "$SIZE" -lt 3000 ]; then
-            echo "WARNING: icon.png is very small, image quality may be poor."
-          fi
+          file resources/icon.png
 
-      - name: Prepare splash fallbacks
+      - name: Copy custom icon and splash into Android project
         run: |
-          if [ ! -f resources/splash.png ]; then
-            cp resources/icon.png resources/splash.png
-            echo "Created splash.png from icon.png"
-          fi
-          if [ ! -f resources/splash-dark.png ]; then
-            cp resources/splash.png resources/splash-dark.png
-          fi
-          if [ ! -f resources/icon-dark.png ]; then
-            cp resources/icon.png resources/icon-dark.png
-          fi
-          echo "Resources ready:"
-          ls -la resources/
+          set -e
+          SRC=resources/icon.png
 
-      - name: Generate app icon and splash
-        run: |
-          echo "Running @capacitor/assets generate ..."
-          npx --yes @capacitor/assets@3 generate \
-            --android \
-            --iconBackgroundColor '#007acc' \
-            --iconBackgroundColorDark '#007acc' \
-            --splashBackgroundColor '#007acc' \
-            --splashBackgroundColorDark '#007acc'
-          echo "Mipmaps after generation:"
-          ls -la android/app/src/main/res/mipmap-hdpi/ 2>/dev/null || true
-          ls -la android/app/src/main/res/mipmap-xxxhdpi/ 2>/dev/null || true
+          # Resize icon to every Android mipmap size
+          # mdpi=48, hdpi=72, xhdpi=96, xxhdpi=144, xxxhdpi=192
+          echo "Generating ic_launcher.png for each density..."
+
+          # mdpi
+          convert "$SRC" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          convert "$SRC" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          convert "$SRC" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+
+          # hdpi
+          convert "$SRC" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          convert "$SRC" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          convert "$SRC" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+
+          # xhdpi
+          convert "$SRC" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          convert "$SRC" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          convert "$SRC" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+
+          # xxhdpi
+          convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+
+          # xxxhdpi
+          convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+
+          # Splash: create one and put it in drawable folders
+          mkdir -p android/app/src/main/res/drawable
+          convert "$SRC" -resize 512x512 -background "#007acc" -gravity center -extent 512x512 android/app/src/main/res/drawable/splash.png
+
+          echo "Verifying sizes of generated icons:"
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            echo "  mipmap-$d = $(wc -c < android/app/src/main/res/mipmap-$d/ic_launcher.png) bytes"
+          done
 
       - name: Inject google-services.json from secret
         env:
@@ -167,9 +180,6 @@ jobs:
               done=1;
               next
             } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "Permissions added"
-          else
-            echo "Permissions already present"
           fi
 
           if ! grep -q 'android:launchMode="singleTask"' "$FILE"; then
@@ -194,24 +204,15 @@ jobs:
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
-      - name: Verify icons are in the APK
+      - name: Verify final icon files
         run: |
-          echo "Checking icons in android res folder:"
-          FAIL=0
+          echo "Final check of icons after sync:"
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             F="android/app/src/main/res/$d/ic_launcher.png"
             if [ -f "$F" ]; then
               echo "  $d = $(wc -c < $F) bytes"
-            else
-              echo "  $d MISSING"
-              FAIL=1
             fi
           done
-          if [ $FAIL -eq 1 ]; then
-            echo "Some icons are missing. Icon may not apply correctly."
-          else
-            echo "All icons look good."
-          fi
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
