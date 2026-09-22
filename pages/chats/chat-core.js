@@ -338,7 +338,6 @@ async function sendMessage() {
     const sendBtn = document.getElementById('sendBtn');
 
     try {
-        // Keep the paper-plane icon visible the whole time — just disable the button.
         if (sendBtn) sendBtn.disabled = true;
 
         const messageData = {
@@ -862,9 +861,12 @@ function buildQuickBar(wrap) {
         if (btn.dataset.action) return;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            toggleReaction(messageId, btn.dataset.emoji);
-            quickBarElement.querySelectorAll('.quick-emoji').forEach(o => o.classList.remove('selected'));
-            btn.classList.add('selected');
+            const emoji = btn.dataset.emoji;
+
+            // Fire the reaction, then close the bar immediately.
+            // Works for both add and remove cases.
+            toggleReaction(messageId, emoji);
+            closeAll();
         });
     });
 }
@@ -1144,6 +1146,8 @@ function openEmojiGridForSelected() {
         btn.addEventListener('click', () => {
             toggleReaction(messageId, btn.dataset.emoji);
             close();
+            // Also close the quick bar so the whole selection UI dismisses.
+            closeAll();
         });
     });
 
