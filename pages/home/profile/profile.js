@@ -12,6 +12,9 @@ let currentBio = '';
 let notificationsEnabled = false;
 let currentNotifTab = 'main';
 
+// Prevents stale avatar renders from winning a race against newer ones
+let avatarRenderToken = 0;
+
 // ============================================================
 // NATIVE DETECTION
 // ============================================================
@@ -88,55 +91,86 @@ async function loadProfile() {
         setTimeout(() => loadUserStats(), 80);
     } catch (error) {
         console.error('Profile load error:', error);
-        renderProfile({ username: currentUser.email?.split('@')[0] || 'User' });
+        const fallbackUsername = currentUser?.email?.split('@')[0] || 'User';
+        currentProfile = { id: currentUser.id, username: fallbackUsername, bio: '' };
+        renderProfile(currentProfile);
         renderBio('');
     }
 }
 
 // ------------------------------------------------------------
-// Avatar rendering — single source of truth.
-// Always hides the img and shows the initial when there's no
-// URL, and swaps cleanly on every call so repeated uploads /
-// removes work.
+// Reliable username getter. Falls back through every possible
+// source so we never render '?' by accident.
+// ------------------------------------------------------------
+function getBestUsername() {
+    return (
+        currentProfile?.username ||
+        currentUser?.user_metadata?.username ||
+        currentUser?.email?.split('@')[0] ||
+        'User'
+    );
+}
+
+// ------------------------------------------------------------
+// renderAvatar — single source of truth.
+//
+// Uses a preload Image() so we don't swap the DOM until the
+// file is actually fetched by the browser. This eliminates the
+// "placeholder flashes" problem when a fresh ImgBB URL is used.
+//
+// Uses a token so an older render cannot overwrite a newer one.
 // ------------------------------------------------------------
 function renderAvatar(avatarUrl, username) {
     const img = document.getElementById('avatarImage');
     const initialDiv = document.getElementById('avatarInitial');
     if (!img || !initialDiv) return;
 
-    const initial = (username || '?').charAt(0).toUpperCase();
+    const token = ++avatarRenderToken;
+    const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
 
-    // Clean slate every time
+    // Always clear stale handlers
     img.onload = null;
     img.onerror = null;
-    img.removeAttribute('src');
 
-    if (avatarUrl && String(avatarUrl).trim()) {
-        // Hide initial until we know the image loads
-        initialDiv.style.display = 'none';
-        img.style.display = 'none';
-
-        img.onload = () => {
-            img.style.display = 'block';
-            initialDiv.style.display = 'none';
-        };
-        img.onerror = () => {
-            img.style.display = 'none';
-            initialDiv.style.display = 'flex';
-            initialDiv.textContent = initial;
-        };
-        img.src = avatarUrl;
-        img.alt = username || 'Profile';
-    } else {
-        // No avatar — show initials
+    // No avatar → show initials immediately
+    if (!avatarUrl || !String(avatarUrl).trim()) {
+        img.removeAttribute('src');
         img.style.display = 'none';
         initialDiv.style.display = 'flex';
         initialDiv.textContent = initial;
+        return;
     }
+
+    // Have an avatar. Show initials while we preload.
+    img.style.display = 'none';
+    initialDiv.style.display = 'flex';
+    initialDiv.textContent = initial;
+
+    const pre = new Image();
+    pre.decoding = 'async';
+
+    pre.onload = () => {
+        // If a newer render happened while we were loading, bail.
+        if (token !== avatarRenderToken) return;
+        img.src = avatarUrl;
+        img.alt = username || 'Profile';
+        img.style.display = 'block';
+        initialDiv.style.display = 'none';
+    };
+
+    pre.onerror = () => {
+        if (token !== avatarRenderToken) return;
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        initialDiv.style.display = 'flex';
+        initialDiv.textContent = initial;
+    };
+
+    pre.src = avatarUrl;
 }
 
 function renderProfile(profile) {
-    const username = profile.username || currentUser.email?.split('@')[0] || 'User';
+    const username = profile.username || getBestUsername();
 
     const nameEl = document.getElementById('displayName');
     const userEl = document.getElementById('displayUsername');
@@ -262,7 +296,6 @@ window.saveBio = async function() {
 
         if (error) throw error;
 
-        // Keep local mirror in sync
         if (currentProfile) currentProfile.bio = newBio;
         renderBio(newBio);
         closeBioEditor();
@@ -286,10 +319,9 @@ window.openImagePicker = function() {
 
 window.closeModal = function() {
     const modal = document.getElementById('imagePickerModal');
-    if (modal) {
-        modal.classList.remove('visible');
-        setTimeout(() => modal.style.display = 'none', 200);
-    }
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => modal.style.display = 'none', 200);
 };
 
 window.uploadFromCamera = function() {
@@ -336,12 +368,11 @@ window.handleImageSelect = async function(event) {
 
         if (error) throw error;
 
-        // Update local mirror
         if (currentProfile) currentProfile.avatar_url = imageUrl;
 
-        // Re-render through the single source of truth so the img swaps cleanly
-        const username = currentProfile?.username || currentUser.email?.split('@')[0] || 'User';
-        renderAvatar(imageUrl, username);
+        // Force-clear and re-render through the preloader.
+        // (Also kills any in-flight stale render.)
+        renderAvatar(imageUrl, getBestUsername());
 
         showToast('success', 'Profile photo updated!');
     } catch (error) {
@@ -367,12 +398,10 @@ window.removeAvatar = async function() {
 
         if (error) throw error;
 
-        // Keep local mirror in sync — this is the key fix so the initials
-        // render with the correct letter, not '?'
         if (currentProfile) currentProfile.avatar_url = null;
 
-        const username = currentProfile?.username || currentUser.email?.split('@')[0] || 'User';
-        renderAvatar(null, username);
+        // Immediate optimistic update — no waiting on any subscription
+        renderAvatar(null, getBestUsername());
 
         showToast('success', 'Profile photo removed');
     } catch (error) {
@@ -556,7 +585,6 @@ async function refreshNotificationState() {
             }
         } catch (e) {
             console.warn('Native state check failed:', e);
-            // Do not leave button hidden
             label.textContent = 'Enable';
             setBellIcon(icon, 'off');
         }
