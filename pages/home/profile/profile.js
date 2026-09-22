@@ -114,30 +114,66 @@ function getBestUsername() {
 // ------------------------------------------------------------
 // renderAvatar — single source of truth.
 //
-// Uses a preload Image() so we don't swap the DOM until the
-// file is actually fetched by the browser. This eliminates the
-// "placeholder flashes" problem when a fresh ImgBB URL is used.
+// Strategy:
+//   1. Preload the image with a hidden Image()
+//   2. If preload succeeds → paint it in the visible <img>
+//   3. If preload fails → try again without crossOrigin
+//   4. If that fails too → fall back to initials
+//   5. If preload takes > 800ms → paint optimistically, hide if error
 //
 // Uses a token so an older render cannot overwrite a newer one.
 // ------------------------------------------------------------
 function renderAvatar(avatarUrl, username) {
     const img = document.getElementById('avatarImage');
     const initialDiv = document.getElementById('avatarInitial');
-    if (!img || !initialDiv) return;
+    if (!img || !initialDiv) {
+        console.warn('[avatar] DOM elements missing');
+        return;
+    }
 
     const token = ++avatarRenderToken;
     const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
 
-    // Always clear stale handlers
+    console.log('[avatar] renderAvatar', { avatarUrl, username, token });
+
+    // Clear stale handlers
     img.onload = null;
     img.onerror = null;
 
-    // No avatar → show initials immediately
-    if (!avatarUrl || !String(avatarUrl).trim()) {
+    const paintImage = (url) => {
+        if (token !== avatarRenderToken) {
+            console.log('[avatar] stale token, skipping paint');
+            return;
+        }
+        img.onload = null;
+        img.onerror = null;
+        img.src = url;
+        img.alt = username || 'Profile';
+
+        // Force visibility through every possible means
+        img.style.display = 'block';
+        img.style.visibility = 'visible';
+        img.style.opacity = '1';
+        img.removeAttribute('hidden');
+        img.setAttribute('data-loaded', 'true');
+
+        initialDiv.style.display = 'none';
+        console.log('[avatar] painted image:', url);
+    };
+
+    const paintInitial = (reason) => {
+        if (token !== avatarRenderToken) return;
+        console.log('[avatar] painting initial, reason:', reason);
         img.removeAttribute('src');
         img.style.display = 'none';
+        img.removeAttribute('data-loaded');
         initialDiv.style.display = 'flex';
         initialDiv.textContent = initial;
+    };
+
+    // No avatar → initials immediately
+    if (!avatarUrl || !String(avatarUrl).trim()) {
+        paintInitial('no-url');
         return;
     }
 
@@ -146,24 +182,49 @@ function renderAvatar(avatarUrl, username) {
     initialDiv.style.display = 'flex';
     initialDiv.textContent = initial;
 
+    let preloadDone = false;
+
+    // Fallback timer: if preload doesn't fire in 800ms, paint directly
+    const fallbackTimer = setTimeout(() => {
+        if (preloadDone) return;
+        if (token !== avatarRenderToken) return;
+        console.warn('[avatar] preload timeout — painting directly');
+        preloadDone = true;
+        paintImage(avatarUrl);
+    }, 800);
+
+    // First attempt: crossOrigin anonymous
     const pre = new Image();
     pre.decoding = 'async';
+    pre.crossOrigin = 'anonymous';
 
     pre.onload = () => {
-        // If a newer render happened while we were loading, bail.
-        if (token !== avatarRenderToken) return;
-        img.src = avatarUrl;
-        img.alt = username || 'Profile';
-        img.style.display = 'block';
-        initialDiv.style.display = 'none';
+        if (preloadDone) return;
+        preloadDone = true;
+        clearTimeout(fallbackTimer);
+        console.log('[avatar] preload succeeded');
+        paintImage(avatarUrl);
     };
 
     pre.onerror = () => {
-        if (token !== avatarRenderToken) return;
-        img.removeAttribute('src');
-        img.style.display = 'none';
-        initialDiv.style.display = 'flex';
-        initialDiv.textContent = initial;
+        if (preloadDone) return;
+        preloadDone = true;
+        clearTimeout(fallbackTimer);
+        console.warn('[avatar] preload failed — retrying without crossOrigin');
+
+        // Second attempt: no crossOrigin
+        const retry = new Image();
+        retry.onload = () => {
+            if (token !== avatarRenderToken) return;
+            console.log('[avatar] retry without crossOrigin succeeded');
+            paintImage(avatarUrl);
+        };
+        retry.onerror = () => {
+            if (token !== avatarRenderToken) return;
+            console.error('[avatar] both preloads failed — showing initials');
+            paintInitial('both-preloads-failed');
+        };
+        retry.src = avatarUrl;
     };
 
     pre.src = avatarUrl;
@@ -370,8 +431,6 @@ window.handleImageSelect = async function(event) {
 
         if (currentProfile) currentProfile.avatar_url = imageUrl;
 
-        // Force-clear and re-render through the preloader.
-        // (Also kills any in-flight stale render.)
         renderAvatar(imageUrl, getBestUsername());
 
         showToast('success', 'Profile photo updated!');
@@ -400,7 +459,6 @@ window.removeAvatar = async function() {
 
         if (currentProfile) currentProfile.avatar_url = null;
 
-        // Immediate optimistic update — no waiting on any subscription
         renderAvatar(null, getBestUsername());
 
         showToast('success', 'Profile photo removed');
