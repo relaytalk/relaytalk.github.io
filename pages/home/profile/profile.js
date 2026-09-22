@@ -93,32 +93,57 @@ async function loadProfile() {
     }
 }
 
-function renderProfile(profile) {
-    const username = profile.username || currentUser.email?.split('@')[0] || 'User';
-    document.getElementById('displayName').textContent = username;
-    document.getElementById('displayUsername').textContent = `@${username.toLowerCase()}`;
-
+// ------------------------------------------------------------
+// Avatar rendering — single source of truth.
+// Always hides the img and shows the initial when there's no
+// URL, and swaps cleanly on every call so repeated uploads /
+// removes work.
+// ------------------------------------------------------------
+function renderAvatar(avatarUrl, username) {
     const img = document.getElementById('avatarImage');
     const initialDiv = document.getElementById('avatarInitial');
+    if (!img || !initialDiv) return;
 
-    if (profile.avatar_url) {
-        const preload = new Image();
-        preload.src = profile.avatar_url;
-        preload.onload = () => {
-            img.src = profile.avatar_url;
+    const initial = (username || '?').charAt(0).toUpperCase();
+
+    // Clean slate every time
+    img.onload = null;
+    img.onerror = null;
+    img.removeAttribute('src');
+
+    if (avatarUrl && String(avatarUrl).trim()) {
+        // Hide initial until we know the image loads
+        initialDiv.style.display = 'none';
+        img.style.display = 'none';
+
+        img.onload = () => {
             img.style.display = 'block';
             initialDiv.style.display = 'none';
         };
-        preload.onerror = () => {
+        img.onerror = () => {
             img.style.display = 'none';
             initialDiv.style.display = 'flex';
-            initialDiv.textContent = username.charAt(0).toUpperCase();
+            initialDiv.textContent = initial;
         };
+        img.src = avatarUrl;
+        img.alt = username || 'Profile';
     } else {
+        // No avatar — show initials
         img.style.display = 'none';
         initialDiv.style.display = 'flex';
-        initialDiv.textContent = username.charAt(0).toUpperCase();
+        initialDiv.textContent = initial;
     }
+}
+
+function renderProfile(profile) {
+    const username = profile.username || currentUser.email?.split('@')[0] || 'User';
+
+    const nameEl = document.getElementById('displayName');
+    const userEl = document.getElementById('displayUsername');
+    if (nameEl) nameEl.textContent = username;
+    if (userEl) userEl.textContent = `@${username.toLowerCase()}`;
+
+    renderAvatar(profile.avatar_url, username);
 }
 
 async function loadUserStats() {
@@ -128,10 +153,17 @@ async function loadUserStats() {
             .select('*', { count: 'exact', head: true })
             .eq('user_id', currentUser.id);
 
-        document.getElementById('friendsCount').textContent = friendsCount || 0;
+        const friendsEl = document.getElementById('friendsCount');
+        if (friendsEl) friendsEl.textContent = friendsCount || 0;
 
         const msgCountEl = document.getElementById('messagesCount');
-        if (msgCountEl) msgCountEl.textContent = '0';
+        if (msgCountEl) {
+            const { count: msgCount } = await supabase
+                .from('direct_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('sender_id', currentUser.id);
+            msgCountEl.textContent = msgCount || 0;
+        }
     } catch {
         const friendsEl = document.getElementById('friendsCount');
         if (friendsEl) friendsEl.textContent = '0';
@@ -230,6 +262,8 @@ window.saveBio = async function() {
 
         if (error) throw error;
 
+        // Keep local mirror in sync
+        if (currentProfile) currentProfile.bio = newBio;
         renderBio(newBio);
         closeBioEditor();
         showToast('success', 'Bio updated!');
@@ -274,10 +308,11 @@ window.uploadFromGallery = function() {
 };
 
 window.handleImageSelect = async function(event) {
-    const file = event.target.files[0];
+    const file = event.target.files && event.target.files[0];
     if (!file) return;
 
-    document.getElementById('uploadLoading').style.display = 'flex';
+    const uploadLoading = document.getElementById('uploadLoading');
+    if (uploadLoading) uploadLoading.style.display = 'flex';
 
     try {
         const formData = new FormData();
@@ -301,25 +336,28 @@ window.handleImageSelect = async function(event) {
 
         if (error) throw error;
 
-        const img = document.getElementById('avatarImage');
-        const initialDiv = document.getElementById('avatarInitial');
-        img.src = imageUrl;
-        img.style.display = 'block';
-        initialDiv.style.display = 'none';
+        // Update local mirror
+        if (currentProfile) currentProfile.avatar_url = imageUrl;
+
+        // Re-render through the single source of truth so the img swaps cleanly
+        const username = currentProfile?.username || currentUser.email?.split('@')[0] || 'User';
+        renderAvatar(imageUrl, username);
 
         showToast('success', 'Profile photo updated!');
     } catch (error) {
         console.error('Upload error:', error);
         showToast('error', 'Failed to upload image');
     } finally {
-        document.getElementById('uploadLoading').style.display = 'none';
+        if (uploadLoading) uploadLoading.style.display = 'none';
         event.target.value = '';
     }
 };
 
 window.removeAvatar = async function() {
     if (!confirm('Remove profile photo?')) return;
-    document.getElementById('uploadLoading').style.display = 'flex';
+
+    const uploadLoading = document.getElementById('uploadLoading');
+    if (uploadLoading) uploadLoading.style.display = 'flex';
 
     try {
         const { error } = await supabase
@@ -329,19 +367,19 @@ window.removeAvatar = async function() {
 
         if (error) throw error;
 
-        const img = document.getElementById('avatarImage');
-        const initialDiv = document.getElementById('avatarInitial');
-        const username = currentProfile?.username || currentUser.email?.split('@')[0] || 'User';
+        // Keep local mirror in sync — this is the key fix so the initials
+        // render with the correct letter, not '?'
+        if (currentProfile) currentProfile.avatar_url = null;
 
-        img.style.display = 'none';
-        initialDiv.style.display = 'flex';
-        initialDiv.textContent = username.charAt(0).toUpperCase();
+        const username = currentProfile?.username || currentUser.email?.split('@')[0] || 'User';
+        renderAvatar(null, username);
 
         showToast('success', 'Profile photo removed');
     } catch (error) {
+        console.error('Remove avatar error:', error);
         showToast('error', 'Failed to remove photo');
     } finally {
-        document.getElementById('uploadLoading').style.display = 'none';
+        if (uploadLoading) uploadLoading.style.display = 'none';
         closeModal();
     }
 };
@@ -518,6 +556,9 @@ async function refreshNotificationState() {
             }
         } catch (e) {
             console.warn('Native state check failed:', e);
+            // Do not leave button hidden
+            label.textContent = 'Enable';
+            setBellIcon(icon, 'off');
         }
         return;
     }
@@ -734,6 +775,7 @@ async function applyDetailsToggle(newValue) {
         if (error) throw error;
 
         currentShowDetails = newValue;
+        if (currentProfile) currentProfile.show_message_preview = newValue;
         updateDetailsToggle();
         showToast('success', newValue ? 'Details ON' : 'Details OFF');
     } catch (error) {
