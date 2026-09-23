@@ -76,24 +76,18 @@ jobs:
           set -e
           SRC=resources/icon.png
 
-          echo "Generating ic_launcher.png for each density..."
-
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
@@ -205,95 +199,78 @@ jobs:
           ls -la android/app/relaytalk-release.keystore
           echo "Keystore decoded ($(wc -c < android/app/relaytalk-release.keystore) bytes)"
 
-      - name: Add signing config to app build.gradle
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Add signing config to app build.gradle.kts
         run: |
-          # Add signing config block to android/app/build.gradle.kts
           APP_KTS=android/app/build.gradle.kts
           if [ -f "$APP_KTS" ] && ! grep -q "signingConfigs" "$APP_KTS"; then
-            python3 - <<'PYEOF'
-p = "android/app/build.gradle.kts"
-with open(p) as f: g = f.read()
+            awk '
+              /^android \{/ && !inserted {
+                print
+                print "    signingConfigs {"
+                print "        create(\"release\") {"
+                print "            storeFile = file(\"relaytalk-release.keystore\")"
+                print "            storePassword = System.getenv(\"KEYSTORE_PASSWORD\") ?: \"\""
+                print "            keyAlias = System.getenv(\"KEY_ALIAS\") ?: \"\""
+                print "            keyPassword = System.getenv(\"KEY_PASSWORD\") ?: \"\""
+                print "        }"
+                print "    }"
+                inserted=1
+                next
+              }
+              { print }
+            ' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
+            echo "signingConfigs block added"
+          fi
 
-# Build the signing config snippet
-signing_block = '''
-    signingConfigs {
-        create("release") {
-            storeFile = file("relaytalk-release.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("KEY_ALIAS") ?: ""
-            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-        }
-    }
-'''
-
-# Insert after the opening android { block
-if "android {" in g and "signingConfigs" not in g:
-    g = g.replace("android {", "android {" + signing_block, 1)
-
-# Hook signingConfig into the release buildType
-if 'buildTypes {' in g:
-    if 'getByName("release")' in g:
-        # Look for the release block, add signingConfig if missing
-        import re
-        def add_signing(match):
-            inner = match.group(1)
-            if "signingConfig" in inner:
-                return match.group(0)
-            return 'getByName("release") {' + '\n            signingConfig = signingConfigs.getByName("release")' + inner + '}'
-        # Only patch if we can find it cleanly
-        g = re.sub(r'getByName\("release"\)\s*\{([^}]*)\}', add_signing, g, count=1)
-
-with open(p, "w") as f: f.write(g)
-print("Signing config added to app/build.gradle.kts")
-PYEOF
+          # Hook the signing config into the release buildType
+          if [ -f "$APP_KTS" ] && grep -q 'getByName("release")' "$APP_KTS" && ! grep -q 'signingConfig = signingConfigs.getByName("release")' "$APP_KTS"; then
+            awk '
+              /getByName\("release"\)\s*\{/ && !inserted {
+                print
+                print "            signingConfig = signingConfigs.getByName(\"release\")"
+                inserted=1
+                next
+              }
+              { print }
+            ' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
+            echo "release buildType patched"
           fi
 
           # Groovy fallback
           APP_GROOVY=android/app/build.gradle
           if [ -f "$APP_GROOVY" ] && ! grep -q "signingConfigs" "$APP_GROOVY"; then
-            python3 - <<'PYEOF'
-p = "android/app/build.gradle"
-with open(p) as f: g = f.read()
+            awk '
+              /^android \{/ && !inserted {
+                print
+                print "    signingConfigs {"
+                print "        release {"
+                print "            storeFile file(\"relaytalk-release.keystore\")"
+                print "            storePassword System.getenv(\"KEYSTORE_PASSWORD\") ?: \"\""
+                print "            keyAlias System.getenv(\"KEY_ALIAS\") ?: \"\""
+                print "            keyPassword System.getenv(\"KEY_PASSWORD\") ?: \"\""
+                print "        }"
+                print "    }"
+                inserted=1
+                next
+              }
+              { print }
+            ' "$APP_GROOVY" > "$APP_GROOVY.tmp" && mv "$APP_GROOVY.tmp" "$APP_GROOVY"
+          fi
 
-signing_block = '''
-    signingConfigs {
-        release {
-            storeFile file("relaytalk-release.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias System.getenv("KEY_ALIAS") ?: ""
-            keyPassword System.getenv("KEY_PASSWORD") ?: ""
-        }
-    }
-'''
-
-if "android {" in g and "signingConfigs" not in g:
-    g = g.replace("android {", "android {" + signing_block, 1)
-
-# Add signingConfig to release buildType
-if 'release {' in g and 'signingConfig signingConfigs.release' not in g:
-    g = g.replace('release {', 'release {\n            signingConfig signingConfigs.release', 1)
-
-with open(p, "w") as f: f.write(g)
-print("Signing config added to app/build.gradle (Groovy)")
-PYEOF
+          if [ -f "$APP_GROOVY" ] && grep -q 'release {' "$APP_GROOVY" && ! grep -q 'signingConfig signingConfigs.release' "$APP_GROOVY"; then
+            awk '
+              /release \{/ && !inserted {
+                print
+                print "            signingConfig signingConfigs.release"
+                inserted=1
+                next
+              }
+              { print }
+            ' "$APP_GROOVY" > "$APP_GROOVY.tmp" && mv "$APP_GROOVY.tmp" "$APP_GROOVY"
           fi
 
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
-
-      - name: Verify final icon files
-        run: |
-          echo "Final check of icons after sync:"
-          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            F="android/app/src/main/res/$d/ic_launcher.png"
-            if [ -f "$F" ]; then
-              echo "  $d = $(wc -c < $F) bytes"
-            fi
-          done
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
