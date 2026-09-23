@@ -1,8 +1,8 @@
 name: Build Android APK
- 
+
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, Wrap]
   workflow_dispatch:
 
 jobs:
@@ -61,84 +61,45 @@ jobs:
 
       - name: Verify icon exists
         run: |
-          echo "Looking for resources/icon.png ..."
-          ls -la resources/ || (echo "resources folder missing" && exit 1)
           if [ ! -f resources/icon.png ]; then
             echo "ERROR: resources/icon.png NOT FOUND"
             exit 1
           fi
-          SIZE=$(wc -c < resources/icon.png)
-          echo "OK: resources/icon.png found, size = $SIZE bytes"
-          file resources/icon.png
+          echo "OK: resources/icon.png found ($(wc -c < resources/icon.png) bytes)"
 
       - name: Copy custom icon and splash into Android project
         run: |
           set -e
           SRC=resources/icon.png
-
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-          convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-
           mkdir -p android/app/src/main/res/drawable
           convert "$SRC" -resize 512x512 -background "#007acc" -gravity center -extent 512x512 android/app/src/main/res/drawable/splash.png
-
-          echo "Verifying sizes:"
-          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            echo "  mipmap-$d = $(wc -c < android/app/src/main/res/mipmap-$d/ic_launcher.png) bytes"
-          done
 
       - name: Inject google-services.json from secret
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "GOOGLE_SERVICES_JSON secret is not set"
-          else
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            echo "google-services.json written ($(wc -c < android/app/google-services.json) bytes)"
+            echo "google-services.json written"
           fi
 
-      - name: Apply google-services Gradle plugin
+      - name: Add google-services plugin to root build.gradle
         run: |
-          ROOT_KTS=android/build.gradle.kts
-          if [ -f "$ROOT_KTS" ] && ! grep -q "com.google.gms.google-services" "$ROOT_KTS"; then
-            if grep -q "plugins {" "$ROOT_KTS"; then
-              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\") version \"4.5.0\" apply false"; done=1; next } { print }' "$ROOT_KTS" > "$ROOT_KTS.tmp" && mv "$ROOT_KTS.tmp" "$ROOT_KTS"
-            else
-              printf 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false\n}\n\n' | cat - "$ROOT_KTS" > "$ROOT_KTS.tmp" && mv "$ROOT_KTS.tmp" "$ROOT_KTS"
-            fi
+          FILE=android/build.gradle
+          if [ -f "$FILE" ] && ! grep -q "com.google.gms:google-services" "$FILE"; then
+            awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
           fi
 
-          APP_KTS=android/app/build.gradle.kts
-          if [ -f "$APP_KTS" ] && ! grep -q "com.google.gms.google-services" "$APP_KTS"; then
-            if grep -q "plugins {" "$APP_KTS"; then
-              awk '/plugins \{/ && !done { print; print "    id(\"com.google.gms.google-services\")"; done=1; next } { print }' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
-            else
-              printf 'plugins {\n    id("com.google.gms.google-services")\n}\n\n' | cat - "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
-            fi
-          fi
-
-          APP=android/app/build.gradle
-          if [ -f "$APP" ] && ! grep -q "com.google.gms.google-services" "$APP"; then
-            printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$APP"
-          fi
-
-          ROOT=android/build.gradle
-          if [ -f "$ROOT" ] && ! grep -q "com.google.gms:google-services" "$ROOT"; then
-            awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$ROOT" > "$ROOT.tmp" && mv "$ROOT.tmp" "$ROOT"
+      - name: Add google-services plugin to app build.gradle
+        run: |
+          FILE=android/app/build.gradle
+          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
+            printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$FILE"
           fi
 
       - name: Patch AndroidManifest
@@ -160,7 +121,6 @@ jobs:
               print "    <uses-permission android:name=\"android.permission.INTERNET\" />";
               print "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />";
               print "    <uses-feature android:name=\"android.hardware.camera\" android:required=\"false\" />";
-              print "    <uses-feature android:name=\"android.hardware.camera.autofocus\" android:required=\"false\" />";
               print "    <uses-feature android:name=\"android.hardware.microphone\" android:required=\"false\" />";
               print;
               done=1;
@@ -196,49 +156,22 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/relaytalk-release.keystore
-          ls -la android/app/relaytalk-release.keystore
           echo "Keystore decoded ($(wc -c < android/app/relaytalk-release.keystore) bytes)"
 
-      - name: Add signing config to app build.gradle.kts
+      - name: Add signing config to app build.gradle
         run: |
-          APP_KTS=android/app/build.gradle.kts
-          if [ -f "$APP_KTS" ] && ! grep -q "signingConfigs" "$APP_KTS"; then
-            awk '
-              /^android \{/ && !inserted {
-                print
-                print "    signingConfigs {"
-                print "        create(\"release\") {"
-                print "            storeFile = file(\"relaytalk-release.keystore\")"
-                print "            storePassword = System.getenv(\"KEYSTORE_PASSWORD\") ?: \"\""
-                print "            keyAlias = System.getenv(\"KEY_ALIAS\") ?: \"\""
-                print "            keyPassword = System.getenv(\"KEY_PASSWORD\") ?: \"\""
-                print "        }"
-                print "    }"
-                inserted=1
-                next
-              }
-              { print }
-            ' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
-            echo "signingConfigs block added"
+          FILE=android/app/build.gradle
+
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: android/app/build.gradle not found"
+            ls -la android/app/ || true
+            exit 1
           fi
 
-          # Hook the signing config into the release buildType
-          if [ -f "$APP_KTS" ] && grep -q 'getByName("release")' "$APP_KTS" && ! grep -q 'signingConfig = signingConfigs.getByName("release")' "$APP_KTS"; then
-            awk '
-              /getByName\("release"\)\s*\{/ && !inserted {
-                print
-                print "            signingConfig = signingConfigs.getByName(\"release\")"
-                inserted=1
-                next
-              }
-              { print }
-            ' "$APP_KTS" > "$APP_KTS.tmp" && mv "$APP_KTS.tmp" "$APP_KTS"
-            echo "release buildType patched"
-          fi
-
-          # Groovy fallback
-          APP_GROOVY=android/app/build.gradle
-          if [ -f "$APP_GROOVY" ] && ! grep -q "signingConfigs" "$APP_GROOVY"; then
+          if grep -q "signingConfigs" "$FILE"; then
+            echo "signingConfigs already present — skipping"
+          else
+            # Insert signingConfigs right after "android {"
             awk '
               /^android \{/ && !inserted {
                 print
@@ -254,23 +187,49 @@ jobs:
                 next
               }
               { print }
-            ' "$APP_GROOVY" > "$APP_GROOVY.tmp" && mv "$APP_GROOVY.tmp" "$APP_GROOVY"
-          fi
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
 
-          if [ -f "$APP_GROOVY" ] && grep -q 'release {' "$APP_GROOVY" && ! grep -q 'signingConfig signingConfigs.release' "$APP_GROOVY"; then
+            # Hook signing into the release buildType
             awk '
-              /release \{/ && !inserted {
+              /release \{/ && !hooked {
                 print
                 print "            signingConfig signingConfigs.release"
+                hooked=1
+                next
+              }
+              { print }
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "Signing config added"
+          fi
+
+          echo "=== Verifying android { block ==="
+          head -40 "$FILE"
+
+          echo ""
+          echo "=== compileSdkVersion ==="
+          grep -n "compileSdk" "$FILE" || echo "compileSdk MISSING — will fail"
+
+      - name: Sync Capacitor
+        run: npx --yes @capacitor/cli@6 sync android
+
+      - name: Fix compileSdkVersion if missing
+        run: |
+          FILE=android/app/build.gradle
+          if ! grep -q "compileSdkVersion" "$FILE"; then
+            awk '
+              /^android \{/ && !inserted {
+                print
+                print "    compileSdkVersion 34"
+                print "    buildToolsVersion \"34.0.0\""
                 inserted=1
                 next
               }
               { print }
-            ' "$APP_GROOVY" > "$APP_GROOVY.tmp" && mv "$APP_GROOVY.tmp" "$APP_GROOVY"
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "compileSdkVersion added"
+          else
+            echo "compileSdkVersion already present"
           fi
-
-      - name: Sync Capacitor
-        run: npx --yes @capacitor/cli@6 sync android
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
@@ -291,7 +250,7 @@ jobs:
           mkdir -p release
           SRC=android/app/build/outputs/apk/release/app-release.apk
           if [ ! -f "$SRC" ]; then
-            echo "ERROR: Release APK not found at $SRC"
+            echo "ERROR: Release APK not found"
             ls -la android/app/build/outputs/apk/ || true
             exit 1
           fi
@@ -311,18 +270,16 @@ jobs:
           retention-days: 30
 
       - name: Create / update Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: |
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/master' ||
+          github.ref == 'refs/heads/Wrap'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: RelayTalk Build ${{ github.run_number }}
           body: |
-            **Signed release build** — installs as "RelayTalk" on Android.
-
-            Install:
-            1. Download the APK below.
-            2. Allow "Install unknown apps" when prompted.
-            3. Open RelayTalk.
+            **Signed release APK.** Installs as "RelayTalk" on Android.
           files: release/relaytalk-*.apk
           draft: false
           prerelease: false
