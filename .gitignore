@@ -61,4 +61,10 @@ keystore.properties
 # www/
 # capacitor.config.json
 # package.json
-# =====================================================
+# =====================================================keystore-base64.txt
+*.keystore
+relaytalk-release.keystore
+Untitled-1
+keystore-base64.txt
+*.keystore
+Untitled-1
