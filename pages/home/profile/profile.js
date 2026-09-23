@@ -12,9 +12,6 @@ let currentBio = '';
 let notificationsEnabled = false;
 let currentNotifTab = 'main';
 
-// Prevents stale avatar renders from winning a race against newer ones
-let avatarRenderToken = 0;
-
 // ============================================================
 // NATIVE DETECTION
 // ============================================================
@@ -98,10 +95,6 @@ async function loadProfile() {
     }
 }
 
-// ------------------------------------------------------------
-// Reliable username getter. Falls back through every possible
-// source so we never render '?' by accident.
-// ------------------------------------------------------------
 function getBestUsername() {
     return (
         currentProfile?.username ||
@@ -112,122 +105,49 @@ function getBestUsername() {
 }
 
 // ------------------------------------------------------------
-// renderAvatar — single source of truth.
-//
-// Strategy:
-//   1. Preload the image with a hidden Image()
-//   2. If preload succeeds → paint it in the visible <img>
-//   3. If preload fails → try again without crossOrigin
-//   4. If that fails too → fall back to initials
-//   5. If preload takes > 800ms → paint optimistically, hide if error
-//
-// Uses a token so an older render cannot overwrite a newer one.
+// renderAvatar — reliable, simple, matches old working code.
+// No crossOrigin, no tokens, no timers.
 // ------------------------------------------------------------
 function renderAvatar(avatarUrl, username) {
     const img = document.getElementById('avatarImage');
     const initialDiv = document.getElementById('avatarInitial');
-    if (!img || !initialDiv) {
-        console.warn('[avatar] DOM elements missing');
-        return;
-    }
+    if (!img || !initialDiv) return;
 
-    const token = ++avatarRenderToken;
-    const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
+    const name = username || 'User';
+    const initial = name.trim().charAt(0).toUpperCase() || '?';
 
-    console.log('[avatar] renderAvatar', { avatarUrl, username, token });
-
-    // Clear stale handlers
+    // Reset handlers
     img.onload = null;
     img.onerror = null;
 
-    const paintImage = (url) => {
-        if (token !== avatarRenderToken) {
-            console.log('[avatar] stale token, skipping paint');
-            return;
-        }
-        img.onload = null;
-        img.onerror = null;
-        img.src = url;
-        img.alt = username || 'Profile';
-
-        // Force visibility through every possible means
-        img.style.display = 'block';
-        img.style.visibility = 'visible';
-        img.style.opacity = '1';
-        img.removeAttribute('hidden');
-        img.setAttribute('data-loaded', 'true');
-
-        initialDiv.style.display = 'none';
-        console.log('[avatar] painted image:', url);
-    };
-
-    const paintInitial = (reason) => {
-        if (token !== avatarRenderToken) return;
-        console.log('[avatar] painting initial, reason:', reason);
+    // No avatar → initials
+    if (!avatarUrl || !String(avatarUrl).trim()) {
         img.removeAttribute('src');
         img.style.display = 'none';
-        img.removeAttribute('data-loaded');
         initialDiv.style.display = 'flex';
         initialDiv.textContent = initial;
-    };
-
-    // No avatar → initials immediately
-    if (!avatarUrl || !String(avatarUrl).trim()) {
-        paintInitial('no-url');
         return;
     }
 
-    // Have an avatar. Show initials while we preload.
+    // Show initials while we load
     img.style.display = 'none';
     initialDiv.style.display = 'flex';
     initialDiv.textContent = initial;
 
-    let preloadDone = false;
-
-    // Fallback timer: if preload doesn't fire in 800ms, paint directly
-    const fallbackTimer = setTimeout(() => {
-        if (preloadDone) return;
-        if (token !== avatarRenderToken) return;
-        console.warn('[avatar] preload timeout — painting directly');
-        preloadDone = true;
-        paintImage(avatarUrl);
-    }, 800);
-
-    // First attempt: crossOrigin anonymous
-    const pre = new Image();
-    pre.decoding = 'async';
-    pre.crossOrigin = 'anonymous';
-
-    pre.onload = () => {
-        if (preloadDone) return;
-        preloadDone = true;
-        clearTimeout(fallbackTimer);
-        console.log('[avatar] preload succeeded');
-        paintImage(avatarUrl);
+    // Preload exactly like the old working code
+    const preloadImg = new Image();
+    preloadImg.onload = () => {
+        img.src = avatarUrl;
+        img.style.display = 'block';
+        initialDiv.style.display = 'none';
     };
-
-    pre.onerror = () => {
-        if (preloadDone) return;
-        preloadDone = true;
-        clearTimeout(fallbackTimer);
-        console.warn('[avatar] preload failed — retrying without crossOrigin');
-
-        // Second attempt: no crossOrigin
-        const retry = new Image();
-        retry.onload = () => {
-            if (token !== avatarRenderToken) return;
-            console.log('[avatar] retry without crossOrigin succeeded');
-            paintImage(avatarUrl);
-        };
-        retry.onerror = () => {
-            if (token !== avatarRenderToken) return;
-            console.error('[avatar] both preloads failed — showing initials');
-            paintInitial('both-preloads-failed');
-        };
-        retry.src = avatarUrl;
+    preloadImg.onerror = () => {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        initialDiv.style.display = 'flex';
+        initialDiv.textContent = initial;
     };
-
-    pre.src = avatarUrl;
+    preloadImg.src = avatarUrl;
 }
 
 function renderProfile(profile) {
@@ -610,7 +530,6 @@ async function refreshNotificationState() {
     const icon = document.getElementById('enableBtnIcon');
     if (!btn || !label || !icon) return;
 
-    // ---- Native shell path ----
     if (isNativeShell()) {
         btn.classList.remove('enabled', 'denied', 'loading');
         try {
@@ -649,7 +568,6 @@ async function refreshNotificationState() {
         return;
     }
 
-    // ---- Web path ----
     btn.classList.remove('enabled', 'denied', 'loading');
 
     const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
@@ -731,7 +649,6 @@ window.resetNotifications = async function() {
     btn.classList.add('loading');
     showToast('info', 'Resetting...');
 
-    // ---- Native shell path ----
     if (isNativeShell()) {
         try {
             if (supabase && currentUser) {
@@ -758,7 +675,6 @@ window.resetNotifications = async function() {
         return;
     }
 
-    // ---- Web path ----
     try {
         if (window.relaytalkPush?.unsubscribe) {
             await window.relaytalkPush.unsubscribe();
