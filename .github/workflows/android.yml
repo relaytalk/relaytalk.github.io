@@ -5,6 +5,9 @@ on:
     branches: [main, master, Wrap]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Signed Release APK
@@ -53,6 +56,16 @@ jobs:
             printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RelayTalk</title></head><body></body></html>' > www/index.html
           fi
 
+      - name: Verify override build.gradle exists
+        run: |
+          if [ ! -f "android-overrides/app/build.gradle" ]; then
+            echo "ERROR: android-overrides/app/build.gradle not found"
+            find . -name "build.gradle" -not -path "./node_modules/*" | head -20
+            exit 1
+          fi
+          echo "Found override file:"
+          head -10 android-overrides/app/build.gradle
+
       - name: Add Android platform (if missing)
         run: |
           if [ ! -d "android" ]; then
@@ -65,7 +78,6 @@ jobs:
             echo "ERROR: resources/icon.png NOT FOUND"
             exit 1
           fi
-          echo "OK: resources/icon.png found ($(wc -c < resources/icon.png) bytes)"
 
       - name: Copy custom icon and splash into Android project
         run: |
@@ -85,25 +97,13 @@ jobs:
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            echo "google-services.json written"
           fi
-
-      - name: Override app build.gradle with our clean version
-        run: |
-          if [ ! -f "android-overrides/app/build.gradle" ]; then
-            echo "ERROR: android-overrides/app/build.gradle not found in repo"
-            exit 1
-          fi
-          cp android-overrides/app/build.gradle android/app/build.gradle
-          echo "=== Replaced android/app/build.gradle ==="
-          head -30 android/app/build.gradle
 
       - name: Add google-services plugin to root build.gradle
         run: |
           FILE=android/build.gradle
           if [ -f "$FILE" ] && ! grep -q "com.google.gms:google-services" "$FILE"; then
             awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "Root build.gradle patched with google-services classpath"
           fi
 
       - name: Patch AndroidManifest
@@ -156,7 +156,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "ERROR: KEYSTORE_BASE64 secret is not set"
+            echo "ERROR: KEYSTORE_BASE64 not set"
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/relaytalk-release.keystore
@@ -165,11 +165,17 @@ jobs:
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
-      - name: Re-apply app build.gradle after sync
+      - name: Replace app build.gradle with our override
         run: |
-          # cap sync may overwrite our file. Re-copy it.
+          # This MUST run after cap sync, because sync regenerates build.gradle
           cp android-overrides/app/build.gradle android/app/build.gradle
-          echo "Re-applied custom build.gradle after cap sync"
+          echo "=== Replaced android/app/build.gradle ==="
+          echo "--- First 10 lines: ---"
+          head -10 android/app/build.gradle
+          echo "--- Line 6 area: ---"
+          sed -n '4,10p' android/app/build.gradle
+          echo "--- Checking compileSdkVersion: ---"
+          grep -n "compileSdkVersion" android/app/build.gradle || echo "MISSING"
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
@@ -210,10 +216,6 @@ jobs:
           retention-days: 30
 
       - name: Create / update Release
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.ref == 'refs/heads/master' ||
-          github.ref == 'refs/heads/Wrap'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
