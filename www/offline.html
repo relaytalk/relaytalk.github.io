@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline · RelayTalk</title>
+  <meta name="theme-color" content="#ffffff">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      color: #0a2540;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .icon {
+      width: 84px;
+      height: 84px;
+      border-radius: 22px;
+      background: rgba(0, 122, 204, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+    .icon svg {
+      width: 42px;
+      height: 42px;
+      stroke: #007acc;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    h2 { font-size: 1.35rem; font-weight: 500; letter-spacing: -0.02em; }
+    p { font-size: 0.94rem; color: #5f6368; line-height: 1.55; max-width: 300px; }
+    button {
+      margin-top: 10px;
+      padding: 12px 22px;
+      border-radius: 12px;
+      background: #007acc;
+      color: #fff;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 46px;
+      font-family: inherit;
+      transition: background 0.2s, transform 0.2s;
+    }
+    button:hover { background: #0066a8; transform: translateY(-1px); }
+    button:active { transform: translateY(0) scale(0.98); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    <h2>No Internet Connection</h2>
+    <p>Check your Wi-Fi or mobile data and try again.</p>
+    <button onclick="retry()">Retry</button>
+  </div>
+
+  <script>
+    function retry() {
+      // In the Capacitor app, Capacitor is available globally.
+      // In a browser, we just reload.
+      fetch('https://relaytalk.vercel.app/manifest.json', { method: 'HEAD', cache: 'no-store' })
+        .then(() => {
+          // Internet is back — reload the live site
+          window.location.href = 'https://relaytalk.vercel.app';
+        })
+        .catch(() => {
+          alert('Still offline. Please check your connection.');
+        });
+    }
+
+    // Auto-retry the moment the device reports it's back online
+    window.addEventListener('online', () => {
+      window.location.href = 'https://relaytalk.vercel.app';
+    });
+  </script>
+</body>
+</html>
