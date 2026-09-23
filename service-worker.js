@@ -1,42 +1,32 @@
-// RelayTalk Service Worker - v5.3.0
-// Caching + Rich Push (with image support)
+// RelayTalk Service Worker - v6.0.0
+// Push notifications only. NO page caching.
+// This ensures the browser/APK always tries the network,
+// so when a user is offline, the offline page is shown
+// instead of a stale cached version.
 
-const CACHE_NAME = 'relaytalk-cache-v5-3';
-const APP_VERSION = '5.3.1';
-
-const CAR_GAME_FILES = [
-    '/cargame/index.html',
-    '/cargame/style.css',
-    '/cargame/script.js',
-    '/cargame/manifest.json',
-    '/cargame/cargame192.png',
-    '/cargame/cargame512.png'
-];
+const CACHE_NAME = 'relaytalk-noop-v6'; // Kept only to clean up old caches
+const APP_VERSION = '6.0.0';
 
 let isOnline = true;
 
 // ====== INSTALL ======
 self.addEventListener('install', event => {
-    console.log('⚡ Installing SW v' + APP_VERSION);
+    console.log('⚡ Installing SW v' + APP_VERSION + ' (no caching)');
     self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(['/', '/index.html', '/relay.png']).catch(() => {}))
-    );
 });
 
 // ====== ACTIVATE ======
 self.addEventListener('activate', event => {
     console.log('🔄 Activating SW v' + APP_VERSION);
     event.waitUntil(
-        Promise.all([
-            caches.keys().then(names => Promise.all(
-                names.map(n => n !== CACHE_NAME ? caches.delete(n) : null)
-            )),
-            self.clients.claim()
-        ]).then(() => {
-            console.log('✅ SW ready');
-            self.clients.matchAll().then(clients => {
+        // Delete every cache we previously created — nothing should be cached
+        caches.keys().then(names => Promise.all(
+            names.map(n => caches.delete(n))
+        )).then(() => {
+            console.log('✅ All caches cleared');
+            return self.clients.claim();
+        }).then(() => {
+            return self.clients.matchAll().then(clients => {
                 clients.forEach(client => {
                     client.postMessage({ type: 'SW_READY', version: APP_VERSION });
                 });
@@ -46,7 +36,7 @@ self.addEventListener('activate', event => {
 });
 
 // ============================================================
-// PUSH — supports title, body, icon, badge, image, url, tag
+// PUSH — unchanged, still supports title, body, icon, badge, image, url, tag
 // ============================================================
 self.addEventListener('push', function (event) {
     console.log('📬 [SW] Push received');
@@ -90,7 +80,6 @@ self.addEventListener('push', function (event) {
         }
     };
 
-    // Large image — only if provided (Android Chrome/Firefox show it)
     if (data.image) {
         options.image = data.image;
     }
@@ -101,7 +90,7 @@ self.addEventListener('push', function (event) {
 });
 
 // ============================================================
-// NOTIFICATION CLICK
+// NOTIFICATION CLICK — unchanged
 // ============================================================
 self.addEventListener('notificationclick', function (event) {
     console.log('📬 [SW] Click:', event.action);
@@ -127,35 +116,22 @@ self.addEventListener('notificationclick', function (event) {
 });
 
 // ============================================================
-// FETCH
+// FETCH — pass-through only, no caching
 // ============================================================
-self.addEventListener('fetch', event => {
-    if (event.request.method !== 'GET') return;
+// We deliberately do NOT call event.respondWith().
+// That means the browser handles every request natively:
+//   - online  → goes to network, gets fresh content
+//   - offline → browser/WebView shows its own offline state,
+//               which lets our offline-detector.js run on
+//               the current page or our offline page take over.
+//
+// Anything we cached would fight the offline page and serve
+// stale content instead. So we cache nothing.
 
-    const url = new URL(event.request.url);
-    if (url.origin !== self.location.origin) return;
-
-    if (url.pathname.startsWith('/api/') ||
-        url.hostname.includes('supabase') ||
-        url.hostname.includes('imgbb')) {
-        return;
-    }
-
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                const clone = response.clone();
-                caches.open(CACHE_NAME)
-                    .then(cache => cache.put(event.request, clone))
-                    .catch(() => {});
-                return response;
-            })
-            .catch(() => caches.match(event.request))
-    );
-});
+// (No 'fetch' listener at all — the browser does the right thing.)
 
 // ============================================================
-// MESSAGE HANDLER
+// MESSAGE HANDLER — unchanged API for compatibility
 // ============================================================
 self.addEventListener('message', event => {
     const { type } = event.data || {};
@@ -165,15 +141,14 @@ self.addEventListener('message', event => {
             if (event.ports?.[0]) event.ports[0].postMessage({ pong: true, version: APP_VERSION });
             break;
         case 'GET_STATUS':
-            caches.open(CACHE_NAME).then(cache => cache.keys()).then(keys => {
-                if (event.ports?.[0]) {
-                    event.ports[0].postMessage({
-                        version: APP_VERSION,
-                        online: isOnline,
-                        totalCached: keys.length
-                    });
-                }
-            });
+            // No caches now, so totalCached is always 0
+            if (event.ports?.[0]) {
+                event.ports[0].postMessage({
+                    version: APP_VERSION,
+                    online: isOnline,
+                    totalCached: 0
+                });
+            }
             break;
     }
 });
@@ -185,4 +160,4 @@ self.addEventListener('pushsubscriptionchange', () => {
 self.addEventListener('online', () => { isOnline = true; });
 self.addEventListener('offline', () => { isOnline = false; });
 
-console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded');
+console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded (no caching)');
