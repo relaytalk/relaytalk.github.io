@@ -88,18 +88,22 @@ jobs:
             echo "google-services.json written"
           fi
 
+      - name: Override app build.gradle with our clean version
+        run: |
+          if [ ! -f "android-overrides/app/build.gradle" ]; then
+            echo "ERROR: android-overrides/app/build.gradle not found in repo"
+            exit 1
+          fi
+          cp android-overrides/app/build.gradle android/app/build.gradle
+          echo "=== Replaced android/app/build.gradle ==="
+          head -30 android/app/build.gradle
+
       - name: Add google-services plugin to root build.gradle
         run: |
           FILE=android/build.gradle
           if [ -f "$FILE" ] && ! grep -q "com.google.gms:google-services" "$FILE"; then
             awk '/classpath .com.android.tools.build:gradle/ && !done { print; print "        classpath \x27com.google.gms:google-services:4.4.2\x27"; done=1; next } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-          fi
-
-      - name: Add google-services plugin to app build.gradle
-        run: |
-          FILE=android/app/build.gradle
-          if [ -f "$FILE" ] && ! grep -q "com.google.gms.google-services" "$FILE"; then
-            printf '\napply plugin: %s\n' "'com.google.gms.google-services'" >> "$FILE"
+            echo "Root build.gradle patched with google-services classpath"
           fi
 
       - name: Patch AndroidManifest
@@ -158,78 +162,14 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/relaytalk-release.keystore
           echo "Keystore decoded ($(wc -c < android/app/relaytalk-release.keystore) bytes)"
 
-      - name: Add signing config to app build.gradle
-        run: |
-          FILE=android/app/build.gradle
-
-          if [ ! -f "$FILE" ]; then
-            echo "ERROR: android/app/build.gradle not found"
-            ls -la android/app/ || true
-            exit 1
-          fi
-
-          if grep -q "signingConfigs" "$FILE"; then
-            echo "signingConfigs already present — skipping"
-          else
-            # Insert signingConfigs right after "android {"
-            awk '
-              /^android \{/ && !inserted {
-                print
-                print "    signingConfigs {"
-                print "        release {"
-                print "            storeFile file(\"relaytalk-release.keystore\")"
-                print "            storePassword System.getenv(\"KEYSTORE_PASSWORD\") ?: \"\""
-                print "            keyAlias System.getenv(\"KEY_ALIAS\") ?: \"\""
-                print "            keyPassword System.getenv(\"KEY_PASSWORD\") ?: \"\""
-                print "        }"
-                print "    }"
-                inserted=1
-                next
-              }
-              { print }
-            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-
-            # Hook signing into the release buildType
-            awk '
-              /release \{/ && !hooked {
-                print
-                print "            signingConfig signingConfigs.release"
-                hooked=1
-                next
-              }
-              { print }
-            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "Signing config added"
-          fi
-
-          echo "=== Verifying android { block ==="
-          head -40 "$FILE"
-
-          echo ""
-          echo "=== compileSdkVersion ==="
-          grep -n "compileSdk" "$FILE" || echo "compileSdk MISSING — will fail"
-
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
 
-      - name: Fix compileSdkVersion if missing
+      - name: Re-apply app build.gradle after sync
         run: |
-          FILE=android/app/build.gradle
-          if ! grep -q "compileSdkVersion" "$FILE"; then
-            awk '
-              /^android \{/ && !inserted {
-                print
-                print "    compileSdkVersion 34"
-                print "    buildToolsVersion \"34.0.0\""
-                inserted=1
-                next
-              }
-              { print }
-            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-            echo "compileSdkVersion added"
-          else
-            echo "compileSdkVersion already present"
-          fi
+          # cap sync may overwrite our file. Re-copy it.
+          cp android-overrides/app/build.gradle android/app/build.gradle
+          echo "Re-applied custom build.gradle after cap sync"
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
