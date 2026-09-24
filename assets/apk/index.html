@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+
+  <title>Download RelayTalk — Fast, private messaging</title>
+  <meta name="description" content="Download RelayTalk for Android. Fast, private messaging and calls for friends. Free APK download.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://relaytalk.vercel.app/assets/apk/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Download RelayTalk">
+  <meta property="og:description" content="Fast, private messaging and calls for friends. Free for Android.">
+  <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
+  <meta property="og:url" content="https://relaytalk.vercel.app/assets/apk/">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Download RelayTalk">
+  <meta name="twitter:description" content="Fast, private messaging and calls for friends.">
+  <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
+
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/relay.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    :root {
+      --primary: #007acc;
+      --primary-hover: #0066a8;
+      --primary-active: #005a9e;
+      --primary-soft: rgba(0, 122, 204, 0.08);
+      --primary-soft-2: rgba(0, 122, 204, 0.14);
+
+      --success: #1e8e3e;
+      --success-soft: rgba(30, 142, 62, 0.08);
+
+      --bg: #ffffff;
+      --bg-sub: #f5f8fb;
+      --bg-hover: #eef3f8;
+
+      --text: #0a2540;
+      --text-2: #5f6368;
+      --text-3: #8a94a6;
+
+      --border: #d8e0ea;
+      --border-soft: #e6ecf3;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 22px;
+      --radius-pill: 999px;
+
+      --shadow-1: 0 1px 2px rgba(10, 37, 64, 0.06), 0 1px 3px rgba(10, 37, 64, 0.05);
+      --shadow-2: 0 2px 8px rgba(10, 37, 64, 0.08), 0 1px 2px rgba(10, 37, 64, 0.04);
+      --shadow-3: 0 10px 28px rgba(10, 37, 64, 0.12);
+      --shadow-4: 0 18px 48px rgba(10, 37, 64, 0.18);
+
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: calc(48px + var(--safe-bottom));
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+
+    /* ============================================================ */
+    /* TOP BAR — brand                                             */
+    /* ============================================================ */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: saturate(180%) blur(16px);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      border-bottom: 1px solid var(--border-soft);
+      padding-top: var(--safe-top);
+    }
+
+    .top-bar-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      height: 62px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .top-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .top-name {
+      font-size: 1.08rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    /* ============================================================ */
+    /* MAIN                                                        */
+    /* ============================================================ */
+    .main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 22px 24px;
+    }
+
+    /* ============================================================ */
+    /* HERO — big logo left, name/desc right                       */
+    /* ============================================================ */
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 22px;
+      background: var(--bg);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
+      margin-bottom: 22px;
+      animation: fadeUp 0.55s var(--ease-out) both;
+    }
+
+    .hero-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      object-fit: contain;
+      flex-shrink: 0;
+      display: block;
+      box-shadow: 0 12px 30px rgba(0, 122, 204, 0.18);
+      background: var(--bg);
+    }
+
+    .hero-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hero-title {
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    .hero-sub {
+      color: var(--text-2);
+      font-size: 0.94rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* ============================================================ */
+    /* BUTTONS ROW                                                 */
+    /* ============================================================ */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 22px;
+      animation: fadeUp 0.55s var(--ease-out) 0.05s both;
+    }
+
+    .actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 13px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.94rem;
+      font-weight: 500;
+      text-decoration: none;
+      min-height: 48px;
+      border: 1px solid transparent;
+      transition: background 0.2s var(--ease), color 0.2s var(--ease),
+                  border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
+                  transform 0.2s var(--ease);
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0, 122, 204, 0.22);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(0, 122, 204, 0.3);
+    }
+
+    .btn-primary:active {
+      background: var(--primary-active);
+      transform: translateY(0) scale(0.99);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--primary);
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary:active {
+      background: var(--primary-soft-2);
+      transform: translateY(0) scale(0.99);
+    }
+
+    .btn-block {
+      width: 100%;
+      min-height: 54px;
+      font-size: 1rem;
+      padding: 15px 20px;
+      border-radius: var(--radius-md);
+    }
+
+    /* ============================================================ */
+    /* META — tags, size, version, updated                         */
+    /* ============================================================ */
+    .meta {
+      background: var(--bg-sub);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 22px;
+      animation: fadeUp 0.55s var(--ease-out) 0.1s both;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .meta-row:first-child { padding-top: 0; }
+    .meta-row:last-child { padding-bottom: 0; border-bottom: none; }
+
+    .meta-label {
+      color: var(--text-3);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      min-width: 110px;
+      padding-top: 2px;
+    }
+
+    .meta-value {
+      color: var(--text);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.01em;
+      transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+                  background 0.18s var(--ease);
+    }
+
+    .tag:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    /* ============================================================ */
+    /* FEATURES LIST                                               */
+    /* ============================================================ */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      animation: fadeUp 0.55s var(--ease-out) 0.15s both;
+    }
+
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 10px;
+    }
+
+    .card-title svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bullet-list li {
+      position: relative;
+      padding-left: 20px;
+      color: var(--text-2);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .bullet-list li::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 9px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--primary);
+      opacity: 0.7;
+    }
+
+    /* ============================================================ */
+    /* WARNING NOTE                                                */
+    /* ============================================================ */
+    .warning {
+      background: var(--primary-soft);
+      border: 1px solid rgba(0, 122, 204, 0.22);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-bottom: 22px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: fadeUp 0.55s var(--ease-out) 0.2s both;
+    }
+
+    .warning svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--primary);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .warning p {
+      color: var(--text-2);
+      font-size: 0.85rem;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .warning p strong { color: var(--text); }
+
+    /* ============================================================ */
+    /* FOOTER                                                      */
+    /* ============================================================ */
+    .page-footer {
+      max-width: 720px;
+      margin: 22px auto 0;
+      padding: 20px 22px 0;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+      color: var(--text-3);
+    }
+
+    .page-footer a {
+      color: var(--text-2);
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: color 0.18s var(--ease), background 0.18s var(--ease);
+    }
+
+    .page-footer a:hover {
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    /* ============================================================ */
+    /* ANIMATION                                                   */
+    /* ============================================================ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================ */
+    /* RESPONSIVE                                                  */
+    /* ============================================================ */
+    @media (max-width: 520px) {
+      .main { padding: 22px 16px 20px; }
+
+      .hero {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+        padding: 24px 18px;
+      }
+
+      .hero-logo {
+        width: 84px;
+        height: 84px;
+        border-radius: 20px;
+      }
+
+      .hero-info { align-items: center; }
+      .hero-title { font-size: 1.4rem; }
+      .hero-sub { font-size: 0.9rem; }
+
+      .actions-row { grid-template-columns: 1fr; }
+
+      .meta-label {
+        min-width: 100%;
+        padding-bottom: 4px;
+      }
+
+      .meta-row {
+        flex-direction: column;
+        gap: 4px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <img src="/relay.png" alt="RelayTalk" class="top-logo">
+      <span class="top-name">RelayTalk</span>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <img src="/relay.png" alt="RelayTalk" class="hero-logo">
+      <div class="hero-info">
+        <h1 class="hero-title">RelayTalk</h1>
+        <p class="hero-sub">Fast, private messaging and calls for friends.</p>
+      </div>
+    </section>
+
+    <!-- ===== ACTIONS ===== -->
+    <div class="actions">
+      <div class="actions-row">
+        <a class="btn btn-secondary" href="/about/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          About App
+        </a>
+        <a class="btn btn-secondary" href="https://github.com/relaytalk/relaytalk.github.io/releases" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+          </svg>
+          GitHub Releases
+        </a>
+      </div>
+
+      <a class="btn btn-primary btn-block" href="https://relaytalk.github.io/apps/RelayTalk.apk" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Download APK
+      </a>
+    </div>
+
+    <!-- ===== META ===== -->
+    <section class="meta">
+      <div class="meta-row">
+        <div class="meta-label">Tags</div>
+        <div class="meta-value">
+          <div class="tags">
+            <span class="tag">Messaging</span>
+            <span class="tag">Calls</span>
+            <span class="tag">Communication</span>
+            <span class="tag">Social</span>
+            <span class="tag">Free</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">Version</div>
+        <div class="meta-value">1.0.0</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">Size</div>
+        <div class="meta-value">~25 MB</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">Requires</div>
+        <div class="meta-value">Android 5.0 (Lollipop) or later</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">Category</div>
+        <div class="meta-value">Communication</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">Updated</div>
+        <div class="meta-value">
+          <span id="updatedDate">Recently</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== WARNING ===== -->
+    <div class="warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <p><strong>Installation note:</strong> Android may show a warning since this app is not from Play Store. That's normal — tap <em>"Install anyway"</em> or enable "Install unknown apps" for your browser.</p>
+    </div>
+
+    <!-- ===== FEATURES ===== -->
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+        What's inside
+      </div>
+      <ul class="bullet-list">
+        <li>Message friends instantly with text and images</li>
+        <li>Encrypted text messages — only you and the receiver can read them</li>
+        <li>Encrypted voice and video calls</li>
+        <li>Simple, clean interface — no ads, no clutter</li>
+        <li>Works with your friends, not strangers</li>
+        <li>Free, always</li>
+      </ul>
+    </div>
+
+    <!-- ===== HOW TO INSTALL ===== -->
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        How to install
+      </div>
+      <ul class="bullet-list">
+        <li>Tap <strong>Download APK</strong> above</li>
+        <li>If prompted, allow downloads from this browser</li>
+        <li>Open <strong>Files → Downloads</strong> and tap the APK</li>
+        <li>If Android warns, tap <strong>Install anyway</strong></li>
+        <li>Open RelayTalk and start chatting</li>
+      </ul>
+    </div>
+
+  </main>
+
+  <footer class="page-footer">
+    <a href="/">Home</a>
+    <span aria-hidden="true">·</span>
+    <a href="/about/">About</a>
+    <span aria-hidden="true">·</span>
+    <a href="https://github.com/relaytalk/relaytalk.github.io" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+
+  <script>
+    // Auto-fill "Updated" with a relative date
+    (function () {
+      try {
+        const el = document.getElementById('updatedDate');
+        if (!el) return;
+        const d = new Date();
+        el.textContent = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      } catch (e) {}
+    })();
+  </script>
+
+</body>
+</html>
