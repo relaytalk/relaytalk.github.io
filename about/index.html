@@ -42,7 +42,6 @@
 
     <link rel="stylesheet" href="/about/style.css">
 
-    <!-- Structured data for search engines & AI -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -70,51 +69,6 @@
           "url": "https://relaytalk.vercel.app/",
           "description": "RelayTalk is a real-time messaging and calling app. Text messages and calls are encrypted so only the sender and receiver can read or hear them. Image messages are stored server-side and are not end-to-end encrypted.",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-        },
-        {
-          "@type": "FAQPage",
-          "mainEntity": [
-            {
-              "@type": "Question",
-              "name": "Are RelayTalk text messages encrypted?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Yes. Text messages in RelayTalk are encrypted so that only the sender and the receiver can read them. RelayTalk cannot read your text messages."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Are image messages end-to-end encrypted?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "No. Image messages are not end-to-end encrypted. Images you send are stored on our servers and the app owner can view them. Please do not send sensitive images."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Are RelayTalk calls encrypted?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Yes. Voice and video calls placed through RelayTalk are encrypted in transit so they cannot be listened in on by third parties."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Can I call someone when they are offline?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Yes. You can start a call at any time. If the other person is offline or does not answer, they receive a missed-call notification in their Alerts tab."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Is RelayTalk free to use?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Yes. Creating an account and using RelayTalk's messaging, calling and notification features is free."
-              }
-            }
-          ]
         }
       ]
     }
@@ -122,7 +76,8 @@
 </head>
 <body>
 
-    <a href="/" class="back-button" aria-label="Back to RelayTalk home">
+    <!-- TOP BACK BUTTON — now uses JS back navigation -->
+    <a href="/" id="topBackBtn" class="back-button" aria-label="Back">
         <i class="fas fa-arrow-left" aria-hidden="true"></i>
     </a>
 
@@ -138,7 +93,6 @@
             <p class="about-meta">Last updated · September 2026</p>
         </header>
 
-        <!-- ===== Tabs ===== -->
         <nav class="about-tabs" role="tablist" aria-label="About sections">
             <button class="about-tab active" role="tab" aria-selected="true" data-target="details">
                 <i class="fas fa-circle-info" aria-hidden="true"></i>
@@ -158,7 +112,6 @@
             </button>
         </nav>
 
-        <!-- ===== DETAILS ===== -->
         <section id="details" class="about-section active" role="tabpanel" aria-labelledby="tab-details">
             <h2 class="section-title">Details</h2>
             <p class="section-lead">
@@ -206,7 +159,6 @@
             </div>
         </section>
 
-        <!-- ===== FEATURES ===== -->
         <section id="features" class="about-section" role="tabpanel" aria-labelledby="tab-features">
             <h2 class="section-title">Features</h2>
             <p class="section-lead">
@@ -270,7 +222,6 @@
             </div>
         </section>
 
-        <!-- ===== CLAIMS & RIGHTS ===== -->
         <section id="claims" class="about-section" role="tabpanel" aria-labelledby="tab-claims">
             <h2 class="section-title">Claims &amp; Rights</h2>
             <p class="section-lead">
@@ -332,7 +283,6 @@
             </div>
         </section>
 
-        <!-- ===== HELP ===== -->
         <section id="help" class="about-section" role="tabpanel" aria-labelledby="tab-help">
             <h2 class="section-title">Help</h2>
             <p class="section-lead">
@@ -402,7 +352,10 @@
         </section>
 
         <footer class="about-footer">
-            <a href="/" class="about-footer-link"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back to RelayTalk</a>
+            <a href="/" id="bottomBackBtn" class="about-footer-link">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                Back
+            </a>
             <span class="about-footer-sep" aria-hidden="true">·</span>
             <span class="about-footer-copy">© 2026 RelayTalk</span>
         </footer>
@@ -410,5 +363,30 @@
     </main>
 
     <script src="/about/script.js"></script>
+
+    <!-- Back-navigation override: go to the previous page if possible,
+         otherwise fall back to home. Runs after the main script. -->
+    <script>
+      (function () {
+        function goBackOrHome() {
+          try {
+            // If this tab was opened directly (no history), history.length is 1 or 2.
+            // Otherwise, go back one page.
+            if (window.history.length > 2) {
+              window.history.back();
+            } else {
+              window.location.href = '/';
+            }
+          } catch (e) {
+            window.location.href = '/';
+          }
+        }
+
+        var topBtn = document.getElementById('topBackBtn');
+        var bottomBtn = document.getElementById('bottomBackBtn');
+        if (topBtn) topBtn.addEventListener('click', function (e) { e.preventDefault(); goBackOrHome(); });
+        if (bottomBtn) bottomBtn.addEventListener('click', function (e) { e.preventDefault(); goBackOrHome(); });
+      })();
+    </script>
 </body>
 </html>
