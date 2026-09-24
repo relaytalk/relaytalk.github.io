@@ -1,6 +1,8 @@
 name: Build Android APK
 
 on:
+  push:
+    branches: [main, master, Wrap]
   workflow_dispatch:
 
 permissions:
@@ -60,7 +62,6 @@ jobs:
             echo "ERROR: android-overrides/app/build.gradle not found"
             exit 1
           fi
-          echo "Found override file"
 
       - name: Add Android platform (if missing)
         run: |
@@ -145,7 +146,6 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/relaytalk-release.keystore
-          echo "Keystore decoded"
 
       - name: Sync Capacitor
         run: npx --yes @capacitor/cli@6 sync android
@@ -153,15 +153,13 @@ jobs:
       - name: Replace app build.gradle with our override
         run: |
           cp android-overrides/app/build.gradle android/app/build.gradle
-          echo "Replaced build.gradle"
 
       - name: Copy custom icons after sync
         run: |
           set -e
           SRC=resources/icon.png
-          echo "=== Copying icons after cap sync ==="
-          echo "Source: $SRC ($(wc -c < $SRC) bytes)"
 
+          echo "=== Copying icons ==="
           for D in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             mkdir -p "android/app/src/main/res/mipmap-$D"
           done
@@ -169,31 +167,42 @@ jobs:
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           convert "$SRC" -resize 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           convert "$SRC" -resize 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           convert "$SRC" -resize 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           convert "$SRC" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
-          mkdir -p android/app/src/main/res/drawable
-          convert "$SRC" -resize 512x512 -background "#007acc" -gravity center -extent 512x512 android/app/src/main/res/drawable/splash.png
+          echo "=== Copying splash (all densities) ==="
+          SPLASH_BG="#007acc"
 
-          echo "=== Verification: ==="
-          for D in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            F="android/app/src/main/res/mipmap-$D/ic_launcher.png"
-            echo "  mipmap-$D = $(wc -c < $F) bytes"
+          mkdir -p android/app/src/main/res/drawable
+          convert "$SRC" -resize 512x512 -background "$SPLASH_BG" -gravity center -extent 512x512 android/app/src/main/res/drawable/splash.png
+
+          for FOLDER in drawable-land-mdpi drawable-land-hdpi drawable-land-xhdpi drawable-land-xxhdpi drawable-land-xxxhdpi drawable-port-mdpi drawable-port-hdpi drawable-port-xhdpi drawable-port-xxhdpi drawable-port-xxxhdpi; do
+            mkdir -p "android/app/src/main/res/$FOLDER"
           done
+
+          convert "$SRC" -resize 288x288   -background "$SPLASH_BG" -gravity center -extent 288x288   android/app/src/main/res/drawable-land-mdpi/splash.png
+          convert "$SRC" -resize 512x512   -background "$SPLASH_BG" -gravity center -extent 512x512   android/app/src/main/res/drawable-land-hdpi/splash.png
+          convert "$SRC" -resize 800x800   -background "$SPLASH_BG" -gravity center -extent 800x800   android/app/src/main/res/drawable-land-xhdpi/splash.png
+          convert "$SRC" -resize 1280x1280 -background "$SPLASH_BG" -gravity center -extent 1280x1280 android/app/src/main/res/drawable-land-xxhdpi/splash.png
+          convert "$SRC" -resize 1600x1600 -background "$SPLASH_BG" -gravity center -extent 1600x1600 android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+          convert "$SRC" -resize 288x288   -background "$SPLASH_BG" -gravity center -extent 288x288   android/app/src/main/res/drawable-port-mdpi/splash.png
+          convert "$SRC" -resize 512x512   -background "$SPLASH_BG" -gravity center -extent 512x512   android/app/src/main/res/drawable-port-hdpi/splash.png
+          convert "$SRC" -resize 800x800   -background "$SPLASH_BG" -gravity center -extent 800x800   android/app/src/main/res/drawable-port-xhdpi/splash.png
+          convert "$SRC" -resize 1280x1280 -background "$SPLASH_BG" -gravity center -extent 1280x1280 android/app/src/main/res/drawable-port-xxhdpi/splash.png
+          convert "$SRC" -resize 1600x1600 -background "$SPLASH_BG" -gravity center -extent 1600x1600 android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+
+          echo "=== Splash files written: ==="
+          find android/app/src/main/res -name "splash.png" | sort
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
