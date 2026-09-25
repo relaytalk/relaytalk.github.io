@@ -127,7 +127,7 @@
       padding: 26px 22px 24px;
     }
 
-    /* ===== HERO — logo left aligned, title + desc right ===== */
+    /* ===== HERO ===== */
     .hero {
       display: flex;
       align-items: center;
@@ -177,7 +177,7 @@
       margin: 0;
     }
 
-    /* ===== LONG DESCRIPTION ===== */
+    /* ===== DESCRIPTION ===== */
     .description {
       color: var(--text-2);
       font-size: 0.94rem;
@@ -193,7 +193,7 @@
       font-weight: 600;
     }
 
-    /* ===== DOWNLOAD BUTTON ===== */
+    /* ===== DOWNLOAD ===== */
     .download-block {
       margin-bottom: 22px;
       animation: fadeUp 0.55s var(--ease-out) 0.06s both;
@@ -309,16 +309,16 @@
       justify-content: center;
     }
 
-    /* Portrait screenshots — tall */
+    /* Portrait — 340 tall */
     .screenshot-item.portrait {
       width: 190px;
       height: 340px;
     }
 
-    /* Landscape screenshots — wider, matched to 16:9-ish ratio */
+    /* Landscape — same 340 tall, width from 16:9 aspect (340 × 1.777 = 604) */
     .screenshot-item.landscape {
-      width: 440px;
-      height: 248px;
+      width: 604px;
+      height: 340px;
     }
 
     .screenshot-item:hover {
@@ -400,7 +400,6 @@
     .lightbox-close:hover { background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
     .lightbox-close:active { transform: rotate(90deg) scale(0.94); }
 
-    /* ===== BOLD LIGHTBOX NAV ===== */
     .lightbox-nav {
       position: absolute;
       top: 50%;
@@ -632,7 +631,6 @@
     .warning p { color: var(--text-2); font-size: 0.85rem; line-height: 1.55; margin: 0; }
     .warning p strong { color: var(--text); }
 
-    /* ===== FOOTER ===== */
     .page-footer {
       max-width: 720px;
       margin: 22px auto 0;
@@ -676,7 +674,7 @@
       .meta-label { min-width: 100%; padding-bottom: 4px; }
       .meta-row { flex-direction: column; gap: 4px; }
       .screenshot-item.portrait { width: 160px; height: 290px; }
-      .screenshot-item.landscape { width: 320px; height: 180px; }
+      .screenshot-item.landscape { width: 512px; height: 288px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -698,7 +696,6 @@
 
   <main class="main">
 
-    <!-- HERO: logo left, bold title + short desc right -->
     <section class="hero">
       <img src="/relay.png" alt="RelayTalk" class="hero-logo">
       <div class="hero-info">
@@ -707,12 +704,10 @@
       </div>
     </section>
 
-    <!-- LONG DESCRIPTION — shortened -->
     <section class="description">
       <p><span class="desc-label">Description —</span> RelayTalk is a simple, private way to talk with the people who matter. Send messages, share photos, and make encrypted voice and video calls — no ads, no tracking, no noise.</p>
     </section>
 
-    <!-- DOWNLOAD BUTTON -->
     <div class="download-block">
       <a class="btn btn-primary btn-block" href="https://relaytalk.github.io/apps/RelayTalk.apk" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -724,51 +719,40 @@
       </a>
     </div>
 
-    <!-- SCREENSHOTS -->
     <section class="screenshots">
       <div class="screenshots-title">Screenshots</div>
 
       <div class="screenshot-track" id="screenshotTrack">
-        <!-- 1st: landscape 1672 × 941 -->
         <div class="screenshot-item landscape" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png">
           <img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="RelayTalk screenshot 1" loading="lazy">
         </div>
-        <!-- 2nd: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg">
           <img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="RelayTalk screenshot 2" loading="lazy">
         </div>
-        <!-- 3rd: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg">
           <img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="RelayTalk screenshot 3" loading="lazy">
         </div>
-        <!-- 4th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg">
           <img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="RelayTalk screenshot 4" loading="lazy">
         </div>
-        <!-- 5th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg">
           <img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="RelayTalk screenshot 5" loading="lazy">
         </div>
-        <!-- 6th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg">
           <img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="RelayTalk screenshot 6" loading="lazy">
         </div>
-        <!-- 7th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg">
           <img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="RelayTalk screenshot 7" loading="lazy">
         </div>
-        <!-- 8th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg">
           <img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="RelayTalk screenshot 8" loading="lazy">
         </div>
-        <!-- 9th: portrait -->
         <div class="screenshot-item portrait" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg">
           <img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="RelayTalk screenshot 9" loading="lazy">
         </div>
       </div>
     </section>
 
-    <!-- SECONDARY BUTTONS -->
     <div class="secondary-actions">
       <a class="btn btn-secondary" href="/about/">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -794,7 +778,6 @@
       </a>
     </div>
 
-    <!-- META -->
     <section class="meta">
       <div class="meta-row">
         <div class="meta-label">App Features</div>
@@ -837,7 +820,6 @@
       </div>
     </section>
 
-    <!-- WARNING -->
     <div class="warning">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
@@ -847,7 +829,6 @@
       <p><strong>Installation note:</strong> Android may show a warning since this app is not from Play Store. That's normal — tap <em>"Install anyway"</em> or enable "Install unknown apps" for your browser.</p>
     </div>
 
-    <!-- WHAT'S INSIDE -->
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -865,7 +846,6 @@
       </ul>
     </div>
 
-    <!-- HOW TO INSTALL -->
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -893,7 +873,6 @@
     <a href="https://relaytalk.vercel.app/" target="_blank" rel="noopener">RelayTalk Website</a>
   </footer>
 
-  <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
