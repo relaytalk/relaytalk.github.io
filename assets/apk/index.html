@@ -83,7 +83,6 @@
 
     a { color: var(--primary); text-decoration: none; }
 
-    /* ===== TOP BAR ===== */
     .top-bar {
       position: sticky;
       top: 0;
@@ -121,14 +120,12 @@
       letter-spacing: -0.01em;
     }
 
-    /* ===== MAIN ===== */
     .main {
       max-width: 720px;
       margin: 0 auto;
       padding: 32px 22px 24px;
     }
 
-    /* ===== HERO ===== */
     .hero {
       display: flex;
       align-items: center;
@@ -177,7 +174,6 @@
       margin: 0;
     }
 
-    /* ===== DESCRIPTION ===== */
     .description {
       color: var(--text-2);
       font-size: 0.94rem;
@@ -191,7 +187,6 @@
     .description p:last-child { margin-bottom: 0; }
     .description strong { color: var(--text); font-weight: 500; }
 
-    /* ===== ACTIONS ===== */
     .actions {
       display: flex;
       flex-direction: column;
@@ -349,13 +344,13 @@
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: rgba(6, 15, 30, 0.96);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      background: rgba(6, 15, 30, 0.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 12px;
       opacity: 0;
       transition: opacity 0.25s var(--ease);
       touch-action: none;
@@ -364,48 +359,45 @@
     .lightbox.visible { display: flex; opacity: 1; }
 
     .lightbox-img {
-      max-width: 96vw;
-      max-height: 92vh;
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
       width: auto;
       height: auto;
       object-fit: contain;
-      border-radius: 12px;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+      border-radius: 8px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
       animation: zoomIn 0.3s var(--ease-out);
       user-select: none;
       -webkit-user-drag: none;
-      background: #0a1018;
+      background: transparent;
+      image-rendering: auto;
     }
 
     @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.92); }
+      from { opacity: 0; transform: scale(0.9); }
       to   { opacity: 1; transform: scale(1); }
     }
 
     .lightbox-close {
       position: absolute;
-      top: calc(20px + var(--safe-top));
-      right: 20px;
+      top: calc(16px + var(--safe-top));
+      right: 16px;
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.24);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 1.2rem;
       transition: background 0.2s var(--ease), transform 0.2s var(--ease);
       z-index: 2;
+      backdrop-filter: blur(8px);
     }
 
-    .lightbox-close:hover {
-      background: rgba(255, 255, 255, 0.24);
-      transform: rotate(90deg);
-    }
-
+    .lightbox-close:hover { background: rgba(255, 255, 255, 0.28); transform: rotate(90deg); }
     .lightbox-close:active { transform: rotate(90deg) scale(0.94); }
 
     .lightbox-nav {
@@ -415,8 +407,8 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.24);
       color: #fff;
       display: flex;
       align-items: center;
@@ -424,37 +416,42 @@
       cursor: pointer;
       transition: background 0.2s var(--ease), transform 0.15s var(--ease);
       z-index: 2;
+      backdrop-filter: blur(8px);
     }
 
-    .lightbox-nav:hover { background: rgba(255, 255, 255, 0.24); }
+    .lightbox-nav:hover { background: rgba(255, 255, 255, 0.28); }
     .lightbox-nav:active { transform: translateY(-50%) scale(0.92); }
 
-    .lightbox-prev { left: 16px; }
-    .lightbox-next { right: 16px; }
+    .lightbox-prev { left: 12px; }
+    .lightbox-next { right: 12px; }
 
     .lightbox-counter {
       position: absolute;
-      bottom: calc(20px + var(--safe-bottom));
+      bottom: calc(16px + var(--safe-bottom));
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.78);
+      color: rgba(255, 255, 255, 0.85);
       font-size: 0.82rem;
       letter-spacing: 0.05em;
       font-variant-numeric: tabular-nums;
       z-index: 2;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.5);
       padding: 6px 14px;
       border-radius: 999px;
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(8px);
     }
 
     @media (max-width: 520px) {
-      .lightbox { padding: 16px; }
-      .lightbox-img { max-width: 96vw; max-height: 88vh; }
+      .lightbox { padding: 6px; }
+      .lightbox-img {
+        max-width: calc(100vw - 12px);
+        max-height: calc(100vh - 12px);
+        border-radius: 4px;
+      }
       .lightbox-nav { width: 40px; height: 40px; }
-      .lightbox-prev { left: 8px; }
-      .lightbox-next { right: 8px; }
-      .lightbox-close { width: 40px; height: 40px; top: calc(14px + var(--safe-top)); right: 14px; }
+      .lightbox-prev { left: 6px; }
+      .lightbox-next { right: 6px; }
+      .lightbox-close { width: 40px; height: 40px; top: calc(12px + var(--safe-top)); right: 12px; }
     }
 
     /* ===== META ===== */
@@ -521,7 +518,6 @@
       background: var(--primary-soft);
     }
 
-    /* ===== CARDS ===== */
     .card {
       background: var(--bg);
       border: 1px solid var(--border-soft);
@@ -573,7 +569,6 @@
       opacity: 0.7;
     }
 
-    /* ===== WARNING ===== */
     .warning {
       background: var(--primary-soft);
       border: 1px solid rgba(0, 122, 204, 0.22);
@@ -587,11 +582,9 @@
     }
 
     .warning svg { width: 18px; height: 18px; stroke: var(--primary); flex-shrink: 0; margin-top: 2px; }
-
     .warning p { color: var(--text-2); font-size: 0.85rem; line-height: 1.55; margin: 0; }
     .warning p strong { color: var(--text); }
 
-    /* ===== FOOTER ===== */
     .page-footer {
       max-width: 720px;
       margin: 22px auto 0;
@@ -615,33 +608,21 @@
 
     .page-footer a:hover { color: var(--primary); background: var(--primary-soft); }
 
-    /* ===== ANIMATION ===== */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===== RESPONSIVE ===== */
     @media (max-width: 520px) {
       .main { padding: 22px 16px 20px; }
-
-      .hero {
-        flex-direction: column;
-        text-align: center;
-        gap: 16px;
-        padding: 24px 18px;
-      }
-
+      .hero { flex-direction: column; text-align: center; gap: 16px; padding: 24px 18px; }
       .hero-logo { width: 84px; height: 84px; border-radius: 20px; }
       .hero-info { align-items: center; }
       .hero-title { font-size: 1.4rem; }
       .hero-sub { font-size: 0.9rem; }
-
       .actions-row { grid-template-columns: 1fr; }
-
       .meta-label { min-width: 100%; padding-bottom: 4px; }
       .meta-row { flex-direction: column; gap: 4px; }
-
       .screenshot-item { width: 150px; height: 320px; }
     }
 
@@ -717,15 +698,15 @@
       </div>
 
       <div class="screenshot-track" id="screenshotTrack">
-        <div class="screenshot-item" data-full="https://i.ibb.co/PvK1BMQq/1.jpg"><img src="https://i.ibb.co/PvK1BMQq/1.jpg" alt="RelayTalk screenshot 1" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/Rp3kZ2CT/2.jpg"><img src="https://i.ibb.co/Rp3kZ2CT/2.jpg" alt="RelayTalk screenshot 2" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/ymWstL6B/3.jpg"><img src="https://i.ibb.co/ymWstL6B/3.jpg" alt="RelayTalk screenshot 3" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/VYCZLxFd/4.jpg"><img src="https://i.ibb.co/VYCZLxFd/4.jpg" alt="RelayTalk screenshot 4" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/dJ25yKT6/5.jpg"><img src="https://i.ibb.co/dJ25yKT6/5.jpg" alt="RelayTalk screenshot 5" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/RTDYwQc3/6.jpg"><img src="https://i.ibb.co/RTDYwQc3/6.jpg" alt="RelayTalk screenshot 6" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/N6YPH47p/7.jpg"><img src="https://i.ibb.co/N6YPH47p/7.jpg" alt="RelayTalk screenshot 7" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/93kgS68t/8.jpg"><img src="https://i.ibb.co/93kgS68t/8.jpg" alt="RelayTalk screenshot 8" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/MkJX6h95/9.jpg"><img src="https://i.ibb.co/MkJX6h95/9.jpg" alt="RelayTalk screenshot 9" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png"><img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="RelayTalk screenshot 1" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg"><img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="RelayTalk screenshot 2" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg"><img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="RelayTalk screenshot 3" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg"><img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="RelayTalk screenshot 4" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg"><img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="RelayTalk screenshot 5" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg"><img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="RelayTalk screenshot 6" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg"><img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="RelayTalk screenshot 7" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg"><img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="RelayTalk screenshot 8" loading="lazy"></div>
+        <div class="screenshot-item" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg"><img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="RelayTalk screenshot 9" loading="lazy"></div>
       </div>
     </section>
 
