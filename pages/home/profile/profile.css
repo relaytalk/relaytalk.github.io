@@ -1650,3 +1650,165 @@ img { display: block; max-width: 100%; }
         transition-duration: 0.01ms !important;
     }
 }
+
+
+
+
+
+/* ============================================================ */
+/* ADDITIONS — Download buttons + PWA modal + wider bio       */
+/* ============================================================ */
+
+/* Download buttons card */
+.download-card {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    border: 1px solid var(--border-soft);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.download-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background 0.2s var(--ease);
+    text-align: left;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.98rem;
+    font-weight: 500;
+    min-height: 60px;
+    width: 100%;
+}
+
+.download-row:last-child { border-bottom: none; }
+.download-row:hover { background: rgba(26, 115, 232, 0.04); }
+.download-row:active { background: rgba(26, 115, 232, 0.08); }
+
+.download-row-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    flex-shrink: 0;
+    font-size: 1.05rem;
+}
+
+.download-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.download-row-title {
+    font-size: 0.98rem;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.01em;
+}
+
+.download-row-sub {
+    font-size: 0.8rem;
+    color: var(--text-2);
+    line-height: 1.4;
+}
+
+.download-row-chevron {
+    color: var(--text-3);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* PWA modal specific */
+.pwa-modal-body {
+    padding: 20px 22px 22px;
+}
+
+.pwa-section {
+    margin-bottom: 16px;
+}
+
+.pwa-section:last-child { margin-bottom: 0; }
+
+.pwa-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.pwa-section-title i {
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+.pwa-steps {
+    padding-left: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pwa-steps li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    color: var(--text-2);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.pwa-steps li .pwa-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.pwa-note {
+    background: var(--primary-soft);
+    border: 1px solid rgba(26, 115, 232, 0.18);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text-2);
+    font-size: 0.84rem;
+    line-height: 1.55;
+    margin-top: 12px;
+}
+
+.pwa-note strong { color: var(--text); }
+
+/* Wider bio hint */
+.bio-empty {
+    color: var(--text-3);
+    font-style: italic;
+    font-size: 0.85rem;
+}
