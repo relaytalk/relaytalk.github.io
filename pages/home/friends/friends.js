@@ -24,6 +24,38 @@ let currentNotifTab = 'main';
 let friendRealtimeChannel = null;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+// ===== CHANGED: local dismissal / read tracking =====
+let locallyDismissedRequestIds = new Set();
+let locallyReadCallIds = new Set();
+
+const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
+const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
+
+function getSeenIds(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return new Set();
+        const arr = JSON.parse(raw);
+        return new Set(Array.isArray(arr) ? arr : []);
+    } catch (e) { return new Set(); }
+}
+
+function addSeenIds(key, ids) {
+    try {
+        const set = getSeenIds(key);
+        ids.forEach(id => set.add(id));
+        const arr = Array.from(set).slice(-200);
+        localStorage.setItem(key, JSON.stringify(arr));
+    } catch (e) {}
+}
+
+(function hydrateLocalSeen() {
+    try {
+        getSeenIds(SEEN_STORAGE_KEY).forEach(id => locallyDismissedRequestIds.add(String(id)));
+        getSeenIds(SEEN_CALLS_KEY).forEach(id => locallyReadCallIds.add(String(id)));
+    } catch (e) {}
+})();
+
 // ============================================
 // INIT
 // ============================================
@@ -56,7 +88,6 @@ async function initFriendsPage() {
         }
 
         const { data: { session }, error } = await mainSupabase.auth.getSession();
-
         if (error) throw error;
 
         if (!session) {
@@ -93,7 +124,6 @@ async function initFriendsPage() {
         startStatusUpdates();
 
         hideLoader();
-
     } catch (error) {
         console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
@@ -102,7 +132,7 @@ async function initFriendsPage() {
 }
 
 // ============================================
-// REALTIME FRIENDS LISTENER
+// REALTIME
 // ============================================
 function setupFriendRealtimeListener() {
     if (friendRealtimeChannel) {
@@ -117,28 +147,27 @@ function setupFriendRealtimeListener() {
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('🟢 New friendship inserted:', payload.new);
+        }, () => {
             loadFriends();
         })
         .on('postgres_changes', {
             event: 'DELETE', schema: 'public', table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
         }, () => {
-            console.log('🔴 Friendship removed');
             loadFriends();
         })
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'friend_requests',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
-            console.log('📩 New friend request received');
             updateBadges();
         })
+        // ===== CHANGED: refresh list when requests are updated =====
         .on('postgres_changes', {
             event: 'UPDATE', schema: 'public', table: 'friend_requests',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
+            if (currentNotifTab === 'main') loadNotifications();
             updateBadges();
         })
         .subscribe((status) => {
@@ -168,11 +197,9 @@ async function initializeCallListener() {
                 event: 'INSERT', schema: 'public', table: 'calls',
                 filter: `callee_id=eq.${currentUser.id}`
             }, (payload) => {
-                console.log('📞 New call detected:', payload);
                 handleIncomingCall(payload.new);
             })
             .subscribe((status) => {
-                console.log('📡 Call channel status:', status);
                 if (status === 'SUBSCRIBED') {
                     reconnectAttempts = 0;
                 } else if (status === 'CHANNEL_ERROR') {
@@ -189,9 +216,7 @@ async function initializeCallListener() {
 
 function handleIncomingCall(callData) {
     if (!callData || !callData.caller_id) return;
-    if (callData.callee_id === currentUser.id && callData.status === 'ringing') {
-        // callHub handles the UI
-    }
+    // callHub handles the UI
 }
 
 // ============================================
@@ -328,7 +353,7 @@ function formatLastSeen(timestamp) {
 }
 
 // ============================================
-// SEARCH FRIENDS
+// SEARCH
 // ============================================
 window.searchFriends = function() {
     const input = document.getElementById('searchInput');
@@ -438,12 +463,15 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        if (error || !notifications || notifications.length === 0) {
+        // ===== CHANGED: filter out locally-dismissed IDs =====
+        const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
+
+        if (error || visible.length === 0) {
             showEmptyNotifications(container);
             return;
         }
 
-        const senderIds = notifications.map(n => n.sender_id);
+        const senderIds = visible.map(n => n.sender_id);
         const { data: profiles } = await mainSupabase
             .from('profiles')
             .select('id, username, avatar_url')
@@ -453,7 +481,7 @@ async function loadNotifications() {
         if (profiles) profiles.forEach(p => profileMap[p.id] = p);
 
         let html = '';
-        notifications.forEach(notification => {
+        visible.forEach(notification => {
             const timeAgo = timeAgoShort(notification.created_at);
             const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
@@ -461,7 +489,7 @@ async function loadNotifications() {
             const avatarSrc = sender.avatar_url || '';
 
             html += `
-                <div class="notification-item">
+                <div class="notification-item" data-request-id="${notification.id}">
                     <div class="notification-avatar">
                         ${avatarSrc
                             ? `<img src="${avatarSrc}" alt="${escapeHtml(senderName)}">`
@@ -505,7 +533,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// LOAD CALL HISTORY — no call-back button
+// LOAD CALL HISTORY — with tags
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -596,8 +624,18 @@ async function loadCallHistory() {
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
             const avatarSrc = otherUser.avatar_url || '';
 
+            // ===== CHANGED: tags =====
+            const callIdStr = String(call.id);
+            const isUnseen = !isOutgoing && isMissed && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
+            let tagHTML = '';
+            if (isUnseen) {
+                tagHTML = `<span class="call-tag tag-new">New</span>`;
+            } else if (isMissed) {
+                tagHTML = `<span class="call-tag tag-missed">Missed</span>`;
+            }
+
             html += `
-                <div class="call-history-item">
+                <div class="call-history-item ${isUnseen ? 'has-tag' : ''}">
                     <div class="call-history-avatar">
                         ${avatarSrc
                             ? `<img src="${avatarSrc}" alt="${escapeHtml(otherUser.username || '')}">`
@@ -605,7 +643,10 @@ async function loadCallHistory() {
                         }
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">
+                            ${escapeHtml(otherUser.username || 'Unknown')}
+                            ${tagHTML}
+                        </div>
                         <div class="call-history-meta">
                             <i class="fas ${metaIcon} ${metaClass}"></i>
                             <span>${metaText}</span>
@@ -618,6 +659,11 @@ async function loadCallHistory() {
         });
 
         container.innerHTML = html;
+
+        // ===== CHANGED: mark calls as read after user views them =====
+        calls.forEach(c => locallyReadCallIds.add(String(c.id)));
+        addSeenIds(SEEN_CALLS_KEY, calls.map(c => String(c.id)));
+        await updateBadges();
     } catch (error) {
         console.error("❌ Error loading call history:", error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
@@ -637,17 +683,24 @@ async function updateBadges() {
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
-        const pendingCount = friendReqs?.length || 0;
+        const pendingCount = (friendReqs || [])
+            .filter(r => !locallyDismissedRequestIds.has(String(r.id))).length;
 
-        const { count: missedCount } = await mainSupabase
+        const { data: calls } = await mainSupabase
             .from('calls')
-            .select('*', { count: 'exact', head: true })
-            .eq('callee_id', currentUser.id)
-            .eq('seen', false)
-            .in('status', ['missed', 'rejected']);
+            .select('id, seen, status')
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .in('status', ['missed', 'rejected'])
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const unseenCount = (calls || []).filter(c => {
+            if (c.seen === true) return false;
+            return !locallyReadCallIds.has(String(c.id));
+        }).length;
 
         const notifBadge = document.getElementById('notificationBadge');
-        const total = pendingCount + (missedCount || 0);
+        const total = pendingCount + unseenCount;
         if (notifBadge) {
             if (total > 0) {
                 notifBadge.textContent = total > 9 ? '9+' : total;
@@ -669,8 +722,8 @@ async function updateBadges() {
 
         const callsTabBadge = document.getElementById('callsTabBadge');
         if (callsTabBadge) {
-            if (missedCount && missedCount > 0) {
-                callsTabBadge.textContent = missedCount > 9 ? '9+' : missedCount;
+            if (unseenCount > 0) {
+                callsTabBadge.textContent = unseenCount > 9 ? '9+' : unseenCount;
                 callsTabBadge.style.display = 'inline-flex';
             } else {
                 callsTabBadge.style.display = 'none';
@@ -700,12 +753,22 @@ async function checkMissedCalls() {
 }
 
 // ============================================
-// ACCEPT / DECLINE FRIEND REQUEST
+// ACCEPT / DECLINE — with immediate removal
 // ============================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED =====
+    locallyDismissedRequestIds.add(String(requestId));
+    addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -728,17 +791,16 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
 
         showToast('success', `You are now friends with ${senderName}!`);
 
-        await loadFriends();
-        await loadNotifications();
-        await updateBadges();
-
+        setTimeout(() => {
+            loadFriends();
+            loadNotifications();
+            updateBadges();
+        }, 320);
     } catch (error) {
         console.error('Accept error:', error);
         showToast('error', 'Could not accept request');
-        if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
-            button.disabled = false;
-        }
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 };
 
@@ -746,6 +808,16 @@ window.declineFriendRequest = async function(requestId, button) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED =====
+    locallyDismissedRequestIds.add(String(requestId));
+    addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -756,15 +828,14 @@ window.declineFriendRequest = async function(requestId, button) {
 
         showToast('info', 'Request declined');
 
-        await loadNotifications();
-        await updateBadges();
-
+        setTimeout(() => {
+            loadNotifications();
+            updateBadges();
+        }, 320);
     } catch (error) {
         console.error('Decline error:', error);
-        if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
-            button.disabled = false;
-        }
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 };
 
@@ -833,7 +904,7 @@ function startStatusUpdates() {
 }
 
 // ============================================
-// LEGACY: search users (kept for compat)
+// LEGACY SEARCH
 // ============================================
 window.openSearch = () => {
     const modal = document.getElementById('searchModal');
@@ -914,7 +985,6 @@ window.searchUsers = async function() {
         });
 
         container.innerHTML = html;
-
     } catch (error) {
         console.error('Search error:', error);
     }
@@ -976,7 +1046,6 @@ window.addEventListener('beforeunload', () => {
     if (friendRealtimeChannel) mainSupabase?.removeChannel(friendRealtimeChannel);
 });
 
-// FIX: readyState guard so init always runs
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initFriendsPage);
 } else {
