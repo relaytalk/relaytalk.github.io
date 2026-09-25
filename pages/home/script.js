@@ -110,6 +110,10 @@ let currentProfile = null;
 let currentNotifTab = 'main';
 let friendsRealtimeChannel = null;
 
+// ===== CHANGED: local dismissal / read tracking =====
+let locallyDismissedRequestIds = new Set();
+let locallyReadCallIds = new Set();
+
 const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
 const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
 
@@ -132,6 +136,14 @@ function addSeenIds(key, ids) {
         localStorage.setItem(key, JSON.stringify(arr));
     } catch (e) {}
 }
+
+// Load previously-seen IDs into the local Sets on page load
+(function hydrateLocalSeen() {
+    try {
+        getSeenIds(SEEN_STORAGE_KEY).forEach(id => locallyDismissedRequestIds.add(String(id)));
+        getSeenIds(SEEN_CALLS_KEY).forEach(id => locallyReadCallIds.add(String(id)));
+    } catch (e) {}
+})();
 
 // ============================================
 // SUPABASE WAIT
@@ -286,6 +298,16 @@ function setupFriendsRealtime() {
             updateNotificationsBadge();
             updateCallsTabBadge();
         })
+        // ===== CHANGED: also react to friend request updates =====
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'friend_requests',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            if (currentNotifTab === 'main') loadNotifications();
+            updateNotificationsBadge();
+        })
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
@@ -412,12 +434,10 @@ async function loadFriends() {
             .in('id', friendIds);
 
         let html = '';
-        let onlineCount = 0;
 
         if (profiles && profiles.length > 0) {
             profiles.forEach(profile => {
                 const isOnline = profile.status === 'online';
-                if (isOnline) onlineCount++;
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
 
@@ -648,12 +668,15 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        if (error || !notifications || notifications.length === 0) {
+        // ===== CHANGED: filter out locally-dismissed IDs =====
+        const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
+
+        if (error || visible.length === 0) {
             showEmptyNotifications(container);
             return;
         }
 
-        const senderIds = notifications.map(n => n.sender_id);
+        const senderIds = visible.map(n => n.sender_id);
         const { data: profiles } = await window.supabase
             .from('profiles')
             .select('id, username, avatar_url')
@@ -663,13 +686,13 @@ async function loadNotifications() {
         if (profiles) profiles.forEach(p => profileMap[p.id] = p);
 
         let html = '';
-        notifications.forEach(notification => {
+        visible.forEach(notification => {
             const timeAgo = getTimeAgo(notification.created_at);
             const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
 
             html += `
-                <div class="notification-item">
+                <div class="notification-item" data-request-id="${notification.id}">
                     <div class="notification-avatar">
                         ${buildAvatarHTML(sender)}
                     </div>
@@ -709,7 +732,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// CALL HISTORY — no call-back button
+// CALL HISTORY — with tags for missed/unseen
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -798,13 +821,26 @@ async function loadCallHistory() {
 
             const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // ===== CHANGED: add tags for missed/unseen calls =====
+            const callIdStr = String(call.id);
+            const isUnseen = !isOutgoing && isMissed && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
+            let tagHTML = '';
+            if (isUnseen) {
+                tagHTML = `<span class="call-tag tag-new">New</span>`;
+            } else if (isMissed) {
+                tagHTML = `<span class="call-tag tag-missed">Missed</span>`;
+            }
+
             html += `
-                <div class="call-history-item">
+                <div class="call-history-item ${isUnseen ? 'has-tag' : ''}">
                     <div class="call-history-avatar">
                         ${buildAvatarHTML(otherUser)}
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">
+                            ${escapeHtml(otherUser.username || 'Unknown')}
+                            ${tagHTML}
+                        </div>
                         <div class="call-history-meta">
                             <i class="fas ${metaIcon} ${metaClass}"></i>
                             <span>${metaText}</span>
@@ -818,35 +854,18 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
+        // ===== CHANGED: mark calls as read now that user has opened the tab =====
+        calls.forEach(c => locallyReadCallIds.add(String(c.id)));
+
         const seenIds = calls.map(c => String(c.id)).filter(Boolean);
         if (seenIds.length > 0) {
             addSeenIds(SEEN_CALLS_KEY, seenIds);
-            if (currentUser && window.supabase) {
-                try {
-                    await window.supabase
-                        .from('calls')
-                        .update({ seen: true })
-                        .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
-                        .eq('seen', false);
-                } catch (e) { /* ignore if no seen column */ }
-            }
-            const callsBadge = document.getElementById('callsTabBadge');
-            if (callsBadge) callsBadge.style.display = 'none';
-            await updateCallsTabBadge();
         }
+        await updateCallsTabBadge();
     } catch (error) {
         console.error('Call history error:', error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
-}
-
-function callBack(userId, username) {
-    if (!userId) return;
-    sessionStorage.setItem('currentChatFriend', JSON.stringify({
-        id: userId,
-        username: username
-    }));
-    window.location.href = `../chats/index.html?friendId=${userId}&call=1`;
 }
 
 // ============================================
@@ -871,19 +890,27 @@ window.switchNotifTab = function(tab) {
         mainTab.classList.remove('active');
         callsContent.classList.add('active');
         mainContent.classList.remove('active');
-        loadCallHistory().then(() => {
-            updateCallsTabBadge();
-        });
+        loadCallHistory().then(() => updateCallsTabBadge());
     }
 };
 
 // ============================================
-// ACCEPT / DECLINE
+// ACCEPT / DECLINE — with immediate removal
 // ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED: dismiss + remove from DOM immediately =====
+    locallyDismissedRequestIds.add(String(requestId));
+    addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -906,25 +933,18 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             created_at: new Date().toISOString()
         });
 
-        addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
-
-        await loadNotifications();
-        await loadFriends();
-        await updateNotificationsBadge();
-
         toast.success("New Friend!", `You are now connected with ${senderName}!`);
 
-        if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
-            button.style.background = 'rgba(40, 167, 69, 0.3)';
-        }
+        setTimeout(() => {
+            loadNotifications();
+            loadFriends();
+            updateNotificationsBadge();
+        }, 320);
     } catch (error) {
         console.error('Accept error:', error);
         toast.error("Connection Failed", "Could not accept friend request");
-        if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
-            button.disabled = false;
-        }
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 }
 
@@ -932,6 +952,16 @@ async function declineFriendRequest(requestId, button = null) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED: dismiss + remove from DOM immediately =====
+    locallyDismissedRequestIds.add(String(requestId));
+    addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
+
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -942,22 +972,15 @@ async function declineFriendRequest(requestId, button = null) {
 
         if (error) throw error;
 
-        addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
-
-        await loadNotifications();
-        await updateNotificationsBadge();
-
         toast.info("Request Declined", "Friend request has been declined");
 
-        if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
-            button.style.background = 'rgba(220, 53, 69, 0.3)';
-        }
+        setTimeout(() => {
+            loadNotifications();
+            updateNotificationsBadge();
+        }, 320);
     } catch (error) {
-        if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
-            button.disabled = false;
-        }
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 }
 
@@ -977,8 +1000,8 @@ async function updateNotificationsBadge() {
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
-        const seenIds = getSeenIds(SEEN_STORAGE_KEY);
-        const unreadCount = (notifications || []).filter(n => !seenIds.has(String(n.id))).length;
+        const unreadCount = (notifications || [])
+            .filter(n => !locallyDismissedRequestIds.has(String(n.id))).length;
 
         const badge = document.getElementById('notificationBadge');
         if (badge) {
@@ -1026,10 +1049,9 @@ async function updateCallsTabBadge() {
             .order('created_at', { ascending: false })
             .limit(50);
 
-        const seenIds = getSeenIds(SEEN_CALLS_KEY);
         const unseenCount = (calls || []).filter(c => {
             if (c.seen === true) return false;
-            return !seenIds.has(String(c.id));
+            return !locallyReadCallIds.has(String(c.id));
         }).length;
 
         const badge = document.getElementById('callsTabBadge');
@@ -1050,8 +1072,7 @@ async function updateCallsTabBadge() {
                 .eq('receiver_id', currentUser.id)
                 .eq('status', 'pending');
 
-            const seenFR = getSeenIds(SEEN_STORAGE_KEY);
-            const frUnread = (fr || []).filter(r => !seenFR.has(String(r.id))).length;
+            const frUnread = (fr || []).filter(r => !locallyDismissedRequestIds.has(String(r.id))).length;
             const total = frUnread + unseenCount;
 
             if (total > 0) {
@@ -1133,49 +1154,8 @@ window.openNotifications = function() {
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
-        markCurrentNotificationsAsSeen();
     }
 };
-
-async function markCurrentNotificationsAsSeen() {
-    try {
-        if (!currentUser || !window.supabase) return;
-
-        const { data: notifications } = await window.supabase
-            .from('friend_requests')
-            .select('id')
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'pending');
-
-        if (notifications && notifications.length > 0) {
-            const ids = notifications.map(n => String(n.id));
-            addSeenIds(SEEN_STORAGE_KEY, ids);
-        }
-
-        const { data: calls } = await window.supabase
-            .from('calls')
-            .select('id')
-            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
-            .in('status', ['missed', 'rejected']);
-
-        if (calls && calls.length > 0) {
-            const callIds = calls.map(c => String(c.id));
-            addSeenIds(SEEN_CALLS_KEY, callIds);
-            try {
-                await window.supabase
-                    .from('calls')
-                    .update({ seen: true })
-                    .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
-                    .in('status', ['missed', 'rejected']);
-            } catch (e) { /* ignore */ }
-        }
-
-        await updateNotificationsBadge();
-        await updateCallsTabBadge();
-    } catch (e) {
-        console.warn('markCurrentNotificationsAsSeen error:', e);
-    }
-}
 
 window.closeModal = function() {
     const searchModal = document.getElementById('searchModal');
@@ -1191,7 +1171,6 @@ window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptFriendRequest = acceptFriendRequest;
 window.declineFriendRequest = declineFriendRequest;
-window.callBack = callBack;
 window.goToHome = goToHome;
 window.openSettings = openSettings;
 window.viewFriendsPage = viewFriendsPage;
@@ -1203,7 +1182,6 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-// FIX: readyState guard
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initHomePage);
 } else {
