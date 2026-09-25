@@ -127,11 +127,11 @@
       padding: 26px 22px 24px;
     }
 
-    /* ===== HERO (big logo + bold title + short tagline) ===== */
+    /* ===== HERO — logo left aligned, title + desc right ===== */
     .hero {
       display: flex;
-      align-items: flex-start;
-      gap: 22px;
+      align-items: center;
+      gap: 20px;
       padding: 22px;
       background: var(--bg);
       border: 1px solid var(--border-soft);
@@ -158,15 +158,15 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      padding-top: 4px;
+      justify-content: center;
     }
 
     .hero-title {
-      font-size: 1.75rem;
+      font-size: 1.8rem;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -0.035em;
-      line-height: 1.15;
+      line-height: 1.1;
       margin: 0;
     }
 
@@ -192,8 +192,6 @@
       color: var(--text);
       font-weight: 600;
     }
-
-    .description p { margin-top: 4px; }
 
     /* ===== DOWNLOAD BUTTON ===== */
     .download-block {
@@ -290,6 +288,7 @@
       scrollbar-width: none;
       padding: 4px 4px 14px;
       margin: 0 -4px;
+      align-items: center;
     }
 
     .screenshot-track::-webkit-scrollbar { display: none; }
@@ -310,16 +309,16 @@
       justify-content: center;
     }
 
-    /* Portrait screenshots (default) — tall mobile shape */
+    /* Portrait screenshots — tall */
     .screenshot-item.portrait {
       width: 190px;
       height: 340px;
     }
 
-    /* Landscape screenshots — wide shape */
+    /* Landscape screenshots — wider, matched to 16:9-ish ratio */
     .screenshot-item.landscape {
-      width: 340px;
-      height: 190px;
+      width: 440px;
+      height: 248px;
     }
 
     .screenshot-item:hover {
@@ -334,6 +333,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center;
       display: block;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
@@ -400,7 +400,7 @@
     .lightbox-close:hover { background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
     .lightbox-close:active { transform: rotate(90deg) scale(0.94); }
 
-    /* ===== NAV BUTTONS — BOLD & LARGE ===== */
+    /* ===== BOLD LIGHTBOX NAV ===== */
     .lightbox-nav {
       position: absolute;
       top: 50%;
@@ -471,7 +471,7 @@
       .lightbox-close { width: 42px; height: 42px; top: calc(12px + var(--safe-top)); right: 12px; }
     }
 
-    /* ===== SECONDARY BUTTONS ROW ===== */
+    /* ===== SECONDARY BUTTONS ===== */
     .secondary-actions {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -495,12 +495,8 @@
     }
 
     @media (max-width: 520px) {
-      .secondary-actions {
-        grid-template-columns: 1fr;
-      }
-      .secondary-actions .btn {
-        font-size: 0.9rem;
-      }
+      .secondary-actions { grid-template-columns: 1fr; }
+      .secondary-actions .btn { font-size: 0.9rem; }
     }
 
     /* ===== META ===== */
@@ -636,7 +632,7 @@
     .warning p { color: var(--text-2); font-size: 0.85rem; line-height: 1.55; margin: 0; }
     .warning p strong { color: var(--text); }
 
-    /* ===== FOOTER (no GitHub) ===== */
+    /* ===== FOOTER ===== */
     .page-footer {
       max-width: 720px;
       margin: 22px auto 0;
@@ -668,20 +664,19 @@
     @media (max-width: 520px) {
       .main { padding: 20px 16px 20px; }
       .hero {
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
-        text-align: center;
         gap: 14px;
-        padding: 22px 18px;
+        padding: 18px 16px;
       }
-      .hero-logo { width: 100px; height: 100px; border-radius: 24px; }
-      .hero-info { align-items: center; padding-top: 0; }
-      .hero-title { font-size: 1.55rem; }
-      .hero-sub { font-size: 0.9rem; }
+      .hero-logo { width: 84px; height: 84px; border-radius: 20px; }
+      .hero-info { align-items: flex-start; }
+      .hero-title { font-size: 1.35rem; }
+      .hero-sub { font-size: 0.85rem; }
       .meta-label { min-width: 100%; padding-bottom: 4px; }
       .meta-row { flex-direction: column; gap: 4px; }
       .screenshot-item.portrait { width: 160px; height: 290px; }
-      .screenshot-item.landscape { width: 290px; height: 160px; }
+      .screenshot-item.landscape { width: 320px; height: 180px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -703,7 +698,7 @@
 
   <main class="main">
 
-    <!-- HERO: big logo left, bold title + short desc right -->
+    <!-- HERO: logo left, bold title + short desc right -->
     <section class="hero">
       <img src="/relay.png" alt="RelayTalk" class="hero-logo">
       <div class="hero-info">
@@ -712,9 +707,9 @@
       </div>
     </section>
 
-    <!-- LONG DESCRIPTION -->
+    <!-- LONG DESCRIPTION — shortened -->
     <section class="description">
-      <p><span class="desc-label">Description —</span> RelayTalk is the simple, private way to talk with the people who matter. Send messages instantly, share photos in a tap, and make crystal-clear voice and video calls — all encrypted end to end. No ads, no tracking, no noise. Just the friends you actually know, one conversation at a time.</p>
+      <p><span class="desc-label">Description —</span> RelayTalk is a simple, private way to talk with the people who matter. Send messages, share photos, and make encrypted voice and video calls — no ads, no tracking, no noise.</p>
     </section>
 
     <!-- DOWNLOAD BUTTON -->
