@@ -71,13 +71,14 @@
 
             <div class="bio-section">
                 <div class="bio-header">
-                    <span class="bio-label">Biography</span>
-                    <button class="bio-edit-btn" onclick="openBioEditor()" aria-label="Edit bio">
+                    <!-- ===== CHANGED ===== -->
+                    <span class="bio-label">About / Biography</span>
+                    <button class="bio-edit-btn" onclick="openBioEditor()" aria-label="Edit about">
                         <i class="fas fa-pen"></i>
                     </button>
                 </div>
                 <div class="bio-box" id="bioBox">
-                    <span class="bio-empty">Tap the pencil to write something about you (max 50 chars)</span>
+                    <span class="bio-empty">Tap the pencil to write something about you (up to 100 characters)</span>
                 </div>
             </div>
 
@@ -158,6 +159,27 @@
             </button>
         </section>
 
+        <!-- ===== NEW: DOWNLOAD CARD ===== -->
+        <section class="download-card">
+            <button class="download-row" onclick="openDownloadPage()">
+                <span class="download-row-icon"><i class="fas fa-download"></i></span>
+                <span class="download-row-text">
+                    <span class="download-row-title">Download App</span>
+                    <span class="download-row-sub">Get the latest RelayTalk APK for Android</span>
+                </span>
+                <span class="download-row-chevron"><i class="fas fa-chevron-right"></i></span>
+            </button>
+
+            <button class="download-row" onclick="openPwaModal()">
+                <span class="download-row-icon"><i class="fas fa-mobile-screen"></i></span>
+                <span class="download-row-text">
+                    <span class="download-row-title">Download as PWA</span>
+                    <span class="download-row-sub">Install on your home screen with your browser</span>
+                </span>
+                <span class="download-row-chevron"><i class="fas fa-chevron-right"></i></span>
+            </button>
+        </section>
+
         <section class="actions-card">
             <button class="action-row" onclick="openImagePicker()">
                 <span class="action-row-icon"><i class="fas fa-camera"></i></span>
@@ -167,6 +189,12 @@
             <button class="action-row" onclick="goToFriends()">
                 <span class="action-row-icon"><i class="fas fa-user-friends"></i></span>
                 <span class="action-row-text">Find Friends</span>
+            </button>
+
+            <!-- ===== NEW ===== -->
+            <button class="action-row action-row-danger" onclick="clearAllData()">
+                <span class="action-row-icon"><i class="fas fa-broom"></i></span>
+                <span class="action-row-text">Clear All Data</span>
             </button>
 
             <button class="action-row action-row-danger" onclick="logout()">
@@ -180,12 +208,13 @@
     <div class="modal-overlay" id="bioEditorModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Edit Bio</h3>
+                <!-- ===== CHANGED ===== -->
+                <h3 class="modal-title">Edit About</h3>
                 <button class="modal-close" onclick="closeBioEditor()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
-                <textarea id="bioInput" class="bio-input" maxlength="50" rows="3" placeholder="Write something about yourself..."></textarea>
-                <div class="bio-counter"><span id="bioCharCount">0</span> / 50</div>
+                <textarea id="bioInput" class="bio-input" maxlength="100" rows="4" placeholder="Write something about yourself..."></textarea>
+                <div class="bio-counter"><span id="bioCharCount">0</span> / 100</div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeBioEditor()">Cancel</button>
                     <button class="btn-primary" onclick="saveBio()">Save</button>
@@ -234,7 +263,69 @@
         </div>
     </div>
 
-    <!-- NOTIFICATIONS MODAL — same as Friends page (Requests + Calls) -->
+    <!-- ===== NEW: PWA MODAL ===== -->
+    <div class="modal-overlay" id="pwaModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-mobile-screen" style="color:var(--primary);"></i>
+                    Install as PWA
+                </h3>
+                <button class="modal-close" onclick="closePwaModal()" aria-label="Close">×</button>
+            </div>
+            <div class="pwa-modal-body">
+                <div class="pwa-section">
+                    <div class="pwa-section-title">
+                        <i class="fas fa-circle-info"></i>
+                        What is a PWA?
+                    </div>
+                    <p style="color:var(--text-2); font-size:0.88rem; line-height:1.6; margin:0;">
+                        A <strong>Progressive Web App (PWA)</strong> is an app that runs directly in your browser and installs onto your home screen — just like a native app. It opens full-screen, works offline-friendly, and stays updated automatically. No store, no APK, no setup.
+                    </p>
+                </div>
+
+                <div class="pwa-section">
+                    <div class="pwa-section-title">
+                        <i class="fab fa-android"></i>
+                        Install on Android (Chrome)
+                    </div>
+                    <ul class="pwa-steps">
+                        <li><span class="pwa-num">1</span><span>Open <strong>relaytalk.vercel.app</strong> in Chrome.</span></li>
+                        <li><span class="pwa-num">2</span><span>Tap the <strong>three dots</strong> at the top right.</span></li>
+                        <li><span class="pwa-num">3</span><span>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.</span></li>
+                        <li><span class="pwa-num">4</span><span>Confirm. RelayTalk appears on your home screen.</span></li>
+                    </ul>
+                </div>
+
+                <div class="pwa-section">
+                    <div class="pwa-section-title">
+                        <i class="fab fa-apple"></i>
+                        Install on iPhone (Safari)
+                    </div>
+                    <ul class="pwa-steps">
+                        <li><span class="pwa-num">1</span><span>Open <strong>relaytalk.vercel.app</strong> in Safari.</span></li>
+                        <li><span class="pwa-num">2</span><span>Tap the <strong>Share</strong> icon at the bottom.</span></li>
+                        <li><span class="pwa-num">3</span><span>Scroll and tap <strong>Add to Home Screen</strong>.</span></li>
+                        <li><span class="pwa-num">4</span><span>Tap <strong>Add</strong>. Done.</span></li>
+                    </ul>
+                </div>
+
+                <div class="pwa-note">
+                    <strong>Tip:</strong> Notifications work best when installed as a PWA or APK. In a normal browser tab, notifications may be limited by the browser.
+                </div>
+
+                <div class="modal-actions" style="margin-top:16px;">
+                    <a class="btn-primary modal-full-btn"
+                       style="display:flex; align-items:center; justify-content:center; text-decoration:none;"
+                       href="https://relaytalk.vercel.app/" target="_blank" rel="noopener">
+                        Open RelayTalk
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATIONS MODAL -->
     <div class="modal" id="notificationsModal">
         <div class="modal-panel">
             <div class="modal-head">
