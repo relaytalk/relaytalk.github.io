@@ -1,9 +1,9 @@
-// profile.js - Profile with IMGBB Avatar + Notifications + Bio + Guide
+// profile.js — Profile with IMGBB Avatar + Notifications + Bio + Guide
 
 import { initializeSupabase } from '../../../utils/supabase.js';
 
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
-const DOWNLOAD_PAGE_URL = '/assets/apk/';   // ===== CHANGED =====
+const DOWNLOAD_PAGE_URL = '/assets/apk/';
 
 let supabase = null;
 let currentUser = null;
@@ -13,9 +13,12 @@ let currentBio = '';
 let notificationsEnabled = false;
 let currentNotifTab = 'main';
 
-// ============================================================
-// NATIVE DETECTION
-// ============================================================
+// Local memory of IDs the user just dismissed (accept/decline)
+// These are filtered out of the list immediately, even before realtime updates.
+// ===== CHANGED =====
+let locallyDismissedRequestIds = new Set();
+let locallyReadCallIds = new Set();
+
 function isNativeShell() {
     return !!(
         window.Capacitor &&
@@ -208,7 +211,7 @@ async function loadMemberSince() {
 }
 
 // ============================================================
-// BIO — now "About / Biography", 100 chars
+// BIO
 // ============================================================
 function renderBio(bio) {
     currentBio = bio || '';
@@ -219,7 +222,6 @@ function renderBio(bio) {
         box.textContent = currentBio.trim();
         box.classList.remove('empty');
     } else {
-        // ===== CHANGED =====
         box.innerHTML = '<span class="bio-empty">Tap the pencil to write something about you (up to 100 characters)</span>';
         box.classList.add('empty');
     }
@@ -258,7 +260,6 @@ window.saveBio = async function() {
 
     const newBio = input.value.trim();
 
-    // ===== CHANGED =====
     if (newBio.length > 100) {
         showToast('error', 'About must be 100 characters or less');
         return;
@@ -275,7 +276,7 @@ window.saveBio = async function() {
         if (currentProfile) currentProfile.bio = newBio;
         renderBio(newBio);
         closeBioEditor();
-        showToast('success', 'About updated!');  // ===== CHANGED =====
+        showToast('success', 'About updated!');
     } catch (error) {
         console.error('Save bio error:', error);
         showToast('error', 'Could not save about');
@@ -810,6 +811,8 @@ window.openNotifications = function(event) {
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
+        // Mark whatever's currently visible as seen once user opens the tab
+        markVisibleItemsSeen();
     }
 };
 
@@ -845,6 +848,32 @@ window.switchNotifTab = function(tab) {
     }
 };
 
+async function markVisibleItemsSeen() {
+    try {
+        if (!currentUser || !supabase) return;
+
+        const { data: reqs } = await supabase
+            .from('friend_requests')
+            .select('id')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+
+        if (reqs) reqs.forEach(r => locallyDismissedRequestIds.add(String(r.id)));
+
+        const { data: calls } = await supabase
+            .from('calls')
+            .select('id')
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .in('status', ['missed', 'rejected']);
+
+        if (calls) calls.forEach(c => locallyReadCallIds.add(String(c.id)));
+
+        await updateNavBadge();
+    } catch (e) {
+        console.warn('markVisibleItemsSeen failed:', e);
+    }
+}
+
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
     if (!container) return;
@@ -862,12 +891,15 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        if (error || !notifications || notifications.length === 0) {
+        // ===== CHANGED: filter out locally-dismissed IDs immediately =====
+        const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
+
+        if (error || visible.length === 0) {
             showEmptyNotifications(container);
             return;
         }
 
-        const senderIds = notifications.map(n => n.sender_id);
+        const senderIds = visible.map(n => n.sender_id);
         const { data: profiles } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
@@ -877,7 +909,7 @@ async function loadNotifications() {
         if (profiles) profiles.forEach(p => profileMap[p.id] = p);
 
         let html = '';
-        notifications.forEach(notification => {
+        visible.forEach(notification => {
             const timeAgo = timeAgoShort(notification.created_at);
             const sender = profileMap[notification.sender_id] || { username: 'Unknown' };
             const senderName = sender.username;
@@ -885,7 +917,7 @@ async function loadNotifications() {
             const avatarSrc = sender.avatar_url || '';
 
             html += `
-                <div class="notification-item">
+                <div class="notification-item" data-request-id="${notification.id}">
                     <div class="notification-avatar">
                         ${avatarSrc
                             ? `<img src="${avatarSrc}" alt="${escapeHtml(senderName)}">`
@@ -1017,8 +1049,19 @@ async function loadCallHistory() {
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
             const avatarSrc = otherUser.avatar_url || '';
 
+            // ===== CHANGED: add tags for missed/unseen calls =====
+            let tagHTML = '';
+            const callIdStr = String(call.id);
+            const isUnseenCall = !isOutgoing && (isMissed) && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
+
+            if (isUnseenCall) {
+                tagHTML = `<span class="call-tag tag-new">New</span>`;
+            } else if (isMissed) {
+                tagHTML = `<span class="call-tag tag-missed">Missed</span>`;
+            }
+
             html += `
-                <div class="call-history-item">
+                <div class="call-history-item ${isUnseenCall ? 'has-tag' : ''}">
                     <div class="call-history-avatar">
                         ${avatarSrc
                             ? `<img src="${avatarSrc}" alt="${escapeHtml(otherUser.username || '')}">`
@@ -1026,7 +1069,10 @@ async function loadCallHistory() {
                         }
                     </div>
                     <div class="call-history-info">
-                        <div class="call-history-name ${isMissed ? 'missed' : ''}">${escapeHtml(otherUser.username || 'Unknown')}</div>
+                        <div class="call-history-name ${isMissed ? 'missed' : ''}">
+                            ${escapeHtml(otherUser.username || 'Unknown')}
+                            ${tagHTML}
+                        </div>
                         <div class="call-history-meta">
                             <i class="fas ${metaIcon} ${metaClass}"></i>
                             <span>${metaText}</span>
@@ -1039,6 +1085,9 @@ async function loadCallHistory() {
         });
 
         container.innerHTML = html;
+
+        // Mark all as locally-read now that user has viewed the tab
+        calls.forEach(c => locallyReadCallIds.add(String(c.id)));
     } catch (error) {
         console.error('Error loading call history:', error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
@@ -1046,12 +1095,20 @@ async function loadCallHistory() {
 }
 
 // ============================================================
-// ACCEPT / DECLINE FRIEND REQUEST
+// ACCEPT / DECLINE FRIEND REQUEST — now removes from tab immediately
 // ============================================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED: mark as dismissed and remove from DOM immediately =====
+    locallyDismissedRequestIds.add(String(requestId));
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -1074,16 +1131,18 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
 
         showToast('success', `You are now friends with ${senderName}!`);
 
-        await loadNotifications();
-        await loadUserStats();
-        await updateNavBadge();
+        // Reload after a moment so list is clean
+        setTimeout(() => {
+            loadNotifications();
+            loadUserStats();
+            updateNavBadge();
+        }, 320);
     } catch (error) {
         console.error('Accept error:', error);
         showToast('error', 'Could not accept request');
-        if (button) {
-            button.innerHTML = '<i class="fas fa-check"></i>';
-            button.disabled = false;
-        }
+        // rollback local dismissal on failure
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 };
 
@@ -1091,6 +1150,14 @@ window.declineFriendRequest = async function(requestId, button) {
     if (button) {
         button.innerHTML = '...';
         button.disabled = true;
+    }
+
+    // ===== CHANGED: mark as dismissed and remove from DOM immediately =====
+    locallyDismissedRequestIds.add(String(requestId));
+    const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
+    if (itemEl) {
+        itemEl.classList.add('removing');
+        setTimeout(() => itemEl.remove(), 280);
     }
 
     try {
@@ -1101,14 +1168,14 @@ window.declineFriendRequest = async function(requestId, button) {
 
         showToast('info', 'Request declined');
 
-        await loadNotifications();
-        await updateNavBadge();
+        setTimeout(() => {
+            loadNotifications();
+            updateNavBadge();
+        }, 320);
     } catch (error) {
         console.error('Decline error:', error);
-        if (button) {
-            button.innerHTML = '<i class="fas fa-times"></i>';
-            button.disabled = false;
-        }
+        locallyDismissedRequestIds.delete(String(requestId));
+        loadNotifications();
     }
 };
 
@@ -1125,7 +1192,8 @@ async function updateNavBadge() {
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending');
 
-        const pendingCount = friendReqs?.length || 0;
+        const pendingCount = (friendReqs || [])
+            .filter(r => !locallyDismissedRequestIds.has(String(r.id))).length;
 
         const { count: missedCount } = await supabase
             .from('calls')
@@ -1204,11 +1272,8 @@ function escapeAttr(str) { return escapeHtml(str); }
 // ============================================================
 const GUIDE_CONTENT = {
     home: {
-        icon: 'fa-home',
-        color: '#1a73e8',
-        bg: '#e8f0fe',
-        title: 'Home',
-        sub: 'Your starting point',
+        icon: 'fa-home', color: '#1a73e8', bg: '#e8f0fe',
+        title: 'Home', sub: 'Your starting point',
         items: [
             { icon: 'fa-search', title: 'Find friends', desc: 'Tap "Find friends" on the home page and search by username to send a friend request.' },
             { icon: 'fa-bell', title: 'Notifications & Alerts', desc: 'Tap the bell icon at the top right to see friend requests and call logs. The red badge clears once you view them.' },
@@ -1218,11 +1283,8 @@ const GUIDE_CONTENT = {
         ]
     },
     chats: {
-        icon: 'fa-comment-dots',
-        color: '#1e8e3e',
-        bg: '#e6f4ea',
-        title: 'Chats',
-        sub: 'Talk, react, share',
+        icon: 'fa-comment-dots', color: '#1e8e3e', bg: '#e6f4ea',
+        title: 'Chats', sub: 'Talk, react, share',
         items: [
             { icon: 'fa-paper-plane', title: 'Send a message', desc: 'Type in the box at the bottom and tap the send button.' },
             { icon: 'fa-image', title: 'Share images', desc: 'Tap the paperclip icon, choose Camera or Gallery. You can send up to 10 images at once.' },
@@ -1236,11 +1298,8 @@ const GUIDE_CONTENT = {
         ]
     },
     friends: {
-        icon: 'fa-user-friends',
-        color: '#b06000',
-        bg: '#fef7e0',
-        title: 'Friends',
-        sub: "Everyone you're connected with",
+        icon: 'fa-user-friends', color: '#b06000', bg: '#fef7e0',
+        title: 'Friends', sub: "Everyone you're connected with",
         items: [
             { icon: 'fa-magnifying-glass', title: 'Search friends', desc: 'Use the search bar at the top to filter your friends by username.' },
             { icon: 'fa-comment-dots', title: 'Message button', desc: 'Tap the message icon to open a chat with that friend.' },
@@ -1250,30 +1309,22 @@ const GUIDE_CONTENT = {
         ]
     },
     profile: {
-        icon: 'fa-user',
-        color: '#7c3aed',
-        bg: '#f3e8fd',
-        title: 'Your Profile',
-        sub: 'Everything about you',
+        icon: 'fa-user', color: '#7c3aed', bg: '#f3e8fd',
+        title: 'Your Profile', sub: 'Everything about you',
         items: [
             { icon: 'fa-camera', title: 'Change your photo', desc: 'Tap the camera badge on your avatar to upload a new photo from your camera or gallery.' },
-            // ===== CHANGED =====
             { icon: 'fa-pen', title: 'Edit your About', desc: 'Tap the pencil next to "About / Biography" to write up to 100 characters about yourself.' },
             { icon: 'fa-bell', title: 'Enable notifications', desc: 'Turn on push notifications so you get alerts even when the app is closed.' },
             { icon: 'fa-rotate', title: 'Reset notifications', desc: 'Notifications not working? Reset them and re-enable — this creates a fresh subscription.' },
             { icon: 'fa-eye', title: 'Show / Hide details', desc: 'Control whether notifications show the sender name, avatar, message content, and images. Hide them for privacy.' },
-            // ===== NEW =====
             { icon: 'fa-download', title: 'Download App', desc: 'Open the download page to get the latest signed APK of RelayTalk for Android.' },
             { icon: 'fa-mobile-screen', title: 'Download as PWA', desc: 'Install RelayTalk as a Progressive Web App on your home screen — works with Chrome, Edge, and Safari.' },
-            { icon: 'fa-right-from-bracket', title: 'Log out', desc: 'Sign out of this device and stop all notifications. Your account stays safe — you can log back in any time.' }
+            { icon: 'fa-right-from-bracket', title: 'Log Out', desc: 'Sign out of this device and stop all notifications. Your account stays safe — you can log back in any time.' }
         ]
     },
     view: {
-        icon: 'fa-id-badge',
-        color: '#d93025',
-        bg: '#fce8e6',
-        title: "Friend's Profile",
-        sub: 'Viewing someone else',
+        icon: 'fa-id-badge', color: '#d93025', bg: '#fce8e6',
+        title: "Friend's Profile", sub: 'Viewing someone else',
         items: [
             { icon: 'fa-circle', title: 'Live status', desc: 'See whether your friend is online, or when they were last seen — updates in real time.' },
             { icon: 'fa-comment-dots', title: 'Message', desc: 'Tap "Message" to open a chat with this friend.' },
@@ -1283,11 +1334,8 @@ const GUIDE_CONTENT = {
         ]
     },
     others: {
-        icon: 'fa-ellipsis-h',
-        color: '#5f6368',
-        bg: '#f1f3f4',
-        title: 'Others',
-        sub: 'Tips and extras',
+        icon: 'fa-ellipsis-h', color: '#5f6368', bg: '#f1f3f4',
+        title: 'Others', sub: 'Tips and extras',
         items: [
             { icon: 'fa-mobile-screen', title: 'Install as an app', desc: 'Add RelayTalk to your home screen for a native app experience. On iPhone: Share → Add to Home Screen.' },
             { icon: 'fa-shield-halved', title: 'Privacy', desc: 'Choose whether notifications show details. Turn off for more privacy on lock screen.' },
@@ -1354,7 +1402,7 @@ window.showGuideSection = function(section, btn) {
 };
 
 // ============================================================
-// DOWNLOAD — App + PWA  ( ===== NEW ===== )
+// DOWNLOAD — App + PWA
 // ============================================================
 window.openDownloadPage = function() {
     window.location.href = DOWNLOAD_PAGE_URL;
@@ -1375,11 +1423,9 @@ window.closePwaModal = function() {
 };
 
 // ============================================================
-// DISABLE ALL NOTIFICATIONS — used by logout / clear data
-// ( ===== NEW ===== )
+// STOP NOTIFICATIONS helper
 // ============================================================
 async function disableAllNotifications() {
-    // 1. Native APK cleanup
     if (isNativeShell()) {
         try {
             const Plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
@@ -1404,7 +1450,6 @@ async function disableAllNotifications() {
         return;
     }
 
-    // 2. Browser cleanup — unsubscribe + wipe DB rows
     try {
         if (window.relaytalkPush?.unsubscribe) {
             await window.relaytalkPush.unsubscribe();
@@ -1438,13 +1483,14 @@ async function disableAllNotifications() {
 }
 
 // ============================================================
-// CLEAR ALL DATA ( ===== NEW ===== )
+// LOG OUT — the "Log Out" action on the profile page
+// ===== CHANGED: wording is now "Logout", confirm text updated =====
 // ============================================================
-window.clearAllData = async function() {
+window.logoutFromDevice = async function() {
     const ok = confirm(
-        'Clear all data on this device?\n\n' +
+        'Logout from RelayTalk?\n\n' +
         'This will:\n' +
-        '• Turn off notifications\n' +
+        '• Turn off notifications on this device\n' +
         '• Clear cached data and settings\n' +
         '• Sign you out\n\n' +
         'Your account stays on the server — you can log back in any time.'
@@ -1454,13 +1500,11 @@ window.clearAllData = async function() {
     const uploadEl = document.getElementById('uploadLoading');
     if (uploadEl) uploadEl.style.display = 'flex';
     const uploadText = document.querySelector('#uploadLoading .loading-text');
-    if (uploadText) uploadText.textContent = 'Clearing...';
+    if (uploadText) uploadText.textContent = 'Logging out...';
 
     try {
-        // 1. Stop notifications first
         await disableAllNotifications();
 
-        // 2. Unregister service worker so nothing is fetched from cache
         try {
             if ('serviceWorker' in navigator) {
                 const regs = await navigator.serviceWorker.getRegistrations();
@@ -1470,18 +1514,15 @@ window.clearAllData = async function() {
             }
         } catch (e) {}
 
-        // 3. Clear all browser storage
         try { localStorage.clear(); } catch (e) {}
         try { sessionStorage.clear(); } catch (e) {}
 
-        // 4. Clear cookies
         try {
             document.cookie.split(";").forEach(function(c) {
                 document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
             });
         } catch (e) {}
 
-        // 5. Wipe all caches
         try {
             if ('caches' in window) {
                 const names = await caches.keys();
@@ -1489,16 +1530,19 @@ window.clearAllData = async function() {
             }
         } catch (e) {}
 
-        // 6. Sign out
         if (supabase) {
             try { await supabase.auth.signOut(); } catch (e) {}
         }
     } catch (e) {
-        console.error('Clear all error:', e);
+        console.error('Logout error:', e);
     }
 
     window.location.href = '../../login/index.html';
 };
+
+// Alias so older references keep working
+window.clearAllData = window.logoutFromDevice;
+window.logout = window.logoutFromDevice;
 
 // ============================================================
 // TOAST
@@ -1525,37 +1569,6 @@ function showToast(type, message) {
         setTimeout(() => toast.remove(), 320);
     }, 2800);
 }
-
-// ============================================================
-// LOGOUT  ( ===== CHANGED — now disables notifications first ===== )
-// ============================================================
-window.logout = async function() {
-    const ok = confirm('Log out of RelayTalk?\n\nThis will also stop all notifications on this device.');
-    if (!ok) return;
-
-    try {
-        const uploadEl = document.getElementById('uploadLoading');
-        if (uploadEl) uploadEl.style.display = 'flex';
-        const uploadText = document.querySelector('#uploadLoading .loading-text');
-        if (uploadText) uploadText.textContent = 'Logging out...';
-
-        // Stop notifications first
-        await disableAllNotifications();
-
-        if (supabase) await supabase.auth.signOut();
-
-        localStorage.clear();
-        sessionStorage.clear();
-
-        document.cookie.split(";").forEach(function(c) {
-            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-
-        window.location.href = '../../login/index.html';
-    } catch (error) {
-        window.location.href = '../../login/index.html';
-    }
-};
 
 window.goToHome = () => window.location.href = '../../home/index.html';
 window.goToFriends = () => window.location.href = '../friends/index.html';
