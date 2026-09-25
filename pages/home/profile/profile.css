@@ -1804,3 +1804,95 @@ img { display: block; max-width: 100%; }
         transition-duration: 0.01ms !important;
     }
 }
+
+
+
+
+/* ============================================================ */
+/* ADDITIONS — Logout wording + request pill badges + call tags */
+/* ============================================================ */
+
+/* Pill tags on call history items — "New" for unseen calls */
+.call-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.call-tag.tag-new {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.call-tag.tag-unread {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.call-tag.tag-missed {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+/* Missed call name — tinted red */
+.call-history-name.missed {
+    color: var(--danger);
+}
+
+/* Item with a "new" tag gets a subtle left bar */
+.call-history-item.has-tag {
+    position: relative;
+}
+
+.call-history-item.has-tag::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--primary);
+}
+
+/* Notification item that just got accepted/declined — fade out cleanly */
+.notification-item.removing {
+    animation: notifRemove 0.28s var(--ease) forwards;
+    pointer-events: none;
+}
+
+@keyframes notifRemove {
+    to {
+        opacity: 0;
+        transform: translateX(-16px);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+}
+
+/* Friend-request "wants to be friends" pill when a request is brand new */
+.notification-text .new-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-left: 6px;
+    vertical-align: middle;
+}
