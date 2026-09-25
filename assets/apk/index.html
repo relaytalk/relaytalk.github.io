@@ -27,7 +27,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
@@ -83,6 +83,7 @@
 
     a { color: var(--primary); text-decoration: none; }
 
+    /* ===== TOP BAR ===== */
     .top-bar {
       position: sticky;
       top: 0;
@@ -105,8 +106,8 @@
     }
 
     .top-logo {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       border-radius: 9px;
       object-fit: contain;
       display: block;
@@ -114,7 +115,7 @@
     }
 
     .top-name {
-      font-size: 1.08rem;
+      font-size: 1.1rem;
       font-weight: 500;
       color: var(--text);
       letter-spacing: -0.01em;
@@ -123,12 +124,13 @@
     .main {
       max-width: 720px;
       margin: 0 auto;
-      padding: 32px 22px 24px;
+      padding: 26px 22px 24px;
     }
 
+    /* ===== HERO (big logo + bold title + short tagline) ===== */
     .hero {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 22px;
       padding: 22px;
       background: var(--bg);
@@ -140,13 +142,13 @@
     }
 
     .hero-logo {
-      width: 96px;
-      height: 96px;
-      border-radius: 24px;
+      width: 120px;
+      height: 120px;
+      border-radius: 28px;
       object-fit: contain;
       flex-shrink: 0;
       display: block;
-      box-shadow: 0 12px 30px rgba(0, 122, 204, 0.18);
+      box-shadow: 0 14px 36px rgba(0, 122, 204, 0.2);
       background: var(--bg);
     }
 
@@ -156,49 +158,47 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      padding-top: 4px;
     }
 
     .hero-title {
-      font-size: 1.6rem;
-      font-weight: 500;
+      font-size: 1.75rem;
+      font-weight: 700;
       color: var(--text);
-      letter-spacing: -0.03em;
+      letter-spacing: -0.035em;
       line-height: 1.15;
       margin: 0;
     }
 
     .hero-sub {
       color: var(--text-2);
-      font-size: 0.94rem;
+      font-size: 0.95rem;
       line-height: 1.5;
       margin: 0;
     }
 
+    /* ===== LONG DESCRIPTION ===== */
     .description {
       color: var(--text-2);
       font-size: 0.94rem;
-      line-height: 1.65;
+      line-height: 1.7;
       padding: 0 4px;
       margin-bottom: 22px;
       animation: fadeUp 0.55s var(--ease-out) 0.03s both;
     }
 
-    .description p { margin-bottom: 10px; }
-    .description p:last-child { margin-bottom: 0; }
-    .description strong { color: var(--text); font-weight: 500; }
-
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 22px;
-      animation: fadeUp 0.55s var(--ease-out) 0.06s both;
+    .description .desc-label {
+      display: inline;
+      color: var(--text);
+      font-weight: 600;
     }
 
-    .actions-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    .description p { margin-top: 4px; }
+
+    /* ===== DOWNLOAD BUTTON ===== */
+    .download-block {
+      margin-bottom: 22px;
+      animation: fadeUp 0.55s var(--ease-out) 0.06s both;
     }
 
     .btn {
@@ -273,22 +273,12 @@
     }
 
     .screenshots-title {
-      font-size: 0.98rem;
-      font-weight: 500;
+      font-size: 1.05rem;
+      font-weight: 700;
       color: var(--text);
-      letter-spacing: -0.01em;
-      display: flex;
-      align-items: center;
-      gap: 9px;
+      letter-spacing: -0.015em;
       margin-bottom: 12px;
       padding: 0 4px;
-    }
-
-    .screenshots-title svg {
-      width: 18px;
-      height: 18px;
-      stroke: var(--primary);
-      flex-shrink: 0;
     }
 
     .screenshot-track {
@@ -298,7 +288,7 @@
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      padding: 4px 4px 12px;
+      padding: 4px 4px 14px;
       margin: 0 -4px;
     }
 
@@ -306,7 +296,6 @@
 
     .screenshot-item {
       flex: 0 0 auto;
-      width: 180px;
       scroll-snap-align: start;
       border-radius: var(--radius-lg);
       overflow: hidden;
@@ -316,10 +305,21 @@
       transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease),
                   border-color 0.22s var(--ease);
       position: relative;
-      height: 380px;
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    /* Portrait screenshots (default) — tall mobile shape */
+    .screenshot-item.portrait {
+      width: 190px;
+      height: 340px;
+    }
+
+    /* Landscape screenshots — wide shape */
+    .screenshot-item.landscape {
+      width: 340px;
+      height: 190px;
     }
 
     .screenshot-item:hover {
@@ -382,11 +382,11 @@
       position: absolute;
       top: calc(16px + var(--safe-top));
       right: 16px;
-      width: 44px;
-      height: 44px;
+      width: 46px;
+      height: 46px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.28);
       color: #fff;
       display: flex;
       align-items: center;
@@ -397,30 +397,44 @@
       backdrop-filter: blur(8px);
     }
 
-    .lightbox-close:hover { background: rgba(255, 255, 255, 0.28); transform: rotate(90deg); }
+    .lightbox-close:hover { background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
     .lightbox-close:active { transform: rotate(90deg) scale(0.94); }
 
+    /* ===== NAV BUTTONS — BOLD & LARGE ===== */
     .lightbox-nav {
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      width: 48px;
-      height: 48px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.22);
+      border: 2px solid rgba(255, 255, 255, 0.5);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.2s var(--ease), transform 0.15s var(--ease);
-      z-index: 2;
-      backdrop-filter: blur(8px);
+      transition: background 0.2s var(--ease), transform 0.15s var(--ease),
+                  border-color 0.2s var(--ease);
+      z-index: 3;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
-    .lightbox-nav:hover { background: rgba(255, 255, 255, 0.28); }
-    .lightbox-nav:active { transform: translateY(-50%) scale(0.92); }
+    .lightbox-nav svg {
+      width: 28px;
+      height: 28px;
+      stroke-width: 3;
+    }
+
+    .lightbox-nav:hover {
+      background: rgba(255, 255, 255, 0.38);
+      border-color: #fff;
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .lightbox-nav:active { transform: translateY(-50%) scale(0.94); }
 
     .lightbox-prev { left: 12px; }
     .lightbox-next { right: 12px; }
@@ -430,15 +444,17 @@
       bottom: calc(16px + var(--safe-bottom));
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 0.82rem;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 500;
       letter-spacing: 0.05em;
       font-variant-numeric: tabular-nums;
       z-index: 2;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 6px 14px;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 7px 16px;
       border-radius: 999px;
       backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     @media (max-width: 520px) {
@@ -448,10 +464,43 @@
         max-height: calc(100vh - 12px);
         border-radius: 4px;
       }
-      .lightbox-nav { width: 40px; height: 40px; }
+      .lightbox-nav { width: 50px; height: 50px; }
+      .lightbox-nav svg { width: 24px; height: 24px; }
       .lightbox-prev { left: 6px; }
       .lightbox-next { right: 6px; }
-      .lightbox-close { width: 40px; height: 40px; top: calc(12px + var(--safe-top)); right: 12px; }
+      .lightbox-close { width: 42px; height: 42px; top: calc(12px + var(--safe-top)); right: 12px; }
+    }
+
+    /* ===== SECONDARY BUTTONS ROW ===== */
+    .secondary-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 22px;
+      animation: fadeUp 0.55s var(--ease-out) 0.12s both;
+    }
+
+    .secondary-actions .btn {
+      padding: 12px 10px;
+      font-size: 0.85rem;
+      min-height: 46px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .secondary-actions .btn svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    @media (max-width: 520px) {
+      .secondary-actions {
+        grid-template-columns: 1fr;
+      }
+      .secondary-actions .btn {
+        font-size: 0.9rem;
+      }
     }
 
     /* ===== META ===== */
@@ -461,7 +510,7 @@
       border-radius: var(--radius-lg);
       padding: 18px 20px;
       margin-bottom: 22px;
-      animation: fadeUp 0.55s var(--ease-out) 0.12s both;
+      animation: fadeUp 0.55s var(--ease-out) 0.15s both;
     }
 
     .meta-row {
@@ -500,31 +549,33 @@
     .tag {
       display: inline-flex;
       align-items: center;
-      padding: 5px 11px;
+      padding: 6px 12px;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius-pill);
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       font-weight: 500;
       color: var(--text-2);
       letter-spacing: 0.01em;
       transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
-                  background 0.18s var(--ease);
+                  background 0.18s var(--ease), transform 0.18s var(--ease);
     }
 
     .tag:hover {
       color: var(--primary);
       border-color: var(--primary);
       background: var(--primary-soft);
+      transform: translateY(-1px);
     }
 
+    /* ===== CARDS ===== */
     .card {
       background: var(--bg);
       border: 1px solid var(--border-soft);
       border-radius: var(--radius-lg);
       padding: 18px 20px;
       margin-bottom: 12px;
-      animation: fadeUp 0.55s var(--ease-out) 0.15s both;
+      animation: fadeUp 0.55s var(--ease-out) 0.18s both;
     }
 
     .card-title {
@@ -578,13 +629,14 @@
       display: flex;
       gap: 10px;
       align-items: flex-start;
-      animation: fadeUp 0.55s var(--ease-out) 0.18s both;
+      animation: fadeUp 0.55s var(--ease-out) 0.21s both;
     }
 
     .warning svg { width: 18px; height: 18px; stroke: var(--primary); flex-shrink: 0; margin-top: 2px; }
     .warning p { color: var(--text-2); font-size: 0.85rem; line-height: 1.55; margin: 0; }
     .warning p strong { color: var(--text); }
 
+    /* ===== FOOTER (no GitHub) ===== */
     .page-footer {
       max-width: 720px;
       margin: 22px auto 0;
@@ -614,16 +666,22 @@
     }
 
     @media (max-width: 520px) {
-      .main { padding: 22px 16px 20px; }
-      .hero { flex-direction: column; text-align: center; gap: 16px; padding: 24px 18px; }
-      .hero-logo { width: 84px; height: 84px; border-radius: 20px; }
-      .hero-info { align-items: center; }
-      .hero-title { font-size: 1.4rem; }
+      .main { padding: 20px 16px 20px; }
+      .hero {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 14px;
+        padding: 22px 18px;
+      }
+      .hero-logo { width: 100px; height: 100px; border-radius: 24px; }
+      .hero-info { align-items: center; padding-top: 0; }
+      .hero-title { font-size: 1.55rem; }
       .hero-sub { font-size: 0.9rem; }
-      .actions-row { grid-template-columns: 1fr; }
       .meta-label { min-width: 100%; padding-bottom: 4px; }
       .meta-row { flex-direction: column; gap: 4px; }
-      .screenshot-item { width: 150px; height: 320px; }
+      .screenshot-item.portrait { width: 160px; height: 290px; }
+      .screenshot-item.landscape { width: 290px; height: 160px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -645,6 +703,7 @@
 
   <main class="main">
 
+    <!-- HERO: big logo left, bold title + short desc right -->
     <section class="hero">
       <img src="/relay.png" alt="RelayTalk" class="hero-logo">
       <div class="hero-info">
@@ -653,30 +712,13 @@
       </div>
     </section>
 
+    <!-- LONG DESCRIPTION -->
     <section class="description">
-      <p><strong>Meet RelayTalk</strong> — the simple, private way to talk with the people who matter. Send messages instantly. Share photos in a tap. Make crystal-clear voice and video calls, encrypted end to end. All without ads, tracking, or any of the noise you've gotten used to.</p>
-      <p>Every message you send is protected. Every call you make is encrypted. And every notification arrives just how you want it — with full details or completely hidden, your choice. No groups, no feeds, no strangers. Just the friends you actually know, one conversation at a time.</p>
-      <p><strong>Free. Fast. Yours.</strong> Download once, and start talking in under a minute.</p>
+      <p><span class="desc-label">Description —</span> RelayTalk is the simple, private way to talk with the people who matter. Send messages instantly, share photos in a tap, and make crystal-clear voice and video calls — all encrypted end to end. No ads, no tracking, no noise. Just the friends you actually know, one conversation at a time.</p>
     </section>
 
-    <div class="actions">
-      <div class="actions-row">
-        <a class="btn btn-secondary" href="/about/">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-          About App
-        </a>
-        <a class="btn btn-secondary" href="https://github.com/relaytalk/relaytalk.github.io/releases" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-          </svg>
-          GitHub Releases
-        </a>
-      </div>
-
+    <!-- DOWNLOAD BUTTON -->
+    <div class="download-block">
       <a class="btn btn-primary btn-block" href="https://relaytalk.github.io/apps/RelayTalk.apk" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -687,38 +729,88 @@
       </a>
     </div>
 
+    <!-- SCREENSHOTS -->
     <section class="screenshots">
-      <div class="screenshots-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-          <polyline points="21 15 16 10 5 21"></polyline>
-        </svg>
-        Screenshots
-      </div>
+      <div class="screenshots-title">Screenshots</div>
 
       <div class="screenshot-track" id="screenshotTrack">
-        <div class="screenshot-item" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png"><img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="RelayTalk screenshot 1" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg"><img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="RelayTalk screenshot 2" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg"><img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="RelayTalk screenshot 3" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg"><img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="RelayTalk screenshot 4" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg"><img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="RelayTalk screenshot 5" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg"><img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="RelayTalk screenshot 6" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg"><img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="RelayTalk screenshot 7" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg"><img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="RelayTalk screenshot 8" loading="lazy"></div>
-        <div class="screenshot-item" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg"><img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="RelayTalk screenshot 9" loading="lazy"></div>
+        <!-- 1st: landscape 1672 × 941 -->
+        <div class="screenshot-item landscape" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png">
+          <img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="RelayTalk screenshot 1" loading="lazy">
+        </div>
+        <!-- 2nd: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg">
+          <img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="RelayTalk screenshot 2" loading="lazy">
+        </div>
+        <!-- 3rd: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg">
+          <img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="RelayTalk screenshot 3" loading="lazy">
+        </div>
+        <!-- 4th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg">
+          <img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="RelayTalk screenshot 4" loading="lazy">
+        </div>
+        <!-- 5th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg">
+          <img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="RelayTalk screenshot 5" loading="lazy">
+        </div>
+        <!-- 6th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg">
+          <img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="RelayTalk screenshot 6" loading="lazy">
+        </div>
+        <!-- 7th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg">
+          <img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="RelayTalk screenshot 7" loading="lazy">
+        </div>
+        <!-- 8th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg">
+          <img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="RelayTalk screenshot 8" loading="lazy">
+        </div>
+        <!-- 9th: portrait -->
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg">
+          <img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="RelayTalk screenshot 9" loading="lazy">
+        </div>
       </div>
     </section>
 
+    <!-- SECONDARY BUTTONS -->
+    <div class="secondary-actions">
+      <a class="btn btn-secondary" href="/about/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        About App
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/relaytalk/relaytalk.github.io/releases" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+        </svg>
+        GitHub Releases
+      </a>
+      <a class="btn btn-secondary" href="https://relaytalk.vercel.app/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        RelayTalk Website
+      </a>
+    </div>
+
+    <!-- META -->
     <section class="meta">
       <div class="meta-row">
-        <div class="meta-label">Tags</div>
+        <div class="meta-label">App Features</div>
         <div class="meta-value">
           <div class="tags">
-            <span class="tag">Messaging</span>
-            <span class="tag">Calls</span>
-            <span class="tag">Communication</span>
-            <span class="tag">Social</span>
+            <span class="tag">Instant Messaging</span>
+            <span class="tag">Voice Calls</span>
+            <span class="tag">Video Calls</span>
+            <span class="tag">Image Sharing</span>
+            <span class="tag">Encrypted</span>
+            <span class="tag">Notifications</span>
             <span class="tag">Free</span>
           </div>
         </div>
@@ -731,27 +823,26 @@
 
       <div class="meta-row">
         <div class="meta-label">Size</div>
-        <div class="meta-value">~25 MB</div>
+        <div class="meta-value">~10 MB</div>
       </div>
 
       <div class="meta-row">
         <div class="meta-label">Requires</div>
-        <div class="meta-value">Android 5.0 (Lollipop) or later</div>
+        <div class="meta-value">Android 5.0 or later</div>
       </div>
 
       <div class="meta-row">
         <div class="meta-label">Category</div>
-        <div class="meta-value">Communication</div>
+        <div class="meta-value">Communication &amp; Social Media</div>
       </div>
 
       <div class="meta-row">
-        <div class="meta-label">Updated</div>
-        <div class="meta-value">
-          <span id="updatedDate">Recently</span>
-        </div>
+        <div class="meta-label">Last Updated</div>
+        <div class="meta-value">October 2026</div>
       </div>
     </section>
 
+    <!-- WARNING -->
     <div class="warning">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
@@ -761,6 +852,7 @@
       <p><strong>Installation note:</strong> Android may show a warning since this app is not from Play Store. That's normal — tap <em>"Install anyway"</em> or enable "Install unknown apps" for your browser.</p>
     </div>
 
+    <!-- WHAT'S INSIDE -->
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -778,6 +870,7 @@
       </ul>
     </div>
 
+    <!-- HOW TO INSTALL -->
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -802,24 +895,25 @@
     <span aria-hidden="true">·</span>
     <a href="/about/">About</a>
     <span aria-hidden="true">·</span>
-    <a href="https://github.com/relaytalk/relaytalk.github.io" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://relaytalk.vercel.app/" target="_blank" rel="noopener">RelayTalk Website</a>
   </footer>
 
+  <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
     <button class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Previous">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"></polyline>
       </svg>
     </button>
     <img class="lightbox-img" id="lightboxImg" src="" alt="">
     <button class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Next">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="9 18 15 12 9 6"></polyline>
       </svg>
     </button>
@@ -827,15 +921,6 @@
   </div>
 
   <script>
-    (function () {
-      try {
-        const el = document.getElementById('updatedDate');
-        if (!el) return;
-        const d = new Date();
-        el.textContent = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-      } catch (e) {}
-    })();
-
     (function () {
       const track = document.getElementById('screenshotTrack');
       const lightbox = document.getElementById('lightbox');
