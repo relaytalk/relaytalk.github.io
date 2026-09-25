@@ -71,7 +71,6 @@
 
             <div class="bio-section">
                 <div class="bio-header">
-                    <!-- ===== CHANGED ===== -->
                     <span class="bio-label">About / Biography</span>
                     <button class="bio-edit-btn" onclick="openBioEditor()" aria-label="Edit about">
                         <i class="fas fa-pen"></i>
@@ -159,7 +158,6 @@
             </button>
         </section>
 
-        <!-- ===== NEW: DOWNLOAD CARD ===== -->
         <section class="download-card">
             <button class="download-row" onclick="openDownloadPage()">
                 <span class="download-row-icon"><i class="fas fa-download"></i></span>
@@ -191,15 +189,10 @@
                 <span class="action-row-text">Find Friends</span>
             </button>
 
-            <!-- ===== NEW ===== -->
-            <button class="action-row action-row-danger" onclick="clearAllData()">
-                <span class="action-row-icon"><i class="fas fa-broom"></i></span>
-                <span class="action-row-text">Clear All Data</span>
-            </button>
-
-            <button class="action-row action-row-danger" onclick="logout()">
+            <!-- ===== CHANGED: label is now "Log Out" ===== -->
+            <button class="action-row action-row-danger" onclick="logoutFromDevice()">
                 <span class="action-row-icon"><i class="fas fa-right-from-bracket"></i></span>
-                <span class="action-row-text">Logout</span>
+                <span class="action-row-text">Log Out</span>
             </button>
         </section>
     </main>
@@ -208,7 +201,6 @@
     <div class="modal-overlay" id="bioEditorModal">
         <div class="modal-content">
             <div class="modal-header">
-                <!-- ===== CHANGED ===== -->
                 <h3 class="modal-title">Edit About</h3>
                 <button class="modal-close" onclick="closeBioEditor()" aria-label="Close">×</button>
             </div>
@@ -263,7 +255,7 @@
         </div>
     </div>
 
-    <!-- ===== NEW: PWA MODAL ===== -->
+    <!-- PWA Modal -->
     <div class="modal-overlay" id="pwaModal">
         <div class="modal-content">
             <div class="modal-header">
