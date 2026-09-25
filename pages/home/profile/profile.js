@@ -3,6 +3,7 @@
 import { initializeSupabase } from '../../../utils/supabase.js';
 
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
+const DOWNLOAD_PAGE_URL = '/assets/apk/';   // ===== CHANGED =====
 
 let supabase = null;
 let currentUser = null;
@@ -104,10 +105,6 @@ function getBestUsername() {
     );
 }
 
-// ------------------------------------------------------------
-// renderAvatar — reliable, simple, matches old working code.
-// No crossOrigin, no tokens, no timers.
-// ------------------------------------------------------------
 function renderAvatar(avatarUrl, username) {
     const img = document.getElementById('avatarImage');
     const initialDiv = document.getElementById('avatarInitial');
@@ -116,11 +113,9 @@ function renderAvatar(avatarUrl, username) {
     const name = username || 'User';
     const initial = name.trim().charAt(0).toUpperCase() || '?';
 
-    // Reset handlers
     img.onload = null;
     img.onerror = null;
 
-    // No avatar → initials
     if (!avatarUrl || !String(avatarUrl).trim()) {
         img.removeAttribute('src');
         img.style.display = 'none';
@@ -129,12 +124,10 @@ function renderAvatar(avatarUrl, username) {
         return;
     }
 
-    // Show initials while we load
     img.style.display = 'none';
     initialDiv.style.display = 'flex';
     initialDiv.textContent = initial;
 
-    // Preload exactly like the old working code
     const preloadImg = new Image();
     preloadImg.onload = () => {
         img.src = avatarUrl;
@@ -215,7 +208,7 @@ async function loadMemberSince() {
 }
 
 // ============================================================
-// BIO
+// BIO — now "About / Biography", 100 chars
 // ============================================================
 function renderBio(bio) {
     currentBio = bio || '';
@@ -226,7 +219,8 @@ function renderBio(bio) {
         box.textContent = currentBio.trim();
         box.classList.remove('empty');
     } else {
-        box.innerHTML = '<span class="bio-empty">Tap the pencil to write something about you (max 50 chars)</span>';
+        // ===== CHANGED =====
+        box.innerHTML = '<span class="bio-empty">Tap the pencil to write something about you (up to 100 characters)</span>';
         box.classList.add('empty');
     }
 }
@@ -264,8 +258,9 @@ window.saveBio = async function() {
 
     const newBio = input.value.trim();
 
-    if (newBio.length > 50) {
-        showToast('error', 'Bio must be 50 characters or less');
+    // ===== CHANGED =====
+    if (newBio.length > 100) {
+        showToast('error', 'About must be 100 characters or less');
         return;
     }
 
@@ -280,10 +275,10 @@ window.saveBio = async function() {
         if (currentProfile) currentProfile.bio = newBio;
         renderBio(newBio);
         closeBioEditor();
-        showToast('success', 'Bio updated!');
+        showToast('success', 'About updated!');  // ===== CHANGED =====
     } catch (error) {
         console.error('Save bio error:', error);
-        showToast('error', 'Could not save bio');
+        showToast('error', 'Could not save about');
     }
 };
 
@@ -1262,11 +1257,15 @@ const GUIDE_CONTENT = {
         sub: 'Everything about you',
         items: [
             { icon: 'fa-camera', title: 'Change your photo', desc: 'Tap the camera badge on your avatar to upload a new photo from your camera or gallery.' },
-            { icon: 'fa-pen', title: 'Edit your bio', desc: 'Tap the pencil next to "Biography" to write up to 50 characters about yourself.' },
+            // ===== CHANGED =====
+            { icon: 'fa-pen', title: 'Edit your About', desc: 'Tap the pencil next to "About / Biography" to write up to 100 characters about yourself.' },
             { icon: 'fa-bell', title: 'Enable notifications', desc: 'Turn on push notifications so you get alerts even when the app is closed.' },
             { icon: 'fa-rotate', title: 'Reset notifications', desc: 'Notifications not working? Reset them and re-enable — this creates a fresh subscription.' },
             { icon: 'fa-eye', title: 'Show / Hide details', desc: 'Control whether notifications show the sender name, avatar, message content, and images. Hide them for privacy.' },
-            { icon: 'fa-right-from-bracket', title: 'Log out', desc: 'Sign out of this device. Your account stays safe — you can log back in any time.' }
+            // ===== NEW =====
+            { icon: 'fa-download', title: 'Download App', desc: 'Open the download page to get the latest signed APK of RelayTalk for Android.' },
+            { icon: 'fa-mobile-screen', title: 'Download as PWA', desc: 'Install RelayTalk as a Progressive Web App on your home screen — works with Chrome, Edge, and Safari.' },
+            { icon: 'fa-right-from-bracket', title: 'Log out', desc: 'Sign out of this device and stop all notifications. Your account stays safe — you can log back in any time.' }
         ]
     },
     view: {
@@ -1355,6 +1354,153 @@ window.showGuideSection = function(section, btn) {
 };
 
 // ============================================================
+// DOWNLOAD — App + PWA  ( ===== NEW ===== )
+// ============================================================
+window.openDownloadPage = function() {
+    window.location.href = DOWNLOAD_PAGE_URL;
+};
+
+window.openPwaModal = function() {
+    const modal = document.getElementById('pwaModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('visible'));
+};
+
+window.closePwaModal = function() {
+    const modal = document.getElementById('pwaModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    setTimeout(() => modal.style.display = 'none', 200);
+};
+
+// ============================================================
+// DISABLE ALL NOTIFICATIONS — used by logout / clear data
+// ( ===== NEW ===== )
+// ============================================================
+async function disableAllNotifications() {
+    // 1. Native APK cleanup
+    if (isNativeShell()) {
+        try {
+            const Plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+            const PushNotifications = Plugins.PushNotifications;
+            if (PushNotifications && typeof PushNotifications.removeAllListeners === 'function') {
+                await PushNotifications.removeAllListeners();
+            }
+            if (PushNotifications && typeof PushNotifications.unregister === 'function') {
+                try { await PushNotifications.unregister(); } catch (e) {}
+            }
+        } catch (e) {
+            console.warn('Native unregister failed:', e);
+        }
+
+        try {
+            if (supabase && currentUser) {
+                await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('device_tokens cleanup failed:', e);
+        }
+        return;
+    }
+
+    // 2. Browser cleanup — unsubscribe + wipe DB rows
+    try {
+        if (window.relaytalkPush?.unsubscribe) {
+            await window.relaytalkPush.unsubscribe();
+        }
+    } catch (e) {
+        console.warn('Web push unsubscribe failed:', e);
+    }
+
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg) {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    try { await sub.unsubscribe(); } catch (e) {}
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('SW unsubscribe failed:', e);
+    }
+
+    try {
+        if (supabase && currentUser) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', currentUser.id);
+            await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
+        }
+    } catch (e) {
+        console.warn('DB cleanup failed:', e);
+    }
+}
+
+// ============================================================
+// CLEAR ALL DATA ( ===== NEW ===== )
+// ============================================================
+window.clearAllData = async function() {
+    const ok = confirm(
+        'Clear all data on this device?\n\n' +
+        'This will:\n' +
+        '• Turn off notifications\n' +
+        '• Clear cached data and settings\n' +
+        '• Sign you out\n\n' +
+        'Your account stays on the server — you can log back in any time.'
+    );
+    if (!ok) return;
+
+    const uploadEl = document.getElementById('uploadLoading');
+    if (uploadEl) uploadEl.style.display = 'flex';
+    const uploadText = document.querySelector('#uploadLoading .loading-text');
+    if (uploadText) uploadText.textContent = 'Clearing...';
+
+    try {
+        // 1. Stop notifications first
+        await disableAllNotifications();
+
+        // 2. Unregister service worker so nothing is fetched from cache
+        try {
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (const r of regs) {
+                    try { await r.unregister(); } catch (e) {}
+                }
+            }
+        } catch (e) {}
+
+        // 3. Clear all browser storage
+        try { localStorage.clear(); } catch (e) {}
+        try { sessionStorage.clear(); } catch (e) {}
+
+        // 4. Clear cookies
+        try {
+            document.cookie.split(";").forEach(function(c) {
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+        } catch (e) {}
+
+        // 5. Wipe all caches
+        try {
+            if ('caches' in window) {
+                const names = await caches.keys();
+                await Promise.all(names.map(n => caches.delete(n)));
+            }
+        } catch (e) {}
+
+        // 6. Sign out
+        if (supabase) {
+            try { await supabase.auth.signOut(); } catch (e) {}
+        }
+    } catch (e) {
+        console.error('Clear all error:', e);
+    }
+
+    window.location.href = '../../login/index.html';
+};
+
+// ============================================================
 // TOAST
 // ============================================================
 function showToast(type, message) {
@@ -1381,28 +1527,20 @@ function showToast(type, message) {
 }
 
 // ============================================================
-// LOGOUT
+// LOGOUT  ( ===== CHANGED — now disables notifications first ===== )
 // ============================================================
 window.logout = async function() {
+    const ok = confirm('Log out of RelayTalk?\n\nThis will also stop all notifications on this device.');
+    if (!ok) return;
+
     try {
         const uploadEl = document.getElementById('uploadLoading');
         if (uploadEl) uploadEl.style.display = 'flex';
         const uploadText = document.querySelector('#uploadLoading .loading-text');
         if (uploadText) uploadText.textContent = 'Logging out...';
 
-        if (isNativeShell()) {
-            try {
-                if (supabase && currentUser) {
-                    await supabase.from('device_tokens').delete().eq('user_id', currentUser.id);
-                }
-            } catch (e) {}
-        } else {
-            try {
-                if (window.relaytalkPush?.unsubscribe) {
-                    await window.relaytalkPush.unsubscribe();
-                }
-            } catch (e) {}
-        }
+        // Stop notifications first
+        await disableAllNotifications();
 
         if (supabase) await supabase.auth.signOut();
 
