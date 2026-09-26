@@ -168,18 +168,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ============================================================
-// KEYBOARD PRESERVATION
-// Only prevents focus-steal on non-send buttons. The send
-// button keeps its normal click behaviour so sending works,
-// and the input is re-focused right after.
-// ============================================================
 function setupKeyboardPreservation() {
     const inputBar = document.querySelector('.message-input-wrapper');
     if (!inputBar) return;
 
     inputBar.querySelectorAll('button').forEach(btn => {
-        // Skip the send button — it must fire its click handler normally
         if (btn.id === 'sendBtn' || btn.classList.contains('send-btn')) return;
 
         btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -287,9 +280,6 @@ function showTypingIndicator(show) {
     }
 }
 
-// ============================================================
-// CALL EVENTS
-// ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
         supabase.removeChannel(callsChannel);
@@ -390,9 +380,6 @@ async function insertCallEventMessage(call) {
     }
 }
 
-// ============================================================
-// SEND MESSAGE
-// ============================================================
 async function sendMessage() {
     if (isSending) return;
 
@@ -467,9 +454,6 @@ async function sendMessage() {
     }
 }
 
-// ============================================================
-// LOAD MESSAGES
-// ============================================================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -529,9 +513,6 @@ async function loadReactionsForMessages(messageIds) {
     } catch (e) {}
 }
 
-// ============================================================
-// RENDER
-// ============================================================
 function isDeletedMessage(msg) {
     if (!msg) return false;
     if (msg.deleted === true || msg.deleted_at) return true;
@@ -766,9 +747,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ============================================================
-// REACTIONS
-// ============================================================
 function renderReactionPills(messageId) {
     const msg = currentMessages.find(m => m.id === messageId);
     if (msg && (isDeletedMessage(msg) || isCallMessage(msg))) return '';
@@ -853,9 +831,6 @@ async function toggleReaction(messageId, emoji) {
     }
 }
 
-// ============================================================
-// LONG PRESS
-// ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -913,9 +888,6 @@ function handlePressCancel() {
     longPressTarget = null;
 }
 
-// ============================================================
-// ACTION BAR
-// ============================================================
 function openActionBar(wrap) {
     const messageId = parseInt(wrap.dataset.wrapId);
     const msg = currentMessages.find(m => m.id === messageId);
@@ -1066,9 +1038,6 @@ function setupGlobalDismiss() {
     });
 }
 
-// ============================================================
-// COPY / EDIT / DELETE
-// ============================================================
 async function handleCopy() {
     if (!selectedMessageId) return;
     const msg = currentMessages.find(m => m.id === selectedMessageId);
@@ -1290,9 +1259,6 @@ function openEmojiGridForSelected() {
     });
 }
 
-// ============================================================
-// REALTIME
-// ============================================================
 function setupRealtime(friendId) {
     const userIds = [currentUser.id, friendId].sort();
     const channelName = `chat:${userIds[0]}:${userIds[1]}`;
@@ -1413,9 +1379,6 @@ function handleReactionDelete(row) {
     updateReactionPills(messageId);
 }
 
-// ============================================================
-// TYPING
-// ============================================================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
     if (!input) return;
