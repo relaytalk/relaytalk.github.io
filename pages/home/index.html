@@ -15,7 +15,6 @@
 
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/home/">
 
-    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
     <meta property="og:title" content="RelayTalk — Connect with friends instantly">
@@ -28,7 +27,6 @@
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
 
-    <!-- ===== Twitter / X ===== -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
     <meta name="twitter:title" content="RelayTalk — Connect with friends instantly">
@@ -130,14 +128,12 @@
 <body>
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Loading screen — same as Friends page -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-text">
             <span class="loading-label">Loading</span><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
         </div>
     </div>
 
-    <!-- Top App Bar -->
     <header class="app-bar">
         <div class="app-bar-inner">
             <div class="app-bar-brand">
@@ -156,7 +152,6 @@
         </div>
     </header>
 
-    <!-- Main -->
     <main class="page">
         <section class="greeting">
             <p class="greeting-small" id="greetingSmall">Hello</p>
@@ -259,7 +254,7 @@
 
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
-<script src="/utils/native-init.js" defer></script>
+    <script src="/utils/native-init.js" defer></script>
     <script type="module" src="/utils/callHub.js"></script>
 </body>
 </html>
