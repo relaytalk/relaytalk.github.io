@@ -109,8 +109,8 @@ let currentUser = null;
 let currentProfile = null;
 let currentNotifTab = 'main';
 let friendsRealtimeChannel = null;
+let unreadChannel = null;
 
-// ===== CHANGED: local dismissal / read tracking =====
 let locallyDismissedRequestIds = new Set();
 let locallyReadCallIds = new Set();
 
@@ -137,7 +137,6 @@ function addSeenIds(key, ids) {
     } catch (e) {}
 }
 
-// Load previously-seen IDs into the local Sets on page load
 (function hydrateLocalSeen() {
     try {
         getSeenIds(SEEN_STORAGE_KEY).forEach(id => locallyDismissedRequestIds.add(String(id)));
@@ -243,6 +242,7 @@ async function initHomePage() {
         await updateCallsTabBadge();
         setupEventListeners();
         setupFriendsRealtime();
+        setupUnreadMessageRealtime();
 
         console.log('✅ Home page initialized successfully');
     } catch (error) {
@@ -256,7 +256,7 @@ async function initHomePage() {
 }
 
 // ============================================
-// REALTIME
+// REALTIME — friends + calls + requests
 // ============================================
 function setupFriendsRealtime() {
     if (!currentUser || !window.supabase) return;
@@ -298,7 +298,6 @@ function setupFriendsRealtime() {
             updateNotificationsBadge();
             updateCallsTabBadge();
         })
-        // ===== CHANGED: also react to friend request updates =====
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
@@ -327,6 +326,40 @@ function setupFriendsRealtime() {
         .subscribe((status) => {
             console.log('📡 Realtime friends status:', status);
         });
+}
+
+// ============================================
+// REALTIME — unread message badges (NEW)
+// ============================================
+function setupUnreadMessageRealtime() {
+    if (!currentUser || !window.supabase) return;
+
+    if (unreadChannel) {
+        window.supabase.removeChannel(unreadChannel);
+        unreadChannel = null;
+    }
+
+    unreadChannel = window.supabase
+        .channel(`home-unread:${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'direct_messages',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            // New incoming message → bump badges
+            loadFriends();
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'direct_messages',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            // Read flag changed → refresh badges
+            loadFriends();
+        })
+        .subscribe()
 }
 
 // ============================================
@@ -399,13 +432,13 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/'/g, "&#039;");
 }
 
 function escapeAttr(str) { return escapeHtml(str); }
 
 // ============================================
-// LOAD FRIENDS
+// LOAD FRIENDS — now with unread badges
 // ============================================
 async function loadFriends() {
     if (!currentUser || !window.supabase) {
@@ -428,10 +461,14 @@ async function loadFriends() {
         }
 
         const friendIds = friends.map(f => f.friend_id);
+
         const { data: profiles } = await window.supabase
             .from('profiles')
             .select('id, username, avatar_url, status, last_seen')
             .in('id', friendIds);
+
+        // NEW: fetch unread counts per friend in a single query
+        const unreadMap = await fetchUnreadCounts(friendIds);
 
         let html = '';
 
@@ -440,12 +477,17 @@ async function loadFriends() {
                 const isOnline = profile.status === 'online';
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
+                const unread = unreadMap[profile.id] || 0;
+                const badgeHTML = unread > 0
+                    ? `<span class="friend-unread-badge">${unread > 99 ? '99+' : unread}</span>`
+                    : '';
 
                 html += `
                     <div class="friend-item" onclick="openChat('${profile.id}', '${escapeAttr(profile.username || 'Friend')}')">
                         <div class="friend-avatar">
                             ${buildAvatarHTML(profile)}
                             <span class="friend-status-dot ${isOnline ? 'online' : 'offline'}"></span>
+                            ${badgeHTML}
                         </div>
                         <div class="friend-info">
                             <div class="friend-name">${escapeHtml(profile.username || 'Unknown')}</div>
@@ -466,6 +508,34 @@ async function loadFriends() {
         console.error('Load friends error:', error);
         showEmptyFriends();
     }
+}
+
+// ============================================
+// FETCH UNREAD COUNTS (NEW)
+// ============================================
+async function fetchUnreadCounts(friendIds) {
+    const result = {};
+    if (!friendIds || friendIds.length === 0) return result;
+
+    try {
+        const { data, error } = await window.supabase
+            .from('direct_messages')
+            .select('sender_id')
+            .eq('receiver_id', currentUser.id)
+            .eq('read', false)
+            .in('sender_id', friendIds);
+
+        if (error || !data) return result;
+
+        data.forEach(row => {
+            const id = row.sender_id;
+            result[id] = (result[id] || 0) + 1;
+        });
+    } catch (e) {
+        console.warn('Unread fetch failed:', e);
+    }
+
+    return result;
 }
 
 function showEmptyFriends() {
@@ -668,7 +738,6 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        // ===== CHANGED: filter out locally-dismissed IDs =====
         const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
 
         if (error || visible.length === 0) {
@@ -732,7 +801,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// CALL HISTORY — with tags for missed/unseen
+// CALL HISTORY — with tags
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -821,7 +890,6 @@ async function loadCallHistory() {
 
             const time = new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // ===== CHANGED: add tags for missed/unseen calls =====
             const callIdStr = String(call.id);
             const isUnseen = !isOutgoing && isMissed && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
             let tagHTML = '';
@@ -854,7 +922,6 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // ===== CHANGED: mark calls as read now that user has opened the tab =====
         calls.forEach(c => locallyReadCallIds.add(String(c.id)));
 
         const seenIds = calls.map(c => String(c.id)).filter(Boolean);
@@ -895,7 +962,7 @@ window.switchNotifTab = function(tab) {
 };
 
 // ============================================
-// ACCEPT / DECLINE — with immediate removal
+// ACCEPT / DECLINE
 // ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
     if (button) {
@@ -903,7 +970,6 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
         button.disabled = true;
     }
 
-    // ===== CHANGED: dismiss + remove from DOM immediately =====
     locallyDismissedRequestIds.add(String(requestId));
     addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
 
@@ -954,7 +1020,6 @@ async function declineFriendRequest(requestId, button = null) {
         button.disabled = true;
     }
 
-    // ===== CHANGED: dismiss + remove from DOM immediately =====
     locallyDismissedRequestIds.add(String(requestId));
     addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
 
@@ -1179,6 +1244,9 @@ window.logout = window.logout;
 window.addEventListener('beforeunload', () => {
     if (friendsRealtimeChannel && window.supabase) {
         window.supabase.removeChannel(friendsRealtimeChannel);
+    }
+    if (unreadChannel && window.supabase) {
+        window.supabase.removeChannel(unreadChannel);
     }
 });
 
