@@ -1134,3 +1134,49 @@ img { display: block; max-width: 100%; }
         transition-duration: 0.01ms !important;
     }
 }
+
+
+
+/* ============================================================ */
+/* Unread message badge on friend rows                           */
+/* ============================================================ */
+
+.friend-unread-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #1a73e8;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+    border: 2px solid #ffffff;
+    z-index: 3;
+    letter-spacing: 0.01em;
+    pointer-events: none;
+    animation: friendUnreadPop 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes friendUnreadPop {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.friend-avatar .friend-unread-badge {
+    top: -2px;
+    right: -2px;
+}
+
+.friend-avatar .status-indicator-clean + .friend-unread-badge,
+.friend-avatar .friend-status-dot + .friend-unread-badge {
+    top: -4px;
+    right: -4px;
+}
