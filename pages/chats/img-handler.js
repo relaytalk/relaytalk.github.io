@@ -2,9 +2,6 @@ import { supabase } from '../../utils/supabase.js';
 
 console.log('✨ Image handler initialized');
 
-// ============================================================
-// STATE
-// ============================================================
 let selectedColor = null;
 let colorPickerVisible = false;
 let isImagePickerOpen = false;
@@ -15,9 +12,6 @@ let isUploadingMultiple = false;
 
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
 
-// ============================================================
-// EXPORTS
-// ============================================================
 window.selectColor = selectColor;
 window.hideColorPicker = hideColorPicker;
 window.showColorPicker = showColorPicker;
@@ -45,9 +39,6 @@ window.nextImage = nextImage;
 
 if (window.chatModules) window.chatModules.imgHandlerLoaded = true;
 
-// ============================================================
-// MOBILE DETECTION
-// ============================================================
 function isMobileChrome() {
     const ua = navigator.userAgent;
     return /Android/i.test(ua) && /Chrome/i.test(ua) && !/Edg/i.test(ua);
@@ -57,9 +48,6 @@ function isIOSChrome() {
     return /CriOS/i.test(navigator.userAgent);
 }
 
-// ============================================================
-// URL FIXER
-// ============================================================
 function fixImgBBUrls(url) {
     if (!url || !url.includes('ibb.co')) return url;
 
@@ -84,9 +72,6 @@ function ensureHttpsUrl(url) {
     return u;
 }
 
-// ============================================================
-// INIT
-// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         initializeColorPicker();
@@ -104,28 +89,28 @@ function applyMobileChromeFixes() {
 }
 
 // ============================================================
-// COLOR PICKER
+// COLOR PICKER — redesigned markup
 // ============================================================
 function addColorPickerToDOM() {
     if (document.getElementById('colorPickerOverlay')) return;
 
     const html = `
         <div class="color-picker-overlay" id="colorPickerOverlay" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <div style="font-size: 0.9rem; color: #666;">Choose text color</div>
-                <button style="background: rgba(0,122,204,0.1); border: none; color: #007acc; width: 28px; height: 28px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="cancelColorSelection()">×</button>
+            <div class="color-picker-header">
+                <div class="color-picker-title">Choose message color</div>
+                <button class="color-picker-close-btn" onclick="cancelColorSelection()" aria-label="Close">×</button>
             </div>
             <div class="color-picker-grid">
-                <div class="color-option" data-color="red" onclick="selectColor('red')"></div>
-                <div class="color-option" data-color="green" onclick="selectColor('green')"></div>
-                <div class="color-option" data-color="blue" onclick="selectColor('blue')"></div>
-                <div class="color-option" data-color="white" onclick="selectColor('white')"></div>
-                <div class="color-option" data-color="black" onclick="selectColor('black')"></div>
-                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')"></div>
-                <div class="color-option" data-color="cyan" onclick="selectColor('cyan')"></div>
-                <div class="color-option" data-color="purple" onclick="selectColor('purple')"></div>
-                <div class="color-option" data-color="pink" onclick="selectColor('pink')"></div>
-                <div class="color-option" data-color="orange" onclick="selectColor('orange')"></div>
+                <div class="color-option" data-color="red" onclick="selectColor('red')" aria-label="Red"></div>
+                <div class="color-option" data-color="green" onclick="selectColor('green')" aria-label="Green"></div>
+                <div class="color-option" data-color="blue" onclick="selectColor('blue')" aria-label="Blue"></div>
+                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')" aria-label="Yellow"></div>
+                <div class="color-option" data-color="cyan" onclick="selectColor('cyan')" aria-label="Cyan"></div>
+                <div class="color-option" data-color="purple" onclick="selectColor('purple')" aria-label="Purple"></div>
+                <div class="color-option" data-color="pink" onclick="selectColor('pink')" aria-label="Pink"></div>
+                <div class="color-option" data-color="orange" onclick="selectColor('orange')" aria-label="Orange"></div>
+                <div class="color-option" data-color="white" onclick="selectColor('white')" aria-label="White"></div>
+                <div class="color-option" data-color="black" onclick="selectColor('black')" aria-label="Black"></div>
             </div>
             <div class="color-picker-footer">
                 <button class="color-clear-btn" onclick="removeSelectedColor()">Clear Color</button>
@@ -285,9 +270,6 @@ function setupFileInputListeners() {
     if (gal) gal.addEventListener('change', handleImageSelect);
 }
 
-// ============================================================
-// IMAGE SELECT
-// ============================================================
 function handleImageSelect(event) {
     try {
         const fileInput = event.target;
@@ -399,9 +381,6 @@ function updatePreviewImage() {
     reader.readAsDataURL(file);
 }
 
-// ============================================================
-// CANCEL
-// ============================================================
 function cancelImageUpload() {
     const cam = document.getElementById('cameraInput');
     const gal = document.getElementById('galleryInput');
@@ -425,9 +404,6 @@ function sendImagePreview() {
     uploadImageFromPreview();
 }
 
-// ============================================================
-// UPLOAD
-// ============================================================
 async function uploadImageFromPreview() {
     if (uploadInProgress) return;
 
@@ -535,9 +511,6 @@ async function uploadImageToImgBB(file) {
     await sendImageMessage(imageUrl, thumbnailUrl);
 }
 
-// ============================================================
-// COMPRESSION
-// ============================================================
 async function compressImage(file, maxSize = 1024 * 1024) {
     return new Promise((resolve) => {
         if (!file || file.size <= maxSize) return resolve(file);
@@ -582,9 +555,6 @@ async function compressImage(file, maxSize = 1024 * 1024) {
     });
 }
 
-// ============================================================
-// SEND IMAGE MESSAGE
-// ============================================================
 async function sendImageMessage(imageUrl, thumbnailUrl) {
     if (window.isSending) return;
 
@@ -606,7 +576,8 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             content: '',
             image_url: imageUrl,
             thumbnail_url: thumbnailUrl,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            message_type: 'image'
         };
 
         if (selectedColor) {
@@ -645,9 +616,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
     }
 }
 
-// ============================================================
-// IMAGE MESSAGE HTML — medium, uniform size
-// ============================================================
 function createImageMessageHTML(msg, isSent, colorAttr, time) {
     let imageUrl = msg.image_url || '';
     let thumbnailUrl = msg.thumbnail_url || imageUrl;
@@ -678,9 +646,6 @@ function createImageMessageHTML(msg, isSent, colorAttr, time) {
     `;
 }
 
-// ============================================================
-// IMAGE LOAD HANDLERS
-// ============================================================
 function handleImageLoad(img) {
     img.style.opacity = '1';
     img.classList.add('loaded');
@@ -696,9 +661,6 @@ function handleImageError(img, originalUrl) {
     img.classList.add('loaded');
 }
 
-// ============================================================
-// FULLSCREEN VIEWER
-// ============================================================
 function viewImageFullscreen(imageUrl) {
     const existing = document.getElementById('imageViewerOverlay');
     if (existing) existing.remove();
