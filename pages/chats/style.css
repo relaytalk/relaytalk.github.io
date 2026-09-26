@@ -329,40 +329,81 @@ img { display: block; max-width: 100%; }
 
 .message.received {
     align-self: flex-start;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--primary);
+    color: #fff;
     border-bottom-left-radius: 4px;
-    border: 1px solid var(--border-soft);
-    box-shadow: var(--shadow-1);
+    box-shadow: 0 1px 2px rgba(26, 115, 232, 0.18);
 }
 
-/* Colored messages — light background for sent, text color for received */
-.message.sent[data-color="red"]    { background: #fde2e2; color: #7a1d1d; }
-.message.sent[data-color="green"]  { background: #d8f0dc; color: #1e5c2c; }
-.message.sent[data-color="blue"]   { background: #d8e5fb; color: #1a4a8f; }
-.message.sent[data-color="yellow"] { background: #fdf3c9; color: #7a5e00; }
-.message.sent[data-color="cyan"]   { background: #d4f1f6; color: #0a5b6b; }
-.message.sent[data-color="purple"] { background: #ebdcfb; color: #4b2682; }
-.message.sent[data-color="pink"]   { background: #fbdce8; color: #7a1e48; }
-.message.sent[data-color="orange"] { background: #fde4cd; color: #7a3e00; }
-.message.sent[data-color="white"]  { background: #ffffff; color: #202124; border: 1px solid var(--border-soft); }
-.message.sent[data-color="black"]  { background: #202124; color: #ffffff; }
+/* Colored messages — same look for both sides, only alignment differs */
+.message.sent[data-color="red"],
+.message.received[data-color="red"] {
+    background: #fde2e2;
+    color: #7a1d1d;
+}
 
-.message.received[data-color="red"] .message-content    { color: #d93025; }
-.message.received[data-color="green"] .message-content  { color: #1e8e3e; }
-.message.received[data-color="blue"] .message-content   { color: #1a73e8; }
-.message.received[data-color="yellow"] .message-content { color: #b06000; }
-.message.received[data-color="cyan"] .message-content   { color: #0a94b3; }
-.message.received[data-color="purple"] .message-content { color: #8a4bd6; }
-.message.received[data-color="pink"] .message-content   { color: #d63384; }
-.message.received[data-color="orange"] .message-content { color: #e8770e; }
-.message.received[data-color="white"] .message-content  { color: #ffffff; }
-.message.received[data-color="black"] .message-content  { color: #202124; }
+.message.sent[data-color="green"],
+.message.received[data-color="green"] {
+    background: #d8f0dc;
+    color: #1e5c2c;
+}
 
-.message.sent[data-color] .message-time { color: inherit; opacity: 0.7; }
+.message.sent[data-color="blue"],
+.message.received[data-color="blue"] {
+    background: #d8e5fb;
+    color: #1a4a8f;
+}
+
+.message.sent[data-color="yellow"],
+.message.received[data-color="yellow"] {
+    background: #fdf3c9;
+    color: #7a5e00;
+}
+
+.message.sent[data-color="cyan"],
+.message.received[data-color="cyan"] {
+    background: #d4f1f6;
+    color: #0a5b6b;
+}
+
+.message.sent[data-color="purple"],
+.message.received[data-color="purple"] {
+    background: #ebdcfb;
+    color: #4b2682;
+}
+
+.message.sent[data-color="pink"],
+.message.received[data-color="pink"] {
+    background: #fbdce8;
+    color: #7a1e48;
+}
+
+.message.sent[data-color="orange"],
+.message.received[data-color="orange"] {
+    background: #fde4cd;
+    color: #7a3e00;
+}
+
+.message.sent[data-color="white"],
+.message.received[data-color="white"] {
+    background: #ffffff;
+    color: #202124;
+    border: 1px solid var(--border-soft);
+}
+
+.message.sent[data-color="black"],
+.message.received[data-color="black"] {
+    background: #202124;
+    color: #ffffff;
+}
+
+.message[data-color] .message-time {
+    color: inherit;
+    opacity: 0.7;
+}
 
 /* ============================================================ */
-/* CALL EVENT MESSAGES                                           */
+/* CALL EVENT MESSAGES — same style both sides                   */
 /* ============================================================ */
 
 .message.call-message {
@@ -371,19 +412,10 @@ img { display: block; max-width: 100%; }
     align-items: center;
     gap: 8px;
     min-width: 180px;
-}
-
-.message.sent.call-message {
     background: #e8f0fe;
     color: #1a4a8f;
     border: 1px solid #c6dafc;
     box-shadow: 0 1px 2px rgba(26, 115, 232, 0.10);
-}
-
-.message.received.call-message {
-    background: #ffffff;
-    color: #202124;
-    border: 1px solid var(--border-soft);
 }
 
 .message.call-message.call-missed,
@@ -483,8 +515,6 @@ img { display: block; max-width: 100%; }
 
 .message.received .message-time {
     text-align: left;
-    color: var(--text-3);
-    opacity: 1;
 }
 
 .edited-mark {
