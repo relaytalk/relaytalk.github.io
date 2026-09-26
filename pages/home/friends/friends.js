@@ -19,12 +19,12 @@ let incomingCallData = null;
 let incomingCallTimeout = null;
 let missedCallCount = 0;
 let realtimeChannel = null;
+let unreadChannel = null;
 let reconnectAttempts = 0;
 let currentNotifTab = 'main';
 let friendRealtimeChannel = null;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-// ===== CHANGED: local dismissal / read tracking =====
 let locallyDismissedRequestIds = new Set();
 let locallyReadCallIds = new Set();
 
@@ -119,6 +119,7 @@ async function initFriendsPage() {
         }
 
         setupFriendRealtimeListener();
+        setupUnreadMessageRealtime();
 
         setInterval(() => checkMissedCalls(), 10000);
         startStatusUpdates();
@@ -162,7 +163,6 @@ function setupFriendRealtimeListener() {
         }, () => {
             updateBadges();
         })
-        // ===== CHANGED: refresh list when requests are updated =====
         .on('postgres_changes', {
             event: 'UPDATE', schema: 'public', table: 'friend_requests',
             filter: `receiver_id=eq.${currentUser.id}`
@@ -173,6 +173,34 @@ function setupFriendRealtimeListener() {
         .subscribe((status) => {
             console.log('📡 Friend listener status:', status);
         });
+}
+
+// ============================================
+// REALTIME — unread messages (NEW)
+// ============================================
+function setupUnreadMessageRealtime() {
+    if (!currentUser || !mainSupabase) return;
+
+    if (unreadChannel) {
+        mainSupabase.removeChannel(unreadChannel);
+        unreadChannel = null;
+    }
+
+    unreadChannel = mainSupabase
+        .channel(`friends-unread:${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'direct_messages',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            loadFriends();
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'direct_messages',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, () => {
+            loadFriends();
+        })
+        .subscribe();
 }
 
 // ============================================
@@ -216,11 +244,10 @@ async function initializeCallListener() {
 
 function handleIncomingCall(callData) {
     if (!callData || !callData.caller_id) return;
-    // callHub handles the UI
 }
 
 // ============================================
-// FRIENDS LIST
+// FRIENDS LIST — now with unread badges
 // ============================================
 async function loadFriends() {
     try {
@@ -246,13 +273,48 @@ async function loadFriends() {
             .in('id', friendIds)
             .order('username');
 
-        allFriends = profiles || [];
+        // NEW: fetch unread counts
+        const unreadMap = await fetchUnreadCounts(friendIds);
+
+        allFriends = (profiles || []).map(p => ({
+            ...p,
+            unreadCount: unreadMap[p.id] || 0
+        }));
+
         filteredFriends = [...allFriends];
         renderFriendsList();
     } catch (error) {
         console.error('❌ Load error:', error);
         showEmptyState();
     }
+}
+
+// ============================================
+// FETCH UNREAD COUNTS (NEW)
+// ============================================
+async function fetchUnreadCounts(friendIds) {
+    const result = {};
+    if (!friendIds || friendIds.length === 0) return result;
+
+    try {
+        const { data, error } = await mainSupabase
+            .from('direct_messages')
+            .select('sender_id')
+            .eq('receiver_id', authUser.id)
+            .eq('read', false)
+            .in('sender_id', friendIds);
+
+        if (error || !data) return result;
+
+        data.forEach(row => {
+            const id = row.sender_id;
+            result[id] = (result[id] || 0) + 1;
+        });
+    } catch (e) {
+        console.warn('Unread fetch failed:', e);
+    }
+
+    return result;
 }
 
 function renderFriendsList() {
@@ -271,6 +333,10 @@ function renderFriendsList() {
         const online = friend.status === 'online';
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
         const avatarSrc = friend.avatar_url || '';
+        const unread = friend.unreadCount || 0;
+        const badgeHTML = unread > 0
+            ? `<span class="friend-unread-badge">${unread > 99 ? '99+' : unread}</span>`
+            : '';
 
         html += `
             <div class="friend-item" data-friend-id="${friend.id}">
@@ -280,6 +346,7 @@ function renderFriendsList() {
                         : `<span>${escapeHtml(initial)}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
+                    ${badgeHTML}
                 </div>
                 <div class="friend-info-clean" onclick="openProfile('${friend.id}')">
                     <div class="friend-name-status">
@@ -463,7 +530,6 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        // ===== CHANGED: filter out locally-dismissed IDs =====
         const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
 
         if (error || visible.length === 0) {
@@ -533,7 +599,7 @@ function showEmptyNotifications(container) {
 }
 
 // ============================================
-// LOAD CALL HISTORY — with tags
+// LOAD CALL HISTORY
 // ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
@@ -624,7 +690,6 @@ async function loadCallHistory() {
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
             const avatarSrc = otherUser.avatar_url || '';
 
-            // ===== CHANGED: tags =====
             const callIdStr = String(call.id);
             const isUnseen = !isOutgoing && isMissed && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
             let tagHTML = '';
@@ -660,7 +725,6 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // ===== CHANGED: mark calls as read after user views them =====
         calls.forEach(c => locallyReadCallIds.add(String(c.id)));
         addSeenIds(SEEN_CALLS_KEY, calls.map(c => String(c.id)));
         await updateBadges();
@@ -729,9 +793,7 @@ async function updateBadges() {
                 callsTabBadge.style.display = 'none';
             }
         }
-    } catch (e) {
-        // silent
-    }
+    } catch (e) {}
 }
 
 async function checkMissedCalls() {
@@ -753,7 +815,7 @@ async function checkMissedCalls() {
 }
 
 // ============================================
-// ACCEPT / DECLINE — with immediate removal
+// ACCEPT / DECLINE
 // ============================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
@@ -761,7 +823,6 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
         button.disabled = true;
     }
 
-    // ===== CHANGED =====
     locallyDismissedRequestIds.add(String(requestId));
     addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
 
@@ -810,7 +871,6 @@ window.declineFriendRequest = async function(requestId, button) {
         button.disabled = true;
     }
 
-    // ===== CHANGED =====
     locallyDismissedRequestIds.add(String(requestId));
     addSeenIds(SEEN_STORAGE_KEY, [String(requestId)]);
 
@@ -1044,6 +1104,7 @@ window.logout = async () => {
 window.addEventListener('beforeunload', () => {
     if (realtimeChannel) mainSupabase?.removeChannel(realtimeChannel);
     if (friendRealtimeChannel) mainSupabase?.removeChannel(friendRealtimeChannel);
+    if (unreadChannel) mainSupabase?.removeChannel(unreadChannel);
 });
 
 if (document.readyState === 'loading') {
