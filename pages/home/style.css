@@ -345,6 +345,7 @@ img { display: block; max-width: 100%; }
 /* ============================================================ */
 
 .friend-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -1162,7 +1163,7 @@ img { display: block; max-width: 100%; }
 .toast-info { background: #202124; }
 
 /* ============================================================ */
-/* ADDITIONS — Call tags + notification removal animation        */
+/* CALL TAGS + NOTIFICATION REMOVAL                              */
 /* ============================================================ */
 
 .call-tag {
@@ -1251,6 +1252,7 @@ button:focus-visible,
     .toast-container { width: calc(100% - 24px); }
     .friend-avatar { width: 40px; height: 40px; min-width: 40px; min-height: 40px; font-size: 0.95rem; }
     .friend-item { padding: 10px 14px; gap: 12px; }
+    .friend-unread-badge { right: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1262,45 +1264,36 @@ button:focus-visible,
 }
 
 /* ============================================================ */
-/* Unread message badge on friend rows                           */
+/* Unread message badge — circle on the right edge of the row    */
 /* ============================================================ */
 
 .friend-unread-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 20px;
-    height: 20px;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    min-width: 22px;
+    height: 22px;
     padding: 0 6px;
-    border-radius: 10px;
+    border-radius: 50%;
     background: #1a73e8;
     color: #ffffff;
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     font-weight: 600;
     line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.4);
     border: 2px solid #ffffff;
     z-index: 3;
     letter-spacing: 0.01em;
     pointer-events: none;
     animation: friendUnreadPop 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    flex-shrink: 0;
 }
 
 @keyframes friendUnreadPop {
-    from { opacity: 0; transform: scale(0.6); }
-    to   { opacity: 1; transform: scale(1); }
-}
-
-.friend-avatar .friend-unread-badge {
-    top: -2px;
-    right: -2px;
-}
-
-.friend-avatar .status-indicator-clean + .friend-unread-badge,
-.friend-avatar .friend-status-dot + .friend-unread-badge {
-    top: -4px;
-    right: -4px;
+    from { opacity: 0; transform: translateY(-50%) scale(0.5); }
+    to   { opacity: 1; transform: translateY(-50%) scale(1); }
 }
