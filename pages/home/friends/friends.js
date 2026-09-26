@@ -19,7 +19,6 @@ let incomingCallData = null;
 let incomingCallTimeout = null;
 let missedCallCount = 0;
 let realtimeChannel = null;
-let unreadChannel = null;
 let reconnectAttempts = 0;
 let currentNotifTab = 'main';
 let friendRealtimeChannel = null;
@@ -56,17 +55,13 @@ function addSeenIds(key, ids) {
     } catch (e) {}
 })();
 
-// ============================================
-// INIT
-// ============================================
 async function initFriendsPage() {
-    console.log('🚀 Loading friends...');
+    console.log('🚀 Friends page init');
 
     const loader = document.getElementById('loadingIndicator');
 
     const forceHideTimeout = setTimeout(() => {
         if (loader && !loader.classList.contains('hidden')) {
-            console.warn('⏱️ Loading timeout reached — hiding loader');
             loader.classList.add('hidden');
             setTimeout(() => { loader.style.display = 'none'; }, 400);
         }
@@ -96,7 +91,6 @@ async function initFriendsPage() {
         }
 
         authUser = session.user;
-        console.log('✅ MAIN Auth user:', authUser.email);
 
         currentUser = await syncUserToDatabase(mainSupabase, {
             id: authUser.id,
@@ -119,29 +113,22 @@ async function initFriendsPage() {
         }
 
         setupFriendRealtimeListener();
-        setupUnreadMessageRealtime();
 
         setInterval(() => checkMissedCalls(), 10000);
         startStatusUpdates();
 
         hideLoader();
     } catch (error) {
-        console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
         hideLoader();
     }
 }
 
-// ============================================
-// REALTIME
-// ============================================
 function setupFriendRealtimeListener() {
     if (friendRealtimeChannel) {
         mainSupabase.removeChannel(friendRealtimeChannel);
         friendRealtimeChannel = null;
     }
-
-    console.log('📡 Setting up friend realtime listener');
 
     friendRealtimeChannel = mainSupabase
         .channel(`friends-realtime:${currentUser.id}`)
@@ -170,49 +157,14 @@ function setupFriendRealtimeListener() {
             if (currentNotifTab === 'main') loadNotifications();
             updateBadges();
         })
-        .subscribe((status) => {
-            console.log('📡 Friend listener status:', status);
-        });
-}
-
-// ============================================
-// REALTIME — unread messages (NEW)
-// ============================================
-function setupUnreadMessageRealtime() {
-    if (!currentUser || !mainSupabase) return;
-
-    if (unreadChannel) {
-        mainSupabase.removeChannel(unreadChannel);
-        unreadChannel = null;
-    }
-
-    unreadChannel = mainSupabase
-        .channel(`friends-unread:${currentUser.id}`)
-        .on('postgres_changes', {
-            event: 'INSERT', schema: 'public', table: 'direct_messages',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, () => {
-            loadFriends();
-        })
-        .on('postgres_changes', {
-            event: 'UPDATE', schema: 'public', table: 'direct_messages',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, () => {
-            loadFriends();
-        })
         .subscribe();
 }
 
-// ============================================
-// CALL LISTENER
-// ============================================
 async function initializeCallListener() {
     try {
         if (realtimeChannel) {
             await mainSupabase.removeChannel(realtimeChannel);
         }
-
-        console.log('📡 Setting up call channel for user:', currentUser.id);
 
         realtimeChannel = mainSupabase
             .channel(`calls:callee_id=eq.${currentUser.id}`, {
@@ -237,18 +189,13 @@ async function initializeCallListener() {
                     }
                 }
             });
-    } catch (error) {
-        console.error('❌ Error initializing call listener:', error);
-    }
+    } catch (error) {}
 }
 
 function handleIncomingCall(callData) {
     if (!callData || !callData.caller_id) return;
 }
 
-// ============================================
-// FRIENDS LIST — now with unread badges
-// ============================================
 async function loadFriends() {
     try {
         if (!authUser || !mainSupabase) return;
@@ -273,48 +220,15 @@ async function loadFriends() {
             .in('id', friendIds)
             .order('username');
 
-        // NEW: fetch unread counts
-        const unreadMap = await fetchUnreadCounts(friendIds);
-
         allFriends = (profiles || []).map(p => ({
-            ...p,
-            unreadCount: unreadMap[p.id] || 0
+            ...p
         }));
 
         filteredFriends = [...allFriends];
         renderFriendsList();
     } catch (error) {
-        console.error('❌ Load error:', error);
         showEmptyState();
     }
-}
-
-// ============================================
-// FETCH UNREAD COUNTS (NEW)
-// ============================================
-async function fetchUnreadCounts(friendIds) {
-    const result = {};
-    if (!friendIds || friendIds.length === 0) return result;
-
-    try {
-        const { data, error } = await mainSupabase
-            .from('direct_messages')
-            .select('sender_id')
-            .eq('receiver_id', authUser.id)
-            .eq('read', false)
-            .in('sender_id', friendIds);
-
-        if (error || !data) return result;
-
-        data.forEach(row => {
-            const id = row.sender_id;
-            result[id] = (result[id] || 0) + 1;
-        });
-    } catch (e) {
-        console.warn('Unread fetch failed:', e);
-    }
-
-    return result;
 }
 
 function renderFriendsList() {
@@ -333,10 +247,6 @@ function renderFriendsList() {
         const online = friend.status === 'online';
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
         const avatarSrc = friend.avatar_url || '';
-        const unread = friend.unreadCount || 0;
-        const badgeHTML = unread > 0
-            ? `<span class="friend-unread-badge">${unread > 99 ? '99+' : unread}</span>`
-            : '';
 
         html += `
             <div class="friend-item" data-friend-id="${friend.id}">
@@ -346,7 +256,6 @@ function renderFriendsList() {
                         : `<span>${escapeHtml(initial)}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
-                    ${badgeHTML}
                 </div>
                 <div class="friend-info-clean" onclick="openProfile('${friend.id}')">
                     <div class="friend-name-status">
@@ -419,9 +328,6 @@ function formatLastSeen(timestamp) {
     return time.toLocaleDateString();
 }
 
-// ============================================
-// SEARCH
-// ============================================
 window.searchFriends = function() {
     const input = document.getElementById('searchInput');
     if (!input) return;
@@ -444,9 +350,6 @@ window.clearSearch = function() {
     renderFriendsList();
 };
 
-// ============================================
-// NAVIGATION
-// ============================================
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
@@ -473,9 +376,6 @@ window.startCall = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}&call=1`;
 };
 
-// ============================================
-// NOTIFICATIONS MODAL
-// ============================================
 window.openNotifications = function(event) {
     if (event) event.preventDefault();
     const modal = document.getElementById('notificationsModal');
@@ -510,9 +410,6 @@ window.switchNotifTab = function(tab) {
     }
 };
 
-// ============================================
-// LOAD NOTIFICATIONS
-// ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
     if (!container) return;
@@ -582,7 +479,6 @@ async function loadNotifications() {
 
         container.innerHTML = html;
     } catch (error) {
-        console.error("❌ Error loading notifications:", error);
         showEmptyNotifications(container);
     }
 }
@@ -598,9 +494,6 @@ function showEmptyNotifications(container) {
     `;
 }
 
-// ============================================
-// LOAD CALL HISTORY
-// ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
     if (!container) return;
@@ -729,14 +622,10 @@ async function loadCallHistory() {
         addSeenIds(SEEN_CALLS_KEY, calls.map(c => String(c.id)));
         await updateBadges();
     } catch (error) {
-        console.error("❌ Error loading call history:", error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
 }
 
-// ============================================
-// BADGES
-// ============================================
 async function updateBadges() {
     try {
         if (!currentUser || !mainSupabase) return;
@@ -809,14 +698,9 @@ async function checkMissedCalls() {
 
         missedCallCount = count || 0;
         updateBadges();
-    } catch (error) {
-        console.error('Error checking missed calls:', error);
-    }
+    } catch (error) {}
 }
 
-// ============================================
-// ACCEPT / DECLINE
-// ============================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
         button.innerHTML = '...';
@@ -858,7 +742,6 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
             updateBadges();
         }, 320);
     } catch (error) {
-        console.error('Accept error:', error);
         showToast('error', 'Could not accept request');
         locallyDismissedRequestIds.delete(String(requestId));
         loadNotifications();
@@ -893,15 +776,11 @@ window.declineFriendRequest = async function(requestId, button) {
             updateBadges();
         }, 320);
     } catch (error) {
-        console.error('Decline error:', error);
         locallyDismissedRequestIds.delete(String(requestId));
         loadNotifications();
     }
 };
 
-// ============================================
-// HELPERS
-// ============================================
 function timeAgoShort(dateStr) {
     const now = new Date();
     const past = new Date(dateStr);
@@ -963,9 +842,6 @@ function startStatusUpdates() {
     });
 }
 
-// ============================================
-// LEGACY SEARCH
-// ============================================
 window.openSearch = () => {
     const modal = document.getElementById('searchModal');
     if (modal) {
@@ -1045,9 +921,7 @@ window.searchUsers = async function() {
         });
 
         container.innerHTML = html;
-    } catch (error) {
-        console.error('Search error:', error);
-    }
+    } catch (error) {}
 };
 
 window.sendFriendRequest = async function(userId, username, btn) {
@@ -1070,7 +944,6 @@ window.sendFriendRequest = async function(userId, username, btn) {
         btn.classList.add('added');
         showToast('success', `Friend request sent to ${username}`);
     } catch (error) {
-        console.error('Request error:', error);
         btn.disabled = false;
         btn.textContent = 'Add';
         showToast('error', 'Failed to send request');
@@ -1098,13 +971,9 @@ window.logout = async () => {
     window.location.href = '../../../pages/login/index.html';
 };
 
-// ============================================
-// CLEANUP
-// ============================================
 window.addEventListener('beforeunload', () => {
     if (realtimeChannel) mainSupabase?.removeChannel(realtimeChannel);
     if (friendRealtimeChannel) mainSupabase?.removeChannel(friendRealtimeChannel);
-    if (unreadChannel) mainSupabase?.removeChannel(unreadChannel);
 });
 
 if (document.readyState === 'loading') {
