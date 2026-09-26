@@ -345,7 +345,8 @@ async function sendMessage() {
             receiver_id: chatFriend.id,
             content: text,
             chat_id: chatFriend.id,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            read: false // ===== ADDED: new messages start unread =====
         };
 
         if (window.selectedColor) {
@@ -407,11 +408,33 @@ async function loadOldMessages(friendId) {
 
         await loadReactionsForMessages(currentMessages.map(m => m.id));
         showMessages(currentMessages);
+
+        // ===== ADDED: mark all received messages from this friend as read =====
+        await markMessagesAsRead(friendId);
     } catch (error) {
         console.error('Load error:', error);
         showMessages([]);
     } finally {
         isLoadingMessages = false;
+    }
+}
+
+// ============================================================
+// MARK AS READ (NEW)
+// ============================================================
+async function markMessagesAsRead(friendId) {
+    if (!friendId || !currentUser) return;
+    try {
+        await supabase
+            .from('direct_messages')
+            .update({ read: true })
+            .eq('receiver_id', currentUser.id)
+            .eq('sender_id', friendId)
+            .eq('read', false);
+
+        console.log('✅ Marked messages from', friendId, 'as read');
+    } catch (e) {
+        console.warn('Failed to mark messages as read:', e);
     }
 }
 
@@ -564,6 +587,15 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 
     setTimeout(() => forceScrollToBottom(), 10);
+
+    // ===== ADDED: if we're receiving this live, mark it read immediately =====
+    if (!isSent) {
+        supabase
+            .from('direct_messages')
+            .update({ read: true })
+            .eq('id', message.id)
+            .then(() => {}).catch(() => {});
+    }
 
     if (message.sender_id === chatFriend.id) {
         playReceivedSound();
@@ -1184,6 +1216,15 @@ function setupRealtime(friendId) {
                 window.currentMessages = currentMessages;
             }
             addMessageToUI(newMsg, true);
+
+            // ===== ADDED: mark incoming realtime messages as read immediately =====
+            if (newMsg.receiver_id === currentUser.id) {
+                supabase
+                    .from('direct_messages')
+                    .update({ read: true })
+                    .eq('id', newMsg.id)
+                    .then(() => {}).catch(() => {});
+            }
         })
         .on('postgres_changes', {
             event: 'UPDATE', schema: 'public', table: 'direct_messages'
