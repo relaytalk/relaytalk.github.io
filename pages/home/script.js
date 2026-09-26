@@ -1,12 +1,9 @@
-// home/script.js - Home page controller
+// pages/home/script.js - Home page controller
 
 import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
-// ============================================
-// IMMEDIATE REDIRECT CHECK
-// ============================================
 (function() {
     try {
         let hasSession = false;
@@ -24,19 +21,14 @@ console.log("✨ Relay Home Page Loaded");
         }
 
         if (!hasSession) {
-            console.log('🚫 No session - redirecting to root');
             window.location.replace('/');
             return;
         }
     } catch (e) {
-        console.log('Session check error:', e);
         window.location.replace('/');
     }
 })();
 
-// ============================================
-// TOAST SYSTEM
-// ============================================
 class ToastNotification {
     constructor() {
         this.container = document.getElementById('toastContainer');
@@ -102,9 +94,6 @@ window.showError = toast.error.bind(toast);
 window.showWarning = toast.warning.bind(toast);
 window.showInfo = toast.info.bind(toast);
 
-// ============================================
-// GLOBALS
-// ============================================
 let currentUser = null;
 let currentProfile = null;
 let currentNotifTab = 'main';
@@ -144,15 +133,8 @@ function addSeenIds(key, ids) {
     } catch (e) {}
 })();
 
-// ============================================
-// SUPABASE WAIT
-// ============================================
 async function waitForSupabase() {
-    console.log('⏳ Waiting for Supabase...');
-    if (window.supabase) {
-        console.log('✅ Supabase already loaded');
-        return true;
-    }
+    if (window.supabase) return true;
 
     try {
         await import('../../utils/supabase.js');
@@ -163,16 +145,12 @@ async function waitForSupabase() {
         }
         return !!window.supabase;
     } catch (error) {
-        console.error('❌ Error loading Supabase:', error);
         return false;
     }
 }
 
-// ============================================
-// INIT
-// ============================================
 async function initHomePage() {
-    console.log('🏠 Initializing home page...');
+    console.log('🏠 Home page init');
 
     try {
         const { success, user } = await auth.getCurrentUser();
@@ -243,10 +221,7 @@ async function initHomePage() {
         setupEventListeners();
         setupFriendsRealtime();
         setupUnreadMessageRealtime();
-
-        console.log('✅ Home page initialized successfully');
     } catch (error) {
-        console.error('❌ Init failed:', error);
         if (loadingIndicator) {
             loadingIndicator.classList.add('hidden');
             setTimeout(() => { loadingIndicator.style.display = 'none'; }, 400);
@@ -255,9 +230,6 @@ async function initHomePage() {
     }
 }
 
-// ============================================
-// REALTIME — friends + calls + requests
-// ============================================
 function setupFriendsRealtime() {
     if (!currentUser || !window.supabase) return;
 
@@ -265,8 +237,6 @@ function setupFriendsRealtime() {
         window.supabase.removeChannel(friendsRealtimeChannel);
         friendsRealtimeChannel = null;
     }
-
-    console.log('📡 Setting up realtime friends for user:', currentUser.id);
 
     friendsRealtimeChannel = window.supabase
         .channel(`home-friends:${currentUser.id}`)
@@ -276,7 +246,6 @@ function setupFriendsRealtime() {
             table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
         }, () => {
-            console.log('🟢 Realtime: new friend added!');
             loadFriends();
             toast.info("New Friend!", "Someone just accepted your friend request");
         })
@@ -286,7 +255,6 @@ function setupFriendsRealtime() {
             table: 'friends',
             filter: `user_id=eq.${currentUser.id}`
         }, () => {
-            console.log('🔴 Realtime: friend removed');
             loadFriends();
         })
         .on('postgres_changes', {
@@ -323,14 +291,9 @@ function setupFriendsRealtime() {
         }, () => {
             updateCallsTabBadge();
         })
-        .subscribe((status) => {
-            console.log('📡 Realtime friends status:', status);
-        });
+        .subscribe();
 }
 
-// ============================================
-// REALTIME — unread message badges (NEW)
-// ============================================
 function setupUnreadMessageRealtime() {
     if (!currentUser || !window.supabase) return;
 
@@ -347,7 +310,6 @@ function setupUnreadMessageRealtime() {
             table: 'direct_messages',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
-            // New incoming message → bump badges
             loadFriends();
         })
         .on('postgres_changes', {
@@ -356,15 +318,11 @@ function setupUnreadMessageRealtime() {
             table: 'direct_messages',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
-            // Read flag changed → refresh badges
             loadFriends();
         })
         .subscribe()
 }
 
-// ============================================
-// LOAD USER PROFILE
-// ============================================
 async function loadUserProfile() {
     try {
         if (!currentUser || !window.supabase) {
@@ -411,9 +369,6 @@ function updateWelcomeMessage() {
     if (nameEl) nameEl.textContent = currentProfile.username || 'Friend';
 }
 
-// ============================================
-// AVATAR HTML
-// ============================================
 function buildAvatarHTML(profile) {
     const username = (profile && profile.username) ? profile.username : '?';
     const firstLetter = username.charAt(0).toUpperCase();
@@ -437,9 +392,6 @@ function escapeHtml(str) {
 
 function escapeAttr(str) { return escapeHtml(str); }
 
-// ============================================
-// LOAD FRIENDS — now with unread badges
-// ============================================
 async function loadFriends() {
     if (!currentUser || !window.supabase) {
         showEmptyFriends();
@@ -467,7 +419,6 @@ async function loadFriends() {
             .select('id, username, avatar_url, status, last_seen')
             .in('id', friendIds);
 
-        // NEW: fetch unread counts per friend in a single query
         const unreadMap = await fetchUnreadCounts(friendIds);
 
         let html = '';
@@ -487,7 +438,6 @@ async function loadFriends() {
                         <div class="friend-avatar">
                             ${buildAvatarHTML(profile)}
                             <span class="friend-status-dot ${isOnline ? 'online' : 'offline'}"></span>
-                            ${badgeHTML}
                         </div>
                         <div class="friend-info">
                             <div class="friend-name">${escapeHtml(profile.username || 'Unknown')}</div>
@@ -495,6 +445,7 @@ async function loadFriends() {
                                 ${isOnline ? 'Online' : 'Last seen ' + timeAgo}
                             </div>
                         </div>
+                        ${badgeHTML}
                     </div>
                 `;
             });
@@ -505,14 +456,10 @@ async function loadFriends() {
 
         container.innerHTML = html;
     } catch (error) {
-        console.error('Load friends error:', error);
         showEmptyFriends();
     }
 }
 
-// ============================================
-// FETCH UNREAD COUNTS (NEW)
-// ============================================
 async function fetchUnreadCounts(friendIds) {
     const result = {};
     if (!friendIds || friendIds.length === 0) return result;
@@ -531,9 +478,7 @@ async function fetchUnreadCounts(friendIds) {
             const id = row.sender_id;
             result[id] = (result[id] || 0) + 1;
         });
-    } catch (e) {
-        console.warn('Unread fetch failed:', e);
-    }
+    } catch (e) {}
 
     return result;
 }
@@ -579,9 +524,6 @@ async function openChat(friendId, friendUsername = 'Friend') {
     window.location.href = `../chats/index.html?friendId=${friendId}`;
 }
 
-// ============================================
-// SEARCH
-// ============================================
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     const searchInput = document.getElementById('searchInput');
@@ -677,9 +619,7 @@ async function displaySearchResults(users) {
         });
 
         container.innerHTML = html;
-    } catch (error) {
-        console.error('Display results error:', error);
-    }
+    } catch (error) {}
 }
 
 async function sendFriendRequest(toUserId, toUsername, button) {
@@ -718,9 +658,6 @@ async function sendFriendRequest(toUserId, toUsername, button) {
     }
 }
 
-// ============================================
-// NOTIFICATIONS
-// ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
     if (!container) return;
@@ -800,9 +737,6 @@ function showEmptyNotifications(container) {
     `;
 }
 
-// ============================================
-// CALL HISTORY — with tags
-// ============================================
 async function loadCallHistory() {
     const container = document.getElementById('callHistoryList');
     if (!container) return;
@@ -930,14 +864,10 @@ async function loadCallHistory() {
         }
         await updateCallsTabBadge();
     } catch (error) {
-        console.error('Call history error:', error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
 }
 
-// ============================================
-// TAB SWITCHER
-// ============================================
 window.switchNotifTab = function(tab) {
     currentNotifTab = tab;
 
@@ -961,9 +891,6 @@ window.switchNotifTab = function(tab) {
     }
 };
 
-// ============================================
-// ACCEPT / DECLINE
-// ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
     if (button) {
         button.innerHTML = '...';
@@ -1007,7 +934,6 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
             updateNotificationsBadge();
         }, 320);
     } catch (error) {
-        console.error('Accept error:', error);
         toast.error("Connection Failed", "Could not accept friend request");
         locallyDismissedRequestIds.delete(String(requestId));
         loadNotifications();
@@ -1049,9 +975,6 @@ async function declineFriendRequest(requestId, button = null) {
     }
 }
 
-// ============================================
-// BADGES
-// ============================================
 async function updateNotificationsBadge() {
     try {
         if (!currentUser || !window.supabase) {
@@ -1147,9 +1070,7 @@ async function updateCallsTabBadge() {
                 notifBadge.style.display = 'none';
             }
         }
-    } catch (e) {
-        console.warn('updateCallsTabBadge error:', e);
-    }
+    } catch (e) {}
 }
 
 function hideNotificationBadge() {
@@ -1159,9 +1080,6 @@ function hideNotificationBadge() {
     if (navBadge) navBadge.style.display = 'none';
 }
 
-// ============================================
-// SETUP / NAV
-// ============================================
 function setupEventListeners() {
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
