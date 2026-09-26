@@ -15,28 +15,25 @@ const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
 const PRESENCE_HEARTBEAT_MS = 30000
 
-// How long each banner stays visible on screen
 const CALL_BANNER_TIMEOUT_MS = 30000
 const MESSAGE_BANNER_TIMEOUT_MS = 5000
 const REACTION_BANNER_TIMEOUT_MS = 5000
 
+const SWIPE_DISMISS_PX = 80
+
 let supabase = null
 let currentUser = null
 
-// Channels
 let callChannel = null
 let messageChannel = null
 let reactionChannel = null
 
-// Call banner state (existing)
 let incomingCallData = null
 let incomingCallTimeout = null
 
-// Message / reaction banner state (new)
 let messageBannerTimeout = null
 let reactionBannerTimeout = null
 
-// Polling / ringtone / presence
 let missedCallPollTimer = null
 let presenceTimer = null
 let ringtonePlayer = null
@@ -168,7 +165,7 @@ async function initCallHub() {
 }
 
 // ============================================================
-// RINGTONE (unchanged)
+// RINGTONE
 // ============================================================
 function setupRingtone() {
     try {
@@ -218,7 +215,7 @@ function playRingtone() { ringtonePlayer?.play?.() }
 function stopRingtone() { ringtonePlayer?.stop?.() }
 
 // ============================================================
-// CALL CHANNEL (unchanged)
+// CALL CHANNEL
 // ============================================================
 function setupCallChannel() {
     if (!supabase || !currentUser) return
@@ -263,7 +260,7 @@ function setupCallChannel() {
 }
 
 // ============================================================
-// MESSAGE CHANNEL (new)
+// MESSAGE CHANNEL
 // ============================================================
 function setupMessageChannel() {
     if (!supabase || !currentUser) return
@@ -287,11 +284,7 @@ function setupMessageChannel() {
 async function handleIncomingMessage(row) {
     if (!row || !row.sender_id) return
     if (row.sender_id === currentUser.id) return
-
-    // Don't show banner if user is already viewing this chat
     if (isOnChatPageWith(row.sender_id)) return
-
-    // Don't overwrite an active call banner
     if (bannerVisible) return
 
     const sender = await getProfile(row.sender_id)
@@ -328,7 +321,7 @@ function buildMessagePreview(row) {
 }
 
 // ============================================================
-// REACTION CHANNEL (new)
+// REACTION CHANNEL — fixed with logging
 // ============================================================
 function setupReactionChannel() {
     if (!supabase || !currentUser) return
@@ -338,40 +331,73 @@ function setupReactionChannel() {
         reactionChannel = null
     }
 
+    console.log('📞 [callHub] Subscribing to message_reactions INSERTs')
+
     reactionChannel = supabase
         .channel(`reactHub:${currentUser.id}`)
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'message_reactions'
-        }, async (payload) => {
-            await handleIncomingReaction(payload.new)
+        }, (payload) => {
+            console.log('📞 [callHub] message_reactions INSERT received:', payload.new)
+            handleIncomingReaction(payload.new)
         })
-        .subscribe()
+        .subscribe((status) => {
+            console.log('📞 [callHub] reaction channel status:', status)
+        })
 }
 
 async function handleIncomingReaction(row) {
-    if (!row || !row.message_id) return
-    if (row.user_id === currentUser.id) return
-
-    // Only fire if the user being reacted to is us
     try {
-        const { data: msg } = await supabase
+        if (!row || !row.message_id) return
+        if (row.user_id === currentUser.id) {
+            console.log('📞 [callHub] Ignoring own reaction')
+            return
+        }
+
+        // Look up the message
+        const { data: msg, error } = await supabase
             .from('direct_messages')
             .select('id, sender_id, receiver_id, content, image_url')
             .eq('id', row.message_id)
             .maybeSingle()
 
-        if (!msg) return
-        if (msg.sender_id !== currentUser.id) return
-        if (msg.receiver_id === currentUser.id) return
+        if (error) {
+            console.warn('📞 [callHub] Failed to look up message:', error.message)
+            return
+        }
+        if (!msg) {
+            console.log('📞 [callHub] No message found for id:', row.message_id)
+            return
+        }
 
-        // Skip if the reacting user is the same as the current chat open
-        if (isOnChatPageWith(row.user_id)) return
-        if (bannerVisible) return
+        console.log('📞 [callHub] Message found. sender_id:', msg.sender_id, 'me:', currentUser.id)
+
+        // Only show if the reacted message belongs to us AND we're not the reactor
+        if (msg.sender_id !== currentUser.id) {
+            console.log('📞 [callHub] Not our message — skipping')
+            return
+        }
+
+        // Skip if we're already chatting with the reactor
+        if (isOnChatPageWith(row.user_id)) {
+            console.log('📞 [callHub] Already on chat with reactor — skipping')
+            return
+        }
+
+        if (bannerVisible) {
+            console.log('📞 [callHub] A call banner is active — skipping')
+            return
+        }
 
         const reactor = await getProfile(row.user_id)
-        if (!reactor) return
+        if (!reactor) {
+            console.log('📞 [callHub] Could not load reactor profile')
+            return
+        }
 
         const preview = buildReactionPreview(msg)
+
+        console.log('📞 [callHub] Showing reaction banner from', reactor.username)
         showReactionBanner({
             reactorId: row.user_id,
             reactorName: reactor.username || 'Someone',
@@ -380,7 +406,7 @@ async function handleIncomingReaction(row) {
             preview
         })
     } catch (e) {
-        // silent
+        console.warn('📞 [callHub] handleIncomingReaction error:', e)
     }
 }
 
@@ -416,7 +442,120 @@ async function getProfile(userId) {
 }
 
 // ============================================================
-// INCOMING CALL (unchanged)
+// SWIPE-TO-DISMISS HELPER
+// ============================================================
+function attachSwipeDismiss(banner, onDismiss) {
+    if (!banner) return
+
+    let startX = 0
+    let startY = 0
+    let currentX = 0
+    let dragging = false
+    let decided = false
+
+    function reset() {
+        dragging = false
+        decided = false
+        currentX = 0
+        banner.style.transition = ''
+        banner.style.transform = 'translateX(-50%)'
+        banner.style.opacity = '1'
+    }
+
+    function onDown(clientX, clientY) {
+        // Don't start a swipe if user touched a button
+        if (document.activeElement && document.activeElement !== document.body) {
+            try { document.activeElement.blur() } catch (e) {}
+        }
+        startX = clientX
+        startY = clientY
+        dragging = true
+        decided = false
+        currentX = 0
+        banner.style.transition = 'none'
+    }
+
+    function onMove(clientX, clientY) {
+        if (!dragging) return
+
+        const dx = clientX - startX
+        const dy = clientY - startY
+
+        // Decide direction once: if vertical is dominant, cancel swipe
+        if (!decided) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+            decided = true
+            if (Math.abs(dy) > Math.abs(dx)) {
+                // Vertical gesture — cancel
+                dragging = false
+                reset()
+                return
+            }
+        }
+
+        currentX = dx
+        const opacity = Math.max(0.3, 1 - Math.abs(dx) / 240)
+        banner.style.transform = `translateX(calc(-50% + ${dx}px))`
+        banner.style.opacity = String(opacity)
+    }
+
+    function onUp() {
+        if (!dragging) return
+        dragging = false
+
+        if (Math.abs(currentX) > SWIPE_DISMISS_PX) {
+            // Fly out in the direction of the swipe
+            const exitX = currentX > 0 ? 300 : -300
+            banner.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
+            banner.style.transform = `translateX(calc(-50% + ${exitX}px))`
+            banner.style.opacity = '0'
+            setTimeout(() => {
+                if (banner.parentNode) banner.remove()
+                if (typeof onDismiss === 'function') onDismiss()
+            }, 220)
+        } else {
+            // Snap back
+            banner.style.transition = 'transform 0.2s ease, opacity 0.2s ease'
+            banner.style.transform = 'translateX(-50%)'
+            banner.style.opacity = '1'
+            currentX = 0
+        }
+    }
+
+    // Touch
+    banner.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return
+        onDown(e.touches[0].clientX, e.touches[0].clientY)
+    }, { passive: true })
+
+    banner.addEventListener('touchmove', (e) => {
+        if (!dragging) return
+        if (e.touches.length !== 1) return
+        onMove(e.touches[0].clientX, e.touches[0].clientY)
+        if (e.cancelable) e.preventDefault()
+    }, { passive: false })
+
+    banner.addEventListener('touchend', onUp)
+    banner.addEventListener('touchcancel', onUp)
+
+    // Mouse (desktop)
+    banner.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button')) return
+        onDown(e.clientX, e.clientY)
+    })
+
+    window.addEventListener('mousemove', (e) => {
+        if (!dragging) return
+        onMove(e.clientX, e.clientY)
+    })
+
+    window.addEventListener('mouseup', () => {
+        if (dragging) onUp()
+    })
+}
+
+// ============================================================
+// INCOMING CALL BANNER
 // ============================================================
 async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
@@ -447,9 +586,6 @@ async function handleIncomingCall(callRow) {
     }, CALL_BANNER_TIMEOUT_MS)
 }
 
-// ============================================================
-// CALL BANNER UI (unchanged)
-// ============================================================
 function showBanner(call) {
     clearAnyNotificationBanner()
 
@@ -458,6 +594,7 @@ function showBanner(call) {
 
     const banner = document.createElement('div')
     banner.id = 'callHubBanner'
+    banner.dataset.kind = 'call'
     banner.dataset.callId = String(call.callId)
     banner.dataset.callerId = call.callerId
     banner.dataset.room = call.room
@@ -518,6 +655,19 @@ function showBanner(call) {
 
     btnContainer.addEventListener('click', onPress)
     btnContainer.addEventListener('touchend', onPress, { passive: false })
+
+    // Attach swipe-to-dismiss
+    attachSwipeDismiss(banner, () => {
+        stopRingtone()
+        if (incomingCallTimeout) {
+            clearTimeout(incomingCallTimeout)
+            incomingCallTimeout = null
+        }
+        const callId = banner.dataset.callId
+        if (callId) markAsMissed(callId)
+        bannerVisible = false
+        incomingCallData = null
+    })
 }
 
 function dismissBanner() {
@@ -530,17 +680,16 @@ function dismissBanner() {
     const el = document.getElementById('callHubBanner')
     if (el) {
         el.style.opacity = '0'
-        el.style.transform = 'translateY(-20px)'
+        el.style.transform = 'translateX(-50%) translateY(-20px)'
         setTimeout(() => el.remove(), 180)
     }
     incomingCallData = null
 }
 
 // ============================================================
-// MESSAGE BANNER (new)
+// MESSAGE BANNER
 // ============================================================
 function showMessageBanner(data) {
-    // Auto-dismiss if user is elsewhere
     clearAnyNotificationBanner()
 
     const initial = (data.senderName || '?').charAt(0).toUpperCase()
@@ -564,7 +713,13 @@ function showMessageBanner(data) {
         </div>
     `
 
+    let swipeJustHappened = false
+
     banner.addEventListener('click', (e) => {
+        if (swipeJustHappened) {
+            swipeJustHappened = false
+            return
+        }
         e.preventDefault()
         openChatWith(data.senderId, data.senderName)
     })
@@ -576,6 +731,13 @@ function showMessageBanner(data) {
     messageBannerTimeout = setTimeout(() => {
         dismissNotificationBanner(banner)
     }, MESSAGE_BANNER_TIMEOUT_MS)
+
+    attachSwipeDismiss(banner, () => {
+        if (messageBannerTimeout) {
+            clearTimeout(messageBannerTimeout)
+            messageBannerTimeout = null
+        }
+    })
 }
 
 function openChatWith(friendId, friendName) {
@@ -592,7 +754,7 @@ function openChatWith(friendId, friendName) {
 }
 
 // ============================================================
-// REACTION BANNER (new)
+// REACTION BANNER
 // ============================================================
 function showReactionBanner(data) {
     clearAnyNotificationBanner()
@@ -619,7 +781,13 @@ function showReactionBanner(data) {
         </div>
     `
 
+    let swipeJustHappened = false
+
     banner.addEventListener('click', (e) => {
+        if (swipeJustHappened) {
+            swipeJustHappened = false
+            return
+        }
         e.preventDefault()
         openChatWith(data.reactorId, data.reactorName)
     })
@@ -631,12 +799,19 @@ function showReactionBanner(data) {
     reactionBannerTimeout = setTimeout(() => {
         dismissNotificationBanner(banner)
     }, REACTION_BANNER_TIMEOUT_MS)
+
+    attachSwipeDismiss(banner, () => {
+        if (reactionBannerTimeout) {
+            clearTimeout(reactionBannerTimeout)
+            reactionBannerTimeout = null
+        }
+    })
 }
 
 function dismissNotificationBanner(el) {
     if (!el || !el.parentNode) return
     el.style.opacity = '0'
-    el.style.transform = 'translateY(-20px)'
+    el.style.transform = 'translateX(-50%) translateY(-20px)'
     setTimeout(() => el.remove(), 180)
     messageBannerTimeout = null
     reactionBannerTimeout = null
@@ -658,7 +833,7 @@ function clearAnyNotificationBanner() {
 }
 
 // ============================================================
-// ACCEPT / REJECT (unchanged)
+// ACCEPT / REJECT
 // ============================================================
 async function acceptIncoming(callData) {
     if (!callData || !callData.callId) return
@@ -712,7 +887,7 @@ async function markAsMissed(callId) {
 }
 
 // ============================================================
-// OUTGOING CALL (unchanged)
+// OUTGOING CALL
 // ============================================================
 window.startCall = function (friendId, friendName) {
     if (!friendId) return
@@ -725,7 +900,7 @@ window.startCall = function (friendId, friendName) {
 }
 
 // ============================================================
-// MISSED CALLS (unchanged)
+// MISSED CALLS
 // ============================================================
 async function checkMissedCalls() {
     if (!supabase || !currentUser) return
@@ -764,7 +939,7 @@ function escapeHtml(s) {
 }
 
 // ============================================================
-// BANNER STYLES (extended for message + reaction)
+// BANNER STYLES
 // ============================================================
 function injectBannerStyles() {
     if (document.getElementById('callHubStyles')) return
@@ -772,10 +947,6 @@ function injectBannerStyles() {
     const style = document.createElement('style')
     style.id = 'callHubStyles'
     style.textContent = `
-        /* ============================================================ */
-        /* RelayTalk — In-app notification banner                        */
-        /* ============================================================ */
-
         #callHubBanner {
             position: fixed;
             top: 14px;
@@ -799,9 +970,9 @@ function injectBannerStyles() {
             user-select: none;
             font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             cursor: default;
+            touch-action: pan-y;
         }
 
-        /* Message + reaction banners are tappable */
         #callHubBanner.callHub-kind-message,
         #callHubBanner.callHub-kind-reaction {
             cursor: pointer;
@@ -813,11 +984,10 @@ function injectBannerStyles() {
         }
 
         @keyframes callHubSlideDown {
-            from { opacity: 0; transform: translate(-50%, -30px); }
-            to   { opacity: 1; transform: translate(-50%, 0); }
+            from { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
-        /* Avatar */
         .callHub-avatar {
             position: relative;
             width: 48px;
@@ -847,7 +1017,6 @@ function injectBannerStyles() {
             border-radius: 50%;
         }
 
-        /* Reaction emoji badge on top of avatar */
         .callHub-emoji-badge {
             position: absolute;
             right: -4px;
@@ -866,7 +1035,6 @@ function injectBannerStyles() {
             z-index: 2;
         }
 
-        /* Info */
         .callHub-info { flex: 1; min-width: 0; }
 
         .callHub-name {
@@ -912,7 +1080,6 @@ function injectBannerStyles() {
             100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
         }
 
-        /* Call actions */
         .callHub-actions {
             display: flex;
             gap: 8px;
@@ -951,9 +1118,7 @@ function injectBannerStyles() {
             box-shadow: 0 6px 18px rgba(30, 142, 62, 0.35);
         }
 
-        .callHub-decline {
-            background: #d93025;
-        }
+        .callHub-decline { background: #d93025; }
 
         .callHub-decline:hover {
             background: #b9251c;
@@ -968,7 +1133,6 @@ function injectBannerStyles() {
 
         .callHub-btn svg { pointer-events: none !important; }
 
-        /* Responsive */
         @media (max-width: 480px) {
             #callHubBanner {
                 top: 10px;
@@ -995,10 +1159,7 @@ function injectBannerStyles() {
             .callHub-name { font-size: 0.94rem; }
             .callHub-sub  { font-size: 0.76rem; }
 
-            .callHub-btn {
-                width: 42px;
-                height: 42px;
-            }
+            .callHub-btn { width: 42px; height: 42px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
