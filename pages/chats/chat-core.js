@@ -168,11 +168,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// ============================================================
+// KEYBOARD PRESERVATION
+// Only prevents focus-steal on non-send buttons. The send
+// button keeps its normal click behaviour so sending works,
+// and the input is re-focused right after.
+// ============================================================
 function setupKeyboardPreservation() {
     const inputBar = document.querySelector('.message-input-wrapper');
     if (!inputBar) return;
 
     inputBar.querySelectorAll('button').forEach(btn => {
+        // Skip the send button — it must fire its click handler normally
+        if (btn.id === 'sendBtn' || btn.classList.contains('send-btn')) return;
+
         btn.addEventListener('mousedown', (e) => e.preventDefault());
         btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
     });
@@ -279,7 +288,7 @@ function showTypingIndicator(show) {
 }
 
 // ============================================================
-// CALL EVENTS LISTENER (NEW)
+// CALL EVENTS
 // ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
