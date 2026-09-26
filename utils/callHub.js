@@ -1,22 +1,42 @@
 // utils/callHub.js
-
-// utils/callHub.js
-// Universal incoming-call listener + outgoing-call launcher + presence.
+// Universal in-app notification listener:
+//   • Incoming calls   (existing)
+//   • New messages     (new)
+//   • New reactions    (new)
+// Plus outgoing-call launcher and presence.
 // Import once per page with:
 //   <script type="module" src="/utils/callHub.js"></script>
 
 import { initializeSupabase } from './supabase.js'
 
 const CALL_APP_PATH = '/pages/call-app/call/index.html'
+const CHAT_APP_PATH = '/pages/chats/index.html'
 const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
 const PRESENCE_HEARTBEAT_MS = 30000
 
+// How long each banner stays visible on screen
+const CALL_BANNER_TIMEOUT_MS = 30000
+const MESSAGE_BANNER_TIMEOUT_MS = 5000
+const REACTION_BANNER_TIMEOUT_MS = 5000
+
 let supabase = null
 let currentUser = null
+
+// Channels
 let callChannel = null
+let messageChannel = null
+let reactionChannel = null
+
+// Call banner state (existing)
 let incomingCallData = null
 let incomingCallTimeout = null
+
+// Message / reaction banner state (new)
+let messageBannerTimeout = null
+let reactionBannerTimeout = null
+
+// Polling / ringtone / presence
 let missedCallPollTimer = null
 let presenceTimer = null
 let ringtonePlayer = null
@@ -49,7 +69,7 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
-// PRESENCE — online / offline / heartbeat
+// PRESENCE
 // ============================================================
 async function setPresenceStatus(status) {
     if (!supabase || !currentUser) return
@@ -61,24 +81,19 @@ async function setPresenceStatus(status) {
                 last_seen: new Date().toISOString()
             })
             .eq('id', currentUser.id)
-    } catch (e) {
-        // silent
-    }
+    } catch (e) {}
 }
 
 function startPresence() {
     if (presenceStarted || !currentUser) return
     presenceStarted = true
 
-    // Mark online immediately
     setPresenceStatus('online')
 
-    // Heartbeat
     presenceTimer = setInterval(() => {
         setPresenceStatus('online')
     }, PRESENCE_HEARTBEAT_MS)
 
-    // Tab close → offline
     window.addEventListener('beforeunload', () => {
         try {
             if (presenceTimer) clearInterval(presenceTimer)
@@ -96,7 +111,6 @@ function startPresence() {
         } catch (e) {}
     })
 
-    // Visibility change → on/off
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             setPresenceStatus('online')
@@ -105,7 +119,6 @@ function startPresence() {
         }
     })
 
-    // Mobile: pagehide is more reliable than beforeunload
     window.addEventListener('pagehide', () => {
         setPresenceStatus('offline')
     })
@@ -139,11 +152,12 @@ async function initCallHub() {
         currentUser = session.user
         console.log('📞 [callHub] Ready for user:', currentUser.email)
 
-        // Start presence first so online status is set immediately
         startPresence()
 
         setupRingtone()
         setupCallChannel()
+        setupMessageChannel()
+        setupReactionChannel()
         checkMissedCalls()
         startMissedCallPolling()
 
@@ -154,7 +168,7 @@ async function initCallHub() {
 }
 
 // ============================================================
-// RINGTONE
+// RINGTONE (unchanged)
 // ============================================================
 function setupRingtone() {
     try {
@@ -204,7 +218,7 @@ function playRingtone() { ringtonePlayer?.play?.() }
 function stopRingtone() { ringtonePlayer?.stop?.() }
 
 // ============================================================
-// CALL CHANNEL
+// CALL CHANNEL (unchanged)
 // ============================================================
 function setupCallChannel() {
     if (!supabase || !currentUser) return
@@ -249,7 +263,160 @@ function setupCallChannel() {
 }
 
 // ============================================================
-// INCOMING CALL
+// MESSAGE CHANNEL (new)
+// ============================================================
+function setupMessageChannel() {
+    if (!supabase || !currentUser) return
+
+    if (messageChannel) {
+        supabase.removeChannel(messageChannel)
+        messageChannel = null
+    }
+
+    messageChannel = supabase
+        .channel(`msgHub:${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'direct_messages',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, (payload) => {
+            handleIncomingMessage(payload.new)
+        })
+        .subscribe()
+}
+
+async function handleIncomingMessage(row) {
+    if (!row || !row.sender_id) return
+    if (row.sender_id === currentUser.id) return
+
+    // Don't show banner if user is already viewing this chat
+    if (isOnChatPageWith(row.sender_id)) return
+
+    // Don't overwrite an active call banner
+    if (bannerVisible) return
+
+    const sender = await getProfile(row.sender_id)
+    if (!sender) return
+
+    const preview = buildMessagePreview(row)
+    if (!preview) return
+
+    showMessageBanner({
+        senderId: row.sender_id,
+        senderName: sender.username || 'Someone',
+        senderAvatar: sender.avatar_url || null,
+        preview,
+        isImage: !!row.image_url
+    })
+}
+
+function isOnChatPageWith(friendId) {
+    try {
+        if (!window.location.pathname.includes('/pages/chats/')) return false
+        const params = new URLSearchParams(window.location.search)
+        return params.get('friendId') === friendId
+    } catch (e) {
+        return false
+    }
+}
+
+function buildMessagePreview(row) {
+    const text = (row.content || '').trim()
+    if (row.image_url && !text) return '📷 Photo'
+    if (row.image_url && text) return '📷 ' + text
+    if (!text) return 'New message'
+    return text.length > 80 ? text.slice(0, 77) + '…' : text
+}
+
+// ============================================================
+// REACTION CHANNEL (new)
+// ============================================================
+function setupReactionChannel() {
+    if (!supabase || !currentUser) return
+
+    if (reactionChannel) {
+        supabase.removeChannel(reactionChannel)
+        reactionChannel = null
+    }
+
+    reactionChannel = supabase
+        .channel(`reactHub:${currentUser.id}`)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'message_reactions'
+        }, async (payload) => {
+            await handleIncomingReaction(payload.new)
+        })
+        .subscribe()
+}
+
+async function handleIncomingReaction(row) {
+    if (!row || !row.message_id) return
+    if (row.user_id === currentUser.id) return
+
+    // Only fire if the user being reacted to is us
+    try {
+        const { data: msg } = await supabase
+            .from('direct_messages')
+            .select('id, sender_id, receiver_id, content, image_url')
+            .eq('id', row.message_id)
+            .maybeSingle()
+
+        if (!msg) return
+        if (msg.sender_id !== currentUser.id) return
+        if (msg.receiver_id === currentUser.id) return
+
+        // Skip if the reacting user is the same as the current chat open
+        if (isOnChatPageWith(row.user_id)) return
+        if (bannerVisible) return
+
+        const reactor = await getProfile(row.user_id)
+        if (!reactor) return
+
+        const preview = buildReactionPreview(msg)
+        showReactionBanner({
+            reactorId: row.user_id,
+            reactorName: reactor.username || 'Someone',
+            reactorAvatar: reactor.avatar_url || null,
+            emoji: row.emoji || '❤️',
+            preview
+        })
+    } catch (e) {
+        // silent
+    }
+}
+
+function buildReactionPreview(msg) {
+    const text = (msg.content || '').trim()
+    if (text) return text.length > 60 ? text.slice(0, 57) + '…' : text
+    if (msg.image_url) return 'your photo'
+    return 'your message'
+}
+
+// ============================================================
+// SHARED PROFILE LOOKUP
+// ============================================================
+const profileCache = new Map()
+
+async function getProfile(userId) {
+    if (!userId || !supabase) return null
+    if (profileCache.has(userId)) return profileCache.get(userId)
+
+    try {
+        const { data } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', userId)
+            .maybeSingle()
+
+        const result = data || null
+        if (result) profileCache.set(userId, result)
+        return result
+    } catch {
+        return null
+    }
+}
+
+// ============================================================
+// INCOMING CALL (unchanged)
 // ============================================================
 async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
@@ -260,13 +427,13 @@ async function handleIncomingCall(callRow) {
     const existingBanner = document.getElementById('callHubBanner')
     if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) return
 
-    const caller = await getCallerProfile(callRow.caller_id)
+    const caller = await getProfile(callRow.caller_id)
 
     incomingCallData = {
         callId: callRow.id,
         callerId: callRow.caller_id,
-        callerName: caller.username || 'Unknown',
-        callerAvatar: caller.avatar_url || null,
+        callerName: caller?.username || 'Unknown',
+        callerAvatar: caller?.avatar_url || null,
         room: callRow.room_name
     }
 
@@ -277,28 +444,14 @@ async function handleIncomingCall(callRow) {
         const bannerEl = document.getElementById('callHubBanner')
         if (bannerEl) markAsMissed(bannerEl.dataset.callId)
         dismissBanner()
-    }, 30000)
-}
-
-async function getCallerProfile(callerId) {
-    try {
-        const { data } = await supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', callerId)
-            .maybeSingle()
-        return data || {}
-    } catch {
-        return {}
-    }
+    }, CALL_BANNER_TIMEOUT_MS)
 }
 
 // ============================================================
-// BANNER UI
+// CALL BANNER UI (unchanged)
 // ============================================================
 function showBanner(call) {
-    const old = document.getElementById('callHubBanner')
-    if (old) old.remove()
+    clearAnyNotificationBanner()
 
     bannerVisible = true
     const initial = (call.callerName || '?').charAt(0).toUpperCase()
@@ -318,16 +471,16 @@ function showBanner(call) {
             <div class="callHub-name">${escapeHtml(call.callerName)}</div>
             <div class="callHub-sub">
                 <span class="callHub-pulse"></span>
-                <span>Incoming call...</span>
+                <span>Incoming call…</span>
             </div>
         </div>
         <div class="callHub-actions">
-            <button type="button" class="callHub-btn callHub-decline" data-action="decline">
+            <button type="button" class="callHub-btn callHub-decline" data-action="decline" aria-label="Decline">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
                 </svg>
             </button>
-            <button type="button" class="callHub-btn callHub-accept" data-action="accept">
+            <button type="button" class="callHub-btn callHub-accept" data-action="accept" aria-label="Accept">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="white" style="pointer-events:none;">
                     <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                 </svg>
@@ -384,7 +537,128 @@ function dismissBanner() {
 }
 
 // ============================================================
-// ACCEPT / REJECT
+// MESSAGE BANNER (new)
+// ============================================================
+function showMessageBanner(data) {
+    // Auto-dismiss if user is elsewhere
+    clearAnyNotificationBanner()
+
+    const initial = (data.senderName || '?').charAt(0).toUpperCase()
+
+    const banner = document.createElement('div')
+    banner.id = 'callHubBanner'
+    banner.className = 'callHub-kind-message'
+    banner.dataset.kind = 'message'
+    banner.dataset.senderId = String(data.senderId)
+    banner.dataset.senderName = data.senderName || ''
+
+    banner.innerHTML = `
+        <div class="callHub-avatar">
+            ${data.senderAvatar ? `<img src="${data.senderAvatar}" alt="">` : `<span>${initial}</span>`}
+        </div>
+        <div class="callHub-info">
+            <div class="callHub-name">${escapeHtml(data.senderName)}</div>
+            <div class="callHub-sub callHub-sub-message">
+                ${escapeHtml(data.preview)}
+            </div>
+        </div>
+    `
+
+    banner.addEventListener('click', (e) => {
+        e.preventDefault()
+        openChatWith(data.senderId, data.senderName)
+    })
+
+    document.body.appendChild(banner)
+    injectBannerStyles()
+
+    bannerVisible = false
+    messageBannerTimeout = setTimeout(() => {
+        dismissNotificationBanner(banner)
+    }, MESSAGE_BANNER_TIMEOUT_MS)
+}
+
+function openChatWith(friendId, friendName) {
+    if (!friendId) return
+    try {
+        sessionStorage.setItem('currentChatFriend', JSON.stringify({
+            id: friendId,
+            username: friendName || 'Friend'
+        }))
+    } catch (e) {}
+
+    const url = `${CHAT_APP_PATH}?friendId=${encodeURIComponent(friendId)}`
+    window.location.href = url
+}
+
+// ============================================================
+// REACTION BANNER (new)
+// ============================================================
+function showReactionBanner(data) {
+    clearAnyNotificationBanner()
+
+    const initial = (data.reactorName || '?').charAt(0).toUpperCase()
+
+    const banner = document.createElement('div')
+    banner.id = 'callHubBanner'
+    banner.className = 'callHub-kind-reaction'
+    banner.dataset.kind = 'reaction'
+    banner.dataset.reactorId = String(data.reactorId)
+    banner.dataset.reactorName = data.reactorName || ''
+
+    banner.innerHTML = `
+        <div class="callHub-avatar">
+            ${data.reactorAvatar ? `<img src="${data.reactorAvatar}" alt="">` : `<span>${initial}</span>`}
+            <span class="callHub-emoji-badge">${escapeHtml(data.emoji || '❤️')}</span>
+        </div>
+        <div class="callHub-info">
+            <div class="callHub-name">${escapeHtml(data.reactorName)} reacted ${escapeHtml(data.emoji || '')}</div>
+            <div class="callHub-sub callHub-sub-reaction">
+                ${escapeHtml(data.preview)}
+            </div>
+        </div>
+    `
+
+    banner.addEventListener('click', (e) => {
+        e.preventDefault()
+        openChatWith(data.reactorId, data.reactorName)
+    })
+
+    document.body.appendChild(banner)
+    injectBannerStyles()
+
+    bannerVisible = false
+    reactionBannerTimeout = setTimeout(() => {
+        dismissNotificationBanner(banner)
+    }, REACTION_BANNER_TIMEOUT_MS)
+}
+
+function dismissNotificationBanner(el) {
+    if (!el || !el.parentNode) return
+    el.style.opacity = '0'
+    el.style.transform = 'translateY(-20px)'
+    setTimeout(() => el.remove(), 180)
+    messageBannerTimeout = null
+    reactionBannerTimeout = null
+}
+
+function clearAnyNotificationBanner() {
+    if (messageBannerTimeout) {
+        clearTimeout(messageBannerTimeout)
+        messageBannerTimeout = null
+    }
+    if (reactionBannerTimeout) {
+        clearTimeout(reactionBannerTimeout)
+        reactionBannerTimeout = null
+    }
+    const el = document.getElementById('callHubBanner')
+    if (el && el.dataset.kind !== 'call') {
+        el.remove()
+    }
+}
+
+// ============================================================
+// ACCEPT / REJECT (unchanged)
 // ============================================================
 async function acceptIncoming(callData) {
     if (!callData || !callData.callId) return
@@ -438,7 +712,7 @@ async function markAsMissed(callId) {
 }
 
 // ============================================================
-// OUTGOING CALL
+// OUTGOING CALL (unchanged)
 // ============================================================
 window.startCall = function (friendId, friendName) {
     if (!friendId) return
@@ -451,7 +725,7 @@ window.startCall = function (friendId, friendName) {
 }
 
 // ============================================================
-// MISSED CALLS
+// MISSED CALLS (unchanged)
 // ============================================================
 async function checkMissedCalls() {
     if (!supabase || !currentUser) return
@@ -489,6 +763,9 @@ function escapeHtml(s) {
     }[c]))
 }
 
+// ============================================================
+// BANNER STYLES (extended for message + reaction)
+// ============================================================
 function injectBannerStyles() {
     if (document.getElementById('callHubStyles')) return
 
@@ -496,7 +773,7 @@ function injectBannerStyles() {
     style.id = 'callHubStyles'
     style.textContent = `
         /* ============================================================ */
-        /* RelayTalk — Incoming call banner                             */
+        /* RelayTalk — In-app notification banner                        */
         /* ============================================================ */
 
         #callHubBanner {
@@ -521,6 +798,18 @@ function injectBannerStyles() {
             pointer-events: auto !important;
             user-select: none;
             font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            cursor: default;
+        }
+
+        /* Message + reaction banners are tappable */
+        #callHubBanner.callHub-kind-message,
+        #callHubBanner.callHub-kind-reaction {
+            cursor: pointer;
+        }
+
+        #callHubBanner.callHub-kind-message:hover,
+        #callHubBanner.callHub-kind-reaction:hover {
+            box-shadow: 0 16px 48px rgba(10, 37, 64, 0.22), 0 2px 6px rgba(10, 37, 64, 0.08);
         }
 
         @keyframes callHubSlideDown {
@@ -530,6 +819,7 @@ function injectBannerStyles() {
 
         /* Avatar */
         .callHub-avatar {
+            position: relative;
             width: 48px;
             height: 48px;
             min-width: 48px;
@@ -539,7 +829,7 @@ function injectBannerStyles() {
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow: visible;
             color: #ffffff;
             font-weight: 500;
             font-size: 1.15rem;
@@ -554,6 +844,26 @@ function injectBannerStyles() {
             object-fit: cover;
             object-position: center;
             display: block;
+            border-radius: 50%;
+        }
+
+        /* Reaction emoji badge on top of avatar */
+        .callHub-emoji-badge {
+            position: absolute;
+            right: -4px;
+            bottom: -4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #e6ecf3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            line-height: 1;
+            box-shadow: 0 2px 6px rgba(10, 37, 64, 0.15);
+            z-index: 2;
         }
 
         /* Info */
@@ -578,6 +888,14 @@ function injectBannerStyles() {
             font-size: 0.8rem;
         }
 
+        .callHub-sub-message,
+        .callHub-sub-reaction {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .callHub-pulse {
             width: 8px;
             height: 8px;
@@ -594,7 +912,7 @@ function injectBannerStyles() {
             100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
         }
 
-        /* Actions */
+        /* Call actions */
         .callHub-actions {
             display: flex;
             gap: 8px;
@@ -668,6 +986,12 @@ function injectBannerStyles() {
                 font-size: 1.05rem;
             }
 
+            .callHub-emoji-badge {
+                width: 20px;
+                height: 20px;
+                font-size: 0.7rem;
+            }
+
             .callHub-name { font-size: 0.94rem; }
             .callHub-sub  { font-size: 0.76rem; }
 
@@ -695,6 +1019,8 @@ function injectBannerStyles() {
 window.addEventListener('beforeunload', () => {
     stopRingtone()
     if (callChannel && supabase) supabase.removeChannel(callChannel)
+    if (messageChannel && supabase) supabase.removeChannel(messageChannel)
+    if (reactionChannel && supabase) supabase.removeChannel(reactionChannel)
     if (missedCallPollTimer) clearInterval(missedCallPollTimer)
     if (presenceTimer) clearInterval(presenceTimer)
 })
