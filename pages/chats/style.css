@@ -336,10 +336,7 @@ img { display: block; max-width: 100%; }
     box-shadow: var(--shadow-1);
 }
 
-/* ============================================================ */
-/* COLORED MESSAGES — background color for sent, text for received */
-/* ============================================================ */
-
+/* Colored messages — light background for sent, text color for received */
 .message.sent[data-color="red"]    { background: #fde2e2; color: #7a1d1d; }
 .message.sent[data-color="green"]  { background: #d8f0dc; color: #1e5c2c; }
 .message.sent[data-color="blue"]   { background: #d8e5fb; color: #1a4a8f; }
@@ -348,7 +345,7 @@ img { display: block; max-width: 100%; }
 .message.sent[data-color="purple"] { background: #ebdcfb; color: #4b2682; }
 .message.sent[data-color="pink"]   { background: #fbdce8; color: #7a1e48; }
 .message.sent[data-color="orange"] { background: #fde4cd; color: #7a3e00; }
-.message.sent[data-color="white"]  { background: #ffffff; color: #202124; }
+.message.sent[data-color="white"]  { background: #ffffff; color: #202124; border: 1px solid var(--border-soft); }
 .message.sent[data-color="black"]  { background: #202124; color: #ffffff; }
 
 .message.received[data-color="red"] .message-content    { color: #d93025; }
@@ -391,13 +388,6 @@ img { display: block; max-width: 100%; }
 
 .message.call-message.call-missed,
 .message.call-message.call-declined {
-    background: #fdeaea;
-    color: #8a1f1f;
-    border-color: #f3c7c7;
-}
-
-.message.sent.call-message.call-missed,
-.message.sent.call-message.call-declined {
     background: #fdeaea;
     color: #8a1f1f;
     border-color: #f3c7c7;
@@ -1056,7 +1046,7 @@ img { display: block; max-width: 100%; }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 /* ============================================================ */
-/* COLOR PICKER — redesigned, soft/rounded                       */
+/* COLOR PICKER                                                  */
 /* ============================================================ */
 
 .color-picker-overlay {
@@ -1134,15 +1124,6 @@ img { display: block; max-width: 100%; }
     box-shadow: 0 0 0 1px var(--border-soft), inset 0 0 0 1px rgba(0, 0, 0, 0.03);
     transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
     position: relative;
-}
-
-.color-option::after {
-    content: '';
-    position: absolute;
-    inset: 4px;
-    border-radius: 50%;
-    background: inherit;
-    transition: transform 0.2s var(--ease-out);
 }
 
 .color-option:hover {
@@ -1876,11 +1857,6 @@ img { display: block; max-width: 100%; }
     padding: 36px 28px 28px;
     text-align: center;
     box-shadow: var(--shadow-4);
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(24px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .fallback-emoji {
