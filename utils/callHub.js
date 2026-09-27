@@ -14,6 +14,7 @@ const CHAT_APP_PATH = '/pages/chats/index.html'
 const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
 const PRESENCE_HEARTBEAT_MS = 30000
+const WARMUP_INTERVAL_MS = 60000
 
 const CALL_BANNER_TIMEOUT_MS = 30000
 const MESSAGE_BANNER_TIMEOUT_MS = 5000
@@ -36,6 +37,7 @@ let reactionBannerTimeout = null
 
 let missedCallPollTimer = null
 let presenceTimer = null
+let warmupTimer = null
 let ringtonePlayer = null
 let ringtoneInterval = null
 let bannerVisible = false
@@ -126,6 +128,26 @@ function startPresence() {
 }
 
 // ============================================================
+// WARM-UP — keeps the DB connection hot so realtime events arrive faster
+// ============================================================
+function startWarmup() {
+    if (warmupTimer || !supabase || !currentUser) return
+
+    const ping = async () => {
+        try {
+            await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', currentUser.id)
+                .maybeSingle()
+        } catch (e) {}
+    }
+
+    ping()
+    warmupTimer = setInterval(ping, WARMUP_INTERVAL_MS)
+}
+
+// ============================================================
 // INIT
 // ============================================================
 async function initCallHub() {
@@ -150,6 +172,7 @@ async function initCallHub() {
         console.log('📞 [callHub] Ready for user:', currentUser.email)
 
         startPresence()
+        startWarmup()
 
         setupRingtone()
         setupCallChannel()
@@ -284,17 +307,21 @@ function setupMessageChannel() {
 async function handleIncomingMessage(row) {
     if (!row || !row.sender_id) return
     if (row.sender_id === currentUser.id) return
+    if (row.message_type === 'call') return
     if (isOnChatPageWith(row.sender_id)) return
     if (bannerVisible) return
 
-    const sender = await getProfile(row.sender_id)
-    if (!sender) return
+    const senderId = row.sender_id
+    const cachedSender = profileCache.get(senderId)
 
     const preview = buildMessagePreview(row)
     if (!preview) return
 
+    const sender = cachedSender || await getProfile(senderId)
+    if (!sender) return
+
     showMessageBanner({
-        senderId: row.sender_id,
+        senderId: senderId,
         senderName: sender.username || 'Someone',
         senderAvatar: sender.avatar_url || null,
         preview,
@@ -321,7 +348,7 @@ function buildMessagePreview(row) {
 }
 
 // ============================================================
-// REACTION CHANNEL — fixed with logging
+// REACTION CHANNEL
 // ============================================================
 function setupReactionChannel() {
     if (!supabase || !currentUser) return
@@ -331,73 +358,38 @@ function setupReactionChannel() {
         reactionChannel = null
     }
 
-    console.log('📞 [callHub] Subscribing to message_reactions INSERTs')
-
     reactionChannel = supabase
         .channel(`reactHub:${currentUser.id}`)
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'message_reactions'
         }, (payload) => {
-            console.log('📞 [callHub] message_reactions INSERT received:', payload.new)
             handleIncomingReaction(payload.new)
         })
-        .subscribe((status) => {
-            console.log('📞 [callHub] reaction channel status:', status)
-        })
+        .subscribe()
 }
 
 async function handleIncomingReaction(row) {
     try {
         if (!row || !row.message_id) return
-        if (row.user_id === currentUser.id) {
-            console.log('📞 [callHub] Ignoring own reaction')
-            return
-        }
+        if (row.user_id === currentUser.id) return
 
-        // Look up the message
         const { data: msg, error } = await supabase
             .from('direct_messages')
             .select('id, sender_id, receiver_id, content, image_url')
             .eq('id', row.message_id)
             .maybeSingle()
 
-        if (error) {
-            console.warn('📞 [callHub] Failed to look up message:', error.message)
-            return
-        }
-        if (!msg) {
-            console.log('📞 [callHub] No message found for id:', row.message_id)
-            return
-        }
+        if (error || !msg) return
+        if (msg.sender_id !== currentUser.id) return
+        if (isOnChatPageWith(row.user_id)) return
+        if (bannerVisible) return
 
-        console.log('📞 [callHub] Message found. sender_id:', msg.sender_id, 'me:', currentUser.id)
-
-        // Only show if the reacted message belongs to us AND we're not the reactor
-        if (msg.sender_id !== currentUser.id) {
-            console.log('📞 [callHub] Not our message — skipping')
-            return
-        }
-
-        // Skip if we're already chatting with the reactor
-        if (isOnChatPageWith(row.user_id)) {
-            console.log('📞 [callHub] Already on chat with reactor — skipping')
-            return
-        }
-
-        if (bannerVisible) {
-            console.log('📞 [callHub] A call banner is active — skipping')
-            return
-        }
-
-        const reactor = await getProfile(row.user_id)
-        if (!reactor) {
-            console.log('📞 [callHub] Could not load reactor profile')
-            return
-        }
+        const cachedReactor = profileCache.get(row.user_id)
+        const reactor = cachedReactor || await getProfile(row.user_id)
+        if (!reactor) return
 
         const preview = buildReactionPreview(msg)
 
-        console.log('📞 [callHub] Showing reaction banner from', reactor.username)
         showReactionBanner({
             reactorId: row.user_id,
             reactorName: reactor.username || 'Someone',
@@ -442,7 +434,7 @@ async function getProfile(userId) {
 }
 
 // ============================================================
-// SWIPE-TO-DISMISS HELPER
+// SWIPE-TO-DISMISS
 // ============================================================
 function attachSwipeDismiss(banner, onDismiss) {
     if (!banner) return
@@ -463,7 +455,6 @@ function attachSwipeDismiss(banner, onDismiss) {
     }
 
     function onDown(clientX, clientY) {
-        // Don't start a swipe if user touched a button
         if (document.activeElement && document.activeElement !== document.body) {
             try { document.activeElement.blur() } catch (e) {}
         }
@@ -481,12 +472,10 @@ function attachSwipeDismiss(banner, onDismiss) {
         const dx = clientX - startX
         const dy = clientY - startY
 
-        // Decide direction once: if vertical is dominant, cancel swipe
         if (!decided) {
             if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
             decided = true
             if (Math.abs(dy) > Math.abs(dx)) {
-                // Vertical gesture — cancel
                 dragging = false
                 reset()
                 return
@@ -504,7 +493,6 @@ function attachSwipeDismiss(banner, onDismiss) {
         dragging = false
 
         if (Math.abs(currentX) > SWIPE_DISMISS_PX) {
-            // Fly out in the direction of the swipe
             const exitX = currentX > 0 ? 300 : -300
             banner.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
             banner.style.transform = `translateX(calc(-50% + ${exitX}px))`
@@ -514,7 +502,6 @@ function attachSwipeDismiss(banner, onDismiss) {
                 if (typeof onDismiss === 'function') onDismiss()
             }, 220)
         } else {
-            // Snap back
             banner.style.transition = 'transform 0.2s ease, opacity 0.2s ease'
             banner.style.transform = 'translateX(-50%)'
             banner.style.opacity = '1'
@@ -522,7 +509,6 @@ function attachSwipeDismiss(banner, onDismiss) {
         }
     }
 
-    // Touch
     banner.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return
         onDown(e.touches[0].clientX, e.touches[0].clientY)
@@ -538,7 +524,6 @@ function attachSwipeDismiss(banner, onDismiss) {
     banner.addEventListener('touchend', onUp)
     banner.addEventListener('touchcancel', onUp)
 
-    // Mouse (desktop)
     banner.addEventListener('mousedown', (e) => {
         if (e.target.closest('button')) return
         onDown(e.clientX, e.clientY)
@@ -566,7 +551,8 @@ async function handleIncomingCall(callRow) {
     const existingBanner = document.getElementById('callHubBanner')
     if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) return
 
-    const caller = await getProfile(callRow.caller_id)
+    const cachedCaller = profileCache.get(callRow.caller_id)
+    const caller = cachedCaller || await getProfile(callRow.caller_id)
 
     incomingCallData = {
         callId: callRow.id,
@@ -656,7 +642,6 @@ function showBanner(call) {
     btnContainer.addEventListener('click', onPress)
     btnContainer.addEventListener('touchend', onPress, { passive: false })
 
-    // Attach swipe-to-dismiss
     attachSwipeDismiss(banner, () => {
         stopRingtone()
         if (incomingCallTimeout) {
@@ -1184,6 +1169,7 @@ window.addEventListener('beforeunload', () => {
     if (reactionChannel && supabase) supabase.removeChannel(reactionChannel)
     if (missedCallPollTimer) clearInterval(missedCallPollTimer)
     if (presenceTimer) clearInterval(presenceTimer)
+    if (warmupTimer) clearInterval(warmupTimer)
 })
 
 // ============================================================
