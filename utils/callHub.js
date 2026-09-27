@@ -1,11 +1,7 @@
 // utils/callHub.js
-// Universal in-app notification listener:
-//   • Incoming calls   (existing)
-//   • New messages     (new)
-//   • New reactions    (new)
-// Plus outgoing-call launcher and presence.
-// Import once per page with:
-//   <script type="module" src="/utils/callHub.js"></script>
+// Universal in-app notification listener.
+// NOTE: presence management is delegated to native-init.js when
+// running inside the Capacitor APK, to avoid race conditions.
 
 import { initializeSupabase } from './supabase.js'
 
@@ -21,6 +17,13 @@ const MESSAGE_BANNER_TIMEOUT_MS = 5000
 const REACTION_BANNER_TIMEOUT_MS = 5000
 
 const SWIPE_DISMISS_PX = 80
+
+// Detect native shell — when native, native-init.js handles presence.
+const IS_NATIVE = !!(
+    window.Capacitor &&
+    window.Capacitor.isNativePlatform &&
+    window.Capacitor.isNativePlatform()
+)
 
 let supabase = null
 let currentUser = null
@@ -68,9 +71,10 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
-// PRESENCE
+// PRESENCE — only runs when NOT in native shell
 // ============================================================
 async function setPresenceStatus(status) {
+    if (IS_NATIVE) return; // native-init.js owns presence in the app
     if (!supabase || !currentUser) return
     try {
         await supabase
@@ -84,6 +88,10 @@ async function setPresenceStatus(status) {
 }
 
 function startPresence() {
+    if (IS_NATIVE) {
+        console.log('📞 [callHub] Native shell detected — presence delegated to native-init.js')
+        return
+    }
     if (presenceStarted || !currentUser) return
     presenceStarted = true
 
@@ -128,7 +136,7 @@ function startPresence() {
 }
 
 // ============================================================
-// WARM-UP — keeps the DB connection hot so realtime events arrive faster
+// WARM-UP
 // ============================================================
 function startWarmup() {
     if (warmupTimer || !supabase || !currentUser) return
@@ -151,7 +159,7 @@ function startWarmup() {
 // INIT
 // ============================================================
 async function initCallHub() {
-    console.log('📞 [callHub] Initializing...')
+    console.log('📞 [callHub] Initializing... (native:', IS_NATIVE + ')')
 
     try {
         supabase = await initializeSupabase()
