@@ -280,6 +280,9 @@ function showTypingIndicator(show) {
     }
 }
 
+// ============================================================
+// CALL EVENTS — one "Phone Call" bubble per call
+// ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
         supabase.removeChannel(callsChannel);
@@ -296,14 +299,7 @@ function setupCallsListener(friendId) {
             const call = payload.new;
             if (!call) return;
 
-            const isOurCall =
-                (call.caller_id === currentUser.id && call.callee_id === friendId) ||
-                (call.caller_id === friendId && call.callee_id === currentUser.id) ||
-                (call.caller_id === currentUser.id && call.receiver_id === friendId) ||
-                (call.caller_id === friendId && call.receiver_id === currentUser.id);
-
-            if (!isOurCall) return;
-
+            if (!isOurCall(call, friendId)) return;
             insertCallEventMessage(call);
         })
         .on('postgres_changes', {
@@ -314,33 +310,58 @@ function setupCallsListener(friendId) {
             const call = payload.new;
             if (!call) return;
 
-            const isOurCall =
-                (call.caller_id === currentUser.id && call.callee_id === friendId) ||
-                (call.caller_id === friendId && call.callee_id === currentUser.id) ||
-                (call.caller_id === currentUser.id && call.receiver_id === friendId) ||
-                (call.caller_id === friendId && call.receiver_id === currentUser.id);
-
-            if (!isOurCall) return;
-
-            if (['missed', 'rejected', 'ended', 'completed'].includes(call.status)) {
-                insertCallEventMessage(call);
-            }
+            if (!isOurCall(call, friendId)) return;
+            // We only insert once per call. On updates, if the call row
+            // somehow ended up without a chat message (e.g., insert was
+            // missed), insert now. Otherwise, do nothing.
+            const eventKey = `call_${call.id}`;
+            if (insertCallEventMessage._seen && insertCallEventMessage._seen.has(eventKey)) return;
+            insertCallEventMessage(call);
         })
         .subscribe();
+}
+
+function isOurCall(call, friendId) {
+    const me = currentUser.id;
+    const a = call.caller_id;
+    const b = call.callee_id || call.receiver_id;
+    return (
+        (a === me && b === friendId) ||
+        (a === friendId && b === me)
+    );
 }
 
 async function insertCallEventMessage(call) {
     if (!call || !call.id) return;
     if (!currentUser || !chatFriend) return;
 
-    const eventKey = `call_${call.id}_${call.status}`;
+    // Only one message per call.
+    const eventKey = `call_${call.id}`;
     if (insertCallEventMessage._seen && insertCallEventMessage._seen.has(eventKey)) return;
     if (!insertCallEventMessage._seen) insertCallEventMessage._seen = new Set();
-    insertCallEventMessage._seen.add(eventKey);
 
-    const isOutgoing = call.caller_id === currentUser.id;
-    const status = call.status || 'unknown';
-    const duration = call.duration || 0;
+    // Check if we already have it in memory.
+    if (currentMessages.some(m => m.metadata && m.metadata.call_id === call.id)) {
+        insertCallEventMessage._seen.add(eventKey);
+        return;
+    }
+
+    // Check the DB to be extra safe against duplicates after reload.
+    try {
+        const { data: existing } = await supabase
+            .from('direct_messages')
+            .select('id')
+            .eq('message_type', 'call')
+            .eq('metadata->>call_id', String(call.id))
+            .maybeSingle();
+
+        if (existing) {
+            insertCallEventMessage._seen.add(eventKey);
+            return;
+        }
+    } catch (e) {}
+
+    insertCallEventMessage._seen.add(eventKey);
 
     const messageData = {
         sender_id: currentUser.id,
@@ -350,11 +371,7 @@ async function insertCallEventMessage(call) {
         created_at: new Date().toISOString(),
         message_type: 'call',
         metadata: {
-            call_id: call.id,
-            direction: isOutgoing ? 'outgoing' : 'incoming',
-            status: status,
-            duration: duration,
-            call_type: call.call_type || call.type || 'audio'
+            call_id: call.id
         }
     };
 
@@ -366,7 +383,7 @@ async function insertCallEventMessage(call) {
             .single();
 
         if (error) {
-            console.warn('Call event insert failed (may need schema update):', error.message);
+            console.warn('Call event insert failed:', error.message);
             return;
         }
 
@@ -380,6 +397,9 @@ async function insertCallEventMessage(call) {
     }
 }
 
+// ============================================================
+// SEND MESSAGE
+// ============================================================
 async function sendMessage() {
     if (isSending) return;
 
@@ -454,6 +474,9 @@ async function sendMessage() {
     }
 }
 
+// ============================================================
+// LOAD MESSAGES
+// ============================================================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -513,6 +536,9 @@ async function loadReactionsForMessages(messageIds) {
     } catch (e) {}
 }
 
+// ============================================================
+// RENDER
+// ============================================================
 function isDeletedMessage(msg) {
     if (!msg) return false;
     if (msg.deleted === true || msg.deleted_at) return true;
@@ -607,57 +633,23 @@ function renderSingleMessage(msg, isSent, time) {
     `;
 }
 
+// Single, quiet "Phone Call" bubble for both sides.
 function renderCallMessage(msg, isSent, time) {
-    const meta = msg.metadata || {};
-    const status = meta.status || 'unknown';
-    const duration = meta.duration || 0;
-    const callType = meta.call_type || 'audio';
-
-    let icon = '📞';
-    let label = 'Call';
-    let statusClass = '';
-
-    if (callType === 'video') icon = '📹';
-
-    if (status === 'missed') {
-        icon = '📵';
-        label = isSent ? 'No answer' : 'Missed call';
-        statusClass = 'call-missed';
-    } else if (status === 'rejected') {
-        icon = '🚫';
-        label = isSent ? 'Declined by them' : 'You declined';
-        statusClass = 'call-declined';
-    } else if (status === 'completed' || status === 'ended') {
-        icon = callType === 'video' ? '📹' : '📞';
-        label = formatCallDuration(duration);
-        statusClass = 'call-completed';
-    } else if (status === 'answered' || status === 'ongoing') {
-        icon = callType === 'video' ? '📹' : '📞';
-        label = formatCallDuration(duration);
-        statusClass = 'call-completed';
-    } else {
-        label = isSent ? 'Outgoing call' : 'Incoming call';
-    }
-
     return `
-        <div class="message ${isSent ? 'sent' : 'received'} call-message ${statusClass}" data-message-id="${msg.id}">
+        <div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}">
             <div class="call-message-body">
-                <span class="call-icon">${icon}</span>
+                <span class="call-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                </span>
                 <div class="call-info">
-                    <span class="call-label">${escapeHtml(label)}</span>
+                    <span class="call-label">Phone Call</span>
                     <span class="call-sub">${time}</span>
                 </div>
             </div>
         </div>
     `;
-}
-
-function formatCallDuration(seconds) {
-    if (!seconds || seconds < 1) return 'Call ended';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    if (m < 1) return `${s}s`;
-    return `${m}m ${s}s`;
 }
 
 function addMessageToUI(message, isFromRealtime = false) {
@@ -747,6 +739,9 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ============================================================
+// REACTIONS
+// ============================================================
 function renderReactionPills(messageId) {
     const msg = currentMessages.find(m => m.id === messageId);
     if (msg && (isDeletedMessage(msg) || isCallMessage(msg))) return '';
@@ -831,6 +826,9 @@ async function toggleReaction(messageId, emoji) {
     }
 }
 
+// ============================================================
+// LONG PRESS
+// ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -888,6 +886,9 @@ function handlePressCancel() {
     longPressTarget = null;
 }
 
+// ============================================================
+// ACTION BAR
+// ============================================================
 function openActionBar(wrap) {
     const messageId = parseInt(wrap.dataset.wrapId);
     const msg = currentMessages.find(m => m.id === messageId);
@@ -1038,6 +1039,9 @@ function setupGlobalDismiss() {
     });
 }
 
+// ============================================================
+// COPY / EDIT / DELETE
+// ============================================================
 async function handleCopy() {
     if (!selectedMessageId) return;
     const msg = currentMessages.find(m => m.id === selectedMessageId);
@@ -1259,6 +1263,9 @@ function openEmojiGridForSelected() {
     });
 }
 
+// ============================================================
+// REALTIME
+// ============================================================
 function setupRealtime(friendId) {
     const userIds = [currentUser.id, friendId].sort();
     const channelName = `chat:${userIds[0]}:${userIds[1]}`;
@@ -1379,6 +1386,9 @@ function handleReactionDelete(row) {
     updateReactionPills(messageId);
 }
 
+// ============================================================
+// TYPING
+// ============================================================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
     if (!input) return;
@@ -1599,7 +1609,7 @@ function openGuide() {
                 <div class="guide-icon">📞</div>
                 <div>
                     <strong>Calls</strong>
-                    <p>Missed, declined, and completed calls show up right in the chat as their own bubbles.</p>
+                    <p>Whenever you call someone or they call you, a single "Phone Call" entry appears here.</p>
                 </div>
             </div>
             <div class="guide-item">
@@ -1718,7 +1728,7 @@ function playSentSound() {
 function playReceivedSound() {
     try {
         if (!receivedAudio) {
-            receivedAudio = new Audio('/pages/chats/recieve.mp3');
+            receivedAudio = new Audio('/pages/chats/receive.mp3');
             receivedAudio.volume = 0.3;
         }
         receivedAudio.currentTime = 0;
