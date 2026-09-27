@@ -335,54 +335,30 @@ img { display: block; max-width: 100%; }
     box-shadow: 0 1px 2px rgba(26, 115, 232, 0.18);
 }
 
-/* Colored messages — same look for both sides, only alignment differs */
+/* Colored messages — same look for both sides */
 .message.sent[data-color="red"],
-.message.received[data-color="red"] {
-    background: #fde2e2;
-    color: #7a1d1d;
-}
+.message.received[data-color="red"] { background: #fde2e2; color: #7a1d1d; }
 
 .message.sent[data-color="green"],
-.message.received[data-color="green"] {
-    background: #d8f0dc;
-    color: #1e5c2c;
-}
+.message.received[data-color="green"] { background: #d8f0dc; color: #1e5c2c; }
 
 .message.sent[data-color="blue"],
-.message.received[data-color="blue"] {
-    background: #d8e5fb;
-    color: #1a4a8f;
-}
+.message.received[data-color="blue"] { background: #d8e5fb; color: #1a4a8f; }
 
 .message.sent[data-color="yellow"],
-.message.received[data-color="yellow"] {
-    background: #fdf3c9;
-    color: #7a5e00;
-}
+.message.received[data-color="yellow"] { background: #fdf3c9; color: #7a5e00; }
 
 .message.sent[data-color="cyan"],
-.message.received[data-color="cyan"] {
-    background: #d4f1f6;
-    color: #0a5b6b;
-}
+.message.received[data-color="cyan"] { background: #d4f1f6; color: #0a5b6b; }
 
 .message.sent[data-color="purple"],
-.message.received[data-color="purple"] {
-    background: #ebdcfb;
-    color: #4b2682;
-}
+.message.received[data-color="purple"] { background: #ebdcfb; color: #4b2682; }
 
 .message.sent[data-color="pink"],
-.message.received[data-color="pink"] {
-    background: #fbdce8;
-    color: #7a1e48;
-}
+.message.received[data-color="pink"] { background: #fbdce8; color: #7a1e48; }
 
 .message.sent[data-color="orange"],
-.message.received[data-color="orange"] {
-    background: #fde4cd;
-    color: #7a3e00;
-}
+.message.received[data-color="orange"] { background: #fde4cd; color: #7a3e00; }
 
 .message.sent[data-color="white"],
 .message.received[data-color="white"] {
@@ -403,7 +379,7 @@ img { display: block; max-width: 100%; }
 }
 
 /* ============================================================ */
-/* CALL EVENT MESSAGES — same style both sides                   */
+/* CALL MESSAGE — single quiet "Phone Call" bubble               */
 /* ============================================================ */
 
 .message.call-message {
@@ -411,18 +387,11 @@ img { display: block; max-width: 100%; }
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 180px;
-    background: #e8f0fe;
-    color: #1a4a8f;
-    border: 1px solid #c6dafc;
-    box-shadow: 0 1px 2px rgba(26, 115, 232, 0.10);
-}
-
-.message.call-message.call-missed,
-.message.call-message.call-declined {
-    background: #fdeaea;
-    color: #8a1f1f;
-    border-color: #f3c7c7;
+    min-width: 150px;
+    background: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--shadow-1);
 }
 
 .call-message-body {
@@ -433,9 +402,21 @@ img { display: block; max-width: 100%; }
 }
 
 .call-icon {
-    font-size: 1.3rem;
-    line-height: 1;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    background: var(--primary-soft);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+}
+
+.call-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .call-info {
@@ -449,12 +430,14 @@ img { display: block; max-width: 100%; }
     font-size: 0.92rem;
     font-weight: 500;
     line-height: 1.2;
+    color: var(--text);
 }
 
 .call-sub {
     font-size: 0.72rem;
-    opacity: 0.75;
+    opacity: 0.65;
     line-height: 1.2;
+    color: var(--text-2);
 }
 
 /* ============================================================ */
