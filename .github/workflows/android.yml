@@ -55,6 +55,12 @@ jobs:
           if [ ! -f www/index.html ]; then
             printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RelayTalk</title></head><body></body></html>' > www/index.html
           fi
+          if [ ! -f www/offline.html ]; then
+            echo "ERROR: www/offline.html is required for offline handling"
+            exit 1
+          fi
+          echo "www/ contents:"
+          ls -la www/
 
       - name: Verify override build.gradle exists
         run: |
@@ -154,6 +160,100 @@ jobs:
         run: |
           cp android-overrides/app/build.gradle android/app/build.gradle
 
+      - name: Inject custom MainActivity.java (offline handler)
+        run: |
+          TARGET_DIR=android/app/src/main/java/app/relaytalk/mobile
+          mkdir -p "$TARGET_DIR"
+          cat > "$TARGET_DIR/MainActivity.java" << 'JAVA_EOF'
+package app.relaytalk.mobile;
+
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+
+    private static final String OFFLINE_URL = "file:///android_asset/public/offline.html";
+    private boolean showingOffline = false;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        if (this.getBridge() != null && this.getBridge().getWebView() != null) {
+            installOfflineHandler(this.getBridge().getWebView());
+        }
+    }
+
+    private void installOfflineHandler(WebView webView) {
+        final WebViewClient original = webView.getWebViewClient();
+
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                if (original != null) original.onPageStarted(view, url, favicon);
+                if (url != null && !url.contains("offline.html")) {
+                    showingOffline = false;
+                }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (original != null) original.onPageFinished(view, url);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (original != null) original.onReceivedError(view, request, error);
+
+                if (request != null && request.isForMainFrame()) {
+                    showOfflinePage(view);
+                }
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                if (original != null) original.onReceivedHttpError(view, request, errorResponse);
+
+                if (request != null && request.isForMainFrame()
+                        && errorResponse != null
+                        && errorResponse.getStatusCode() >= 500) {
+                    showOfflinePage(view);
+                }
+            }
+        });
+    }
+
+    private void showOfflinePage(WebView view) {
+        if (showingOffline) return;
+        showingOffline = true;
+
+        try {
+            view.getContext().getAssets().open("public/offline.html").close();
+            view.loadUrl(OFFLINE_URL);
+        } catch (Exception e) {
+            // Fallback: try alt path
+            try {
+                view.getContext().getAssets().open("offline.html").close();
+                view.loadUrl("file:///android_asset/offline.html");
+            } catch (Exception e2) {
+                // Last resort: do nothing
+            }
+        }
+    }
+}
+JAVA_EOF
+          echo "MainActivity.java injected:"
+          ls -la "$TARGET_DIR"
+          echo "--- File contents ---"
+          cat "$TARGET_DIR/MainActivity.java"
+
       - name: Copy custom icons and splash assets
         run: |
           set -e
@@ -214,6 +314,18 @@ jobs:
 
           echo "=== Splash files written: ==="
           find android/app/src/main/res -name "splash.png" | sort
+
+      - name: Verify offline.html is bundled in assets
+        run: |
+          ASSET=android/app/src/main/assets/public/offline.html
+          if [ ! -f "$ASSET" ]; then
+            echo "ERROR: offline.html was not synced to android assets"
+            echo "Contents of android/app/src/main/assets/public/:"
+            ls -la android/app/src/main/assets/public/ 2>/dev/null || echo "(folder missing)"
+            exit 1
+          fi
+          echo "offline.html bundled successfully:"
+          ls -la "$ASSET"
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
