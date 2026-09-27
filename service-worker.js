@@ -2,8 +2,8 @@
 // Push notifications + offline.html cache only.
 // Everything else passes through to the network (no caching).
 
-const OFFLINE_CACHE = 'relaytalk-offline-v1';
-const APP_VERSION = '6.1.1';
+const OFFLINE_CACHE = 'relaytalk-offline-v2';
+const APP_VERSION = '6.1.0';
 
 // Paths to precache — only the offline fallback page.
 // Adjust the path if your offline.html lives elsewhere.
