@@ -1,42 +1,75 @@
-// RelayTalk Service Worker - v6.0.0
-// Push notifications only. NO page caching.
-// This ensures the browser/APK always tries the network,
-// so when a user is offline, the offline page is shown
-// instead of a stale cached version.
+// RelayTalk Service Worker - v6.1.0
+// Push notifications + offline.html cache only.
+// Everything else passes through to the network (no caching).
 
-const CACHE_NAME = 'relaytalk-noop-v6'; // Kept only to clean up old caches
-const APP_VERSION = '6.0.0';
+const OFFLINE_CACHE = 'relaytalk-offline-v1';
+const APP_VERSION = '6.1.0';
+
+// Paths to precache — only the offline fallback page.
+// Adjust the path if your offline.html lives elsewhere.
+const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL_ALT = '/www/offline.html';
 
 let isOnline = true;
 
 // ====== INSTALL ======
 self.addEventListener('install', event => {
-    console.log('⚡ Installing SW v' + APP_VERSION + ' (no caching)');
-    self.skipWaiting();
+    console.log('⚡ Installing SW v' + APP_VERSION);
+    event.waitUntil(
+        (async () => {
+            try {
+                const cache = await caches.open(OFFLINE_CACHE);
+                // Try the primary path first, then fall back to the /www/ path.
+                try {
+                    await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+                    console.log('✅ Cached', OFFLINE_URL);
+                } catch (e1) {
+                    console.warn('⚠️ Could not cache', OFFLINE_URL, '— trying alt');
+                    try {
+                        await cache.add(new Request(OFFLINE_URL_ALT, { cache: 'reload' }));
+                        console.log('✅ Cached', OFFLINE_URL_ALT);
+                    } catch (e2) {
+                        console.warn('⚠️ Could not cache offline.html at any known path');
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Install cache error:', e);
+            }
+            self.skipWaiting();
+        })()
+    );
 });
 
 // ====== ACTIVATE ======
 self.addEventListener('activate', event => {
     console.log('🔄 Activating SW v' + APP_VERSION);
     event.waitUntil(
-        // Delete every cache we previously created — nothing should be cached
-        caches.keys().then(names => Promise.all(
-            names.map(n => caches.delete(n))
-        )).then(() => {
-            console.log('✅ All caches cleared');
-            return self.clients.claim();
-        }).then(() => {
-            return self.clients.matchAll().then(clients => {
-                clients.forEach(client => {
-                    client.postMessage({ type: 'SW_READY', version: APP_VERSION });
-                });
+        (async () => {
+            // Delete every cache EXCEPT the one that holds offline.html.
+            const names = await caches.keys();
+            await Promise.all(
+                names.map(n => {
+                    if (n !== OFFLINE_CACHE) {
+                        return caches.delete(n);
+                    }
+                    return Promise.resolve();
+                })
+            );
+            console.log('✅ Old caches cleared (kept:', OFFLINE_CACHE + ')');
+
+            await self.clients.claim();
+
+            // Let open pages know we're ready.
+            const clients = await self.clients.matchAll();
+            clients.forEach(client => {
+                client.postMessage({ type: 'SW_READY', version: APP_VERSION });
             });
-        })
+        })()
     );
 });
 
 // ============================================================
-// PUSH — unchanged, still supports title, body, icon, badge, image, url, tag
+// PUSH — unchanged behaviour
 // ============================================================
 self.addEventListener('push', function (event) {
     console.log('📬 [SW] Push received');
@@ -90,7 +123,7 @@ self.addEventListener('push', function (event) {
 });
 
 // ============================================================
-// NOTIFICATION CLICK — unchanged
+// NOTIFICATION CLICK — unchanged behaviour
 // ============================================================
 self.addEventListener('notificationclick', function (event) {
     console.log('📬 [SW] Click:', event.action);
@@ -98,7 +131,7 @@ self.addEventListener('notificationclick', function (event) {
 
     if (event.action === 'dismiss') return;
 
-    const targetUrl = event.notification.data?.url || '/pages/home/index.html';
+    const targetUrl = (event.notification.data && event.notification.data.url) || '/pages/home/index.html';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
@@ -116,48 +149,129 @@ self.addEventListener('notificationclick', function (event) {
 });
 
 // ============================================================
-// FETCH — pass-through only, no caching
+// FETCH — pass-through, EXCEPT for navigations when offline.
 // ============================================================
-// We deliberately do NOT call event.respondWith().
-// That means the browser handles every request natively:
-//   - online  → goes to network, gets fresh content
-//   - offline → browser/WebView shows its own offline state,
-//               which lets our offline-detector.js run on
-//               the current page or our offline page take over.
-//
-// Anything we cached would fight the offline page and serve
-// stale content instead. So we cache nothing.
+// Rule: never cache anything except offline.html.
+// Behaviour:
+//   • Non-navigation requests → untouched (browser handles).
+//   • Navigation requests:
+//       - Try network first.
+//       - On failure (offline / ERR_INTERNET_DISCONNECTED),
+//         serve cached offline.html.
+// ============================================================
+self.addEventListener('fetch', (event) => {
+    const req = event.request;
 
-// (No 'fetch' listener at all — the browser does the right thing.)
+    // Only intercept top-level navigations. Everything else (XHR, images,
+    // scripts, CSS, fonts, API calls) passes straight through to the network.
+    if (req.mode !== 'navigate') return;
+
+    // Only handle GETs. POST/others fall through.
+    if (req.method !== 'GET') return;
+
+    // Don't intercept requests to our own offline.html (would recurse).
+    try {
+        const u = new URL(req.url);
+        if (u.pathname.endsWith('/offline.html')) return;
+    } catch (e) {
+        // If URL parsing fails, just let it pass through.
+        return;
+    }
+
+    event.respondWith(
+        (async () => {
+            try {
+                // Network-first for navigations.
+                const networkResp = await fetch(req);
+                return networkResp;
+            } catch (err) {
+                // Network failed — serve the offline fallback.
+                console.log('📴 [SW] Navigation failed, serving offline.html');
+                const cache = await caches.open(OFFLINE_CACHE);
+
+                let cached =
+                    (await cache.match(OFFLINE_URL)) ||
+                    (await cache.match(OFFLINE_URL_ALT));
+
+                if (cached) {
+                    return cached;
+                }
+
+                // Last resort: minimal inline HTML so the user never sees
+                // the WebView's default "Web page not available" screen.
+                return new Response(
+                    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+                    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+                    '<title>Offline · RelayTalk</title>' +
+                    '<style>html,body{height:100%;margin:0;display:flex;align-items:center;' +
+                    'justify-content:center;font-family:sans-serif;color:#0a2540;background:#fff}' +
+                    '.c{text-align:center;padding:24px}h2{margin:0 0 8px;font-weight:500}' +
+                    'p{color:#5f6368;margin:0 0 20px;font-size:.95rem}' +
+                    'button{padding:12px 22px;border-radius:12px;background:#007acc;color:#fff;' +
+                    'border:none;font-size:.95rem;font-weight:500;cursor:pointer}</style>' +
+                    '</head><body><div class="c"><h2>No Internet Connection</h2>' +
+                    '<p>Check your Wi-Fi or mobile data and try again.</p>' +
+                    '<button onclick="location.reload()">Retry</button></div></body></html>',
+                    { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                );
+            }
+        })()
+    );
+});
 
 // ============================================================
-// MESSAGE HANDLER — unchanged API for compatibility
+// MESSAGE HANDLER — unchanged API
 // ============================================================
 self.addEventListener('message', event => {
     const { type } = event.data || {};
 
     switch (type) {
         case 'PING':
-            if (event.ports?.[0]) event.ports[0].postMessage({ pong: true, version: APP_VERSION });
+            if (event.ports && event.ports[0]) {
+                event.ports[0].postMessage({ pong: true, version: APP_VERSION });
+            }
             break;
+
         case 'GET_STATUS':
-            // No caches now, so totalCached is always 0
-            if (event.ports?.[0]) {
+            if (event.ports && event.ports[0]) {
                 event.ports[0].postMessage({
                     version: APP_VERSION,
                     online: isOnline,
-                    totalCached: 0
+                    totalCached: 1 // we always keep offline.html
                 });
             }
+            break;
+
+        case 'CLEAR_CACHE_EXCEPT_OFFLINE':
+            // Utility: keep only offline.html cached.
+            event.waitUntil(
+                (async () => {
+                    const names = await caches.keys();
+                    await Promise.all(
+                        names.map(n => (n !== OFFLINE_CACHE ? caches.delete(n) : Promise.resolve()))
+                    );
+                })()
+            );
             break;
     }
 });
 
+// ============================================================
+// SUBSCRIPTION CHANGE
+// ============================================================
 self.addEventListener('pushsubscriptionchange', () => {
     console.log('📬 [SW] Subscription expired');
 });
 
-self.addEventListener('online', () => { isOnline = true; });
-self.addEventListener('offline', () => { isOnline = false; });
+// ============================================================
+// ONLINE / OFFLINE TRACKING
+// ============================================================
+self.addEventListener('online', () => {
+    isOnline = true;
+});
 
-console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded (no caching)');
+self.addEventListener('offline', () => {
+    isOnline = false;
+});
+
+console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded (offline.html cached only)');
