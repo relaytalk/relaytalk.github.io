@@ -188,7 +188,6 @@
       }
     }
 
-    // Auto-retry when the device reports it's back online
     window.addEventListener('online', () => {
       statusEl.textContent = 'Back online — reloading…';
       setTimeout(() => {
@@ -196,7 +195,6 @@
       }, 300);
     });
 
-    // Also check immediately on load in case we're already online
     (async () => {
       if (await isOnline()) {
         window.location.replace('https://relaytalk.github.io/');
