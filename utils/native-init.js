@@ -92,21 +92,38 @@
   // ============================================================
   // SUPABASE
   // ============================================================
+  let supabasePromise = null;
+
   async function getSupabase() {
+    if (supabasePromise) return supabasePromise;
+    supabasePromise = (async () => {
+      try {
+        const mod = await import('/utils/supabase.js');
+        if (mod.initializeSupabase) return await mod.initializeSupabase();
+      } catch (e) {
+        console.warn('[native-init] Supabase import failed:', e);
+      }
+      return null;
+    })();
+    return supabasePromise;
+  }
+
+  async function getSession() {
     try {
-      const mod = await import('/utils/supabase.js');
-      if (mod.initializeSupabase) return await mod.initializeSupabase();
+      const supabase = await getSupabase();
+      if (!supabase) return null;
+      const { data: { session } } = await supabase.auth.getSession();
+      return session;
     } catch (e) {
-      console.warn('[native-init] Supabase import failed:', e);
+      return null;
     }
-    return null;
   }
 
   async function saveToken(token) {
     try {
       const supabase = await getSupabase();
       if (!supabase) return false;
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getSession();
       if (!session?.user) {
         sessionStorage.setItem('pending_fcm_token', token);
         return false;
@@ -124,16 +141,44 @@
   }
 
   // ============================================================
-  // PRESENCE — set to 'online' when app foreground, 'background' when bg
+  // PRESENCE — single source of truth
   // ============================================================
-  async function setPresence(status) {
+  // Rules:
+  //   • Foreground  → status = 'online'      + last_seen refreshed every 30s
+  //   • Background  → status = 'offline'     + last_seen set once
+  //   • Cold start  → status = 'online'      (fresh launch)
+  //
+  // Debounce consecutive writes so we don't hammer the DB on
+  // rapid foreground/background toggles.
+  // ============================================================
+  let lastPresenceWrite = 0;
+  let lastPresenceValue = null;
+  let presenceHeartbeat = null;
+  const HEARTBEAT_MS = 30000;   // refresh last_seen every 30s while foreground
+  const MIN_WRITE_GAP_MS = 5000; // don't write twice within 5s
+  const HEARTBEAT_FRESH_WINDOW_MS = 45000; // server considers fresh within 45s
+
+  async function writePresence(status, force) {
     try {
+      const now = Date.now();
+      // Debounce rapid calls with the same value
+      if (
+        !force &&
+        status === lastPresenceValue &&
+        now - lastPresenceWrite < MIN_WRITE_GAP_MS
+      ) {
+        return;
+      }
+
       const supabase = await getSupabase();
       if (!supabase) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      const session = await getSession();
+      if (!session?.user) {
+        console.log('[native-init] No session yet — presence write skipped');
+        return;
+      }
 
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({
           status: status,
@@ -141,9 +186,33 @@
         })
         .eq('id', session.user.id);
 
-      console.log('[native-init] Presence set to:', status);
+      if (error) {
+        console.warn('[native-init] Presence write error:', error.message);
+        return;
+      }
+
+      lastPresenceWrite = now;
+      lastPresenceValue = status;
+      console.log('[native-init] Presence →', status);
     } catch (e) {
       console.warn('[native-init] Presence update failed:', e);
+    }
+  }
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    presenceHeartbeat = setInterval(() => {
+      // Only heartbeat if the app is visible
+      if (document.visibilityState === 'visible') {
+        writePresence('online', true);
+      }
+    }, HEARTBEAT_MS);
+  }
+
+  function stopHeartbeat() {
+    if (presenceHeartbeat) {
+      clearInterval(presenceHeartbeat);
+      presenceHeartbeat = null;
     }
   }
 
@@ -262,10 +331,9 @@
       const data = notification.data || {};
       console.log('[native-init] Push received (foreground):', data);
 
-      // Because FCM delivers a `notification` block, Android has ALREADY
-      // shown the OS banner by the time this fires. To prevent the user
-      // from seeing a duplicate OS banner while the app is open, we
-      // remove any delivered notifications immediately.
+      // If somehow we're foreground but a push still arrived (server
+      // race condition), remove the OS banner immediately so the user
+      // doesn't see a duplicate.
       try {
         if (LocalNotifications && LocalNotifications.removeAllDeliveredNotifications) {
           await LocalNotifications.removeAllDeliveredNotifications();
@@ -325,25 +393,38 @@
   checkColdStart();
 
   // ============================================================
-  // APP STATE — presence + cold-start recovery
+  // APP STATE
+  // ============================================================
+  // Capacitor App plugin only fires `appStateChange`. Use it as the
+  // single source of truth for foreground/background transitions.
   // ============================================================
   if (App && App.addListener) {
     App.addListener('appStateChange', async ({ isActive }) => {
       if (isActive) {
-        // App came to foreground → mark online + recover cold-start
-        await setPresence('online');
+        console.log('[native-init] App → foreground');
+        writePresence('online', true);
+        startHeartbeat();
         checkColdStart();
       } else {
-        // App went to background → mark background
-        // (Server will now allow push notifications to go through.)
-        await setPresence('background');
+        console.log('[native-init] App → background');
+        stopHeartbeat();
+        writePresence('offline', true);
       }
     });
-
-    // Also mark on app pause/resume (in case appStateChange doesn't fire)
-    App.addListener('pause', () => setPresence('background'));
-    App.addListener('resume', () => setPresence('online'));
   }
+
+  // ============================================================
+  // BROWSER VISIBILITY (belt & suspenders — for WebView quirks)
+  // ============================================================
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      writePresence('online', false);
+      startHeartbeat();
+    } else {
+      writePresence('offline', false);
+      stopHeartbeat();
+    }
+  });
 
   // ============================================================
   // BOOT SEQUENCE
@@ -354,19 +435,36 @@
     const pushOk = await registerDevice();
     console.log('[native-init] Push registration complete:', pushOk);
 
+    // Ask mic/camera perms after the push dialog has a moment to settle.
     setTimeout(() => {
       requestMediaPermissions('after-push-prompt');
     }, 400);
 
-    // Mark this session as 'online' now that the app is active
-    // (Supabase session may not be ready instantly — retry shortly)
-    setTimeout(() => setPresence('online'), 1500);
+    // Wait for the Supabase session to be ready, then mark online.
+    // We retry a few times because on cold start the auth module
+    // may not have hydrated the session yet.
+    let attempts = 0;
+    const tryPresence = async () => {
+      attempts++;
+      const session = await getSession();
+      if (session?.user) {
+        writePresence('online', true);
+        startHeartbeat();
+        console.log('[native-init] Presence started after', attempts, 'attempt(s)');
+        return;
+      }
+      if (attempts < 10) {
+        setTimeout(tryPresence, 500);
+      } else {
+        console.warn('[native-init] Could not establish presence — no session');
+      }
+    };
+    tryPresence();
   }
 
   bootPermissions();
 
-  // Fallback: if for any reason the mic/camera prompt didn't fire,
-  // fire it again on the first user tap anywhere.
+  // Fallback media permissions on first user interaction
   const firstTap = () => {
     requestMediaPermissions('first-user-tap');
     document.removeEventListener('click', firstTap);
@@ -378,10 +476,6 @@
   // Retry pending FCM token save after login
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
-
-    // Set presence on visibility change too — belt and suspenders
-    setPresence('online');
-
     const pending = sessionStorage.getItem('pending_fcm_token');
     if (!pending) return;
     const ok = await saveToken(pending);
