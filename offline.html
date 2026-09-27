@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Offline · RelayTalk</title>
   <meta name="theme-color" content="#ffffff">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after {
@@ -14,159 +16,595 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    :root {
+      --primary: #007acc;
+      --primary-hover: #0066a8;
+      --primary-soft: rgba(0, 122, 204, 0.08);
+      --primary-softer: rgba(0, 122, 204, 0.04);
+
+      --bg: #ffffff;
+      --bg-sub: #f8f9fa;
+
+      --text: #0a2540;
+      --text-2: #5f6368;
+      --text-3: #80868b;
+
+      --border: #e6ecf3;
+
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+
+      --shadow-1: 0 2px 6px rgba(10, 37, 64, 0.06), 0 1px 2px rgba(10, 37, 64, 0.04);
+      --shadow-2: 0 8px 24px rgba(10, 37, 64, 0.08), 0 2px 6px rgba(10, 37, 64, 0.04);
+      --shadow-3: 0 14px 40px rgba(10, 37, 64, 0.14), 0 4px 12px rgba(10, 37, 64, 0.06);
+
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #ffffff;
-      color: #0a2540;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
       text-align: center;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      position: relative;
+      overflow: hidden;
     }
 
+    /* Soft ambient background glows */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+
+    body::before {
+      width: 320px;
+      height: 320px;
+      top: -140px;
+      left: -120px;
+      background: radial-gradient(circle, rgba(0, 122, 204, 0.22), transparent 70%);
+      animation: glowFloat1 14s ease-in-out infinite;
+    }
+
+    body::after {
+      width: 380px;
+      height: 380px;
+      bottom: -180px;
+      right: -140px;
+      background: radial-gradient(circle, rgba(0, 180, 216, 0.18), transparent 70%);
+      animation: glowFloat2 16s ease-in-out infinite;
+    }
+
+    @keyframes glowFloat1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%      { transform: translate(30px, 20px) scale(1.15); }
+    }
+
+    @keyframes glowFloat2 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%      { transform: translate(-30px, -20px) scale(1.12); }
+    }
+
+    /* Main card */
     .card {
-      max-width: 360px;
+      max-width: 400px;
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
-      animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+      padding: 36px 28px 32px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-2);
+      animation: cardEnter 0.65s var(--ease) both;
     }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(14px); }
-      to   { opacity: 1; transform: translateY(0); }
+    @keyframes cardEnter {
+      from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.96);
+        filter: blur(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+      }
     }
 
-    .icon {
-      width: 88px;
-      height: 88px;
-      border-radius: 24px;
-      background: rgba(0, 122, 204, 0.08);
+    /* Animated icon orb */
+    .icon-wrap {
+      position: relative;
+      width: 110px;
+      height: 110px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 6px;
-      position: relative;
+      margin-bottom: 2px;
     }
 
-    .icon::after {
-      content: '';
+    .icon-ring {
       position: absolute;
-      inset: -6px;
-      border-radius: 28px;
-      background: radial-gradient(circle, rgba(0, 122, 204, 0.12), transparent 70%);
-      animation: iconPulse 2.4s ease-in-out infinite;
-      z-index: -1;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px dashed rgba(0, 122, 204, 0.28);
+      animation: ringRotate 12s linear infinite;
+    }
+
+    @keyframes ringRotate {
+      to { transform: rotate(360deg); }
+    }
+
+    .icon-pulse {
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 122, 204, 0.16), transparent 70%);
+      animation: iconPulse 2.6s ease-in-out infinite;
     }
 
     @keyframes iconPulse {
-      0%, 100% { transform: scale(0.94); opacity: 0.6; }
-      50%      { transform: scale(1.08); opacity: 1; }
+      0%, 100% { transform: scale(0.9); opacity: 0.6; }
+      50%      { transform: scale(1.15); opacity: 1; }
+    }
+
+    .icon {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #eaf4ff 0%, #d8eaff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 10px 26px rgba(0, 122, 204, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      animation: iconFloat 4s ease-in-out infinite;
+      z-index: 1;
+    }
+
+    @keyframes iconFloat {
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50%      { transform: translateY(-6px) rotate(1deg); }
     }
 
     .icon svg {
       width: 42px;
       height: 42px;
-      stroke: #007acc;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      animation: iconShake 6s ease-in-out infinite;
+    }
+
+    /* Subtle "no signal" shake to reinforce the state */
+    @keyframes iconShake {
+      0%, 90%, 100% { transform: translateX(0); }
+      92%           { transform: translateX(-2px); }
+      94%           { transform: translateX(2px); }
+      96%           { transform: translateX(-1px); }
+      98%           { transform: translateX(1px); }
+    }
+
+    /* Text */
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      animation: textEnter 0.6s var(--ease) both;
+      animation-delay: 0.1s;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-2);
+      line-height: 1.55;
+      max-width: 320px;
+      animation: textEnter 0.6s var(--ease) both;
+      animation-delay: 0.18s;
+    }
+
+    @keyframes textEnter {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Instruction list */
+    .tips {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin-top: 4px;
+      animation: textEnter 0.6s var(--ease) both;
+      animation-delay: 0.26s;
+    }
+
+    .tip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      text-align: left;
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
+    }
+
+    .tip:hover {
+      transform: translateX(2px);
+      background: #ffffff;
+      box-shadow: var(--shadow-1);
+    }
+
+    .tip-icon {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .tip-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
       fill: none;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
-    h2 {
-      font-size: 1.35rem;
+    .tip-text {
+      font-size: 0.88rem;
+      color: var(--text-2);
+      line-height: 1.4;
+    }
+
+    .tip-text strong {
+      color: var(--text);
       font-weight: 500;
-      letter-spacing: -0.02em;
+      display: block;
+      margin-bottom: 1px;
+      font-size: 0.9rem;
     }
 
-    p {
-      font-size: 0.94rem;
-      color: #5f6368;
-      line-height: 1.55;
-      max-width: 300px;
-    }
-
+    /* Retry button */
     button {
-      margin-top: 10px;
-      padding: 12px 22px;
-      border-radius: 12px;
-      background: #007acc;
+      margin-top: 8px;
+      padding: 13px 26px;
+      border-radius: var(--radius-md);
+      background: var(--primary);
       color: #fff;
       border: none;
       font-size: 0.95rem;
       font-weight: 500;
       cursor: pointer;
-      min-height: 46px;
+      min-height: 48px;
+      min-width: 160px;
       font-family: inherit;
-      transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 6px 18px rgba(0, 122, 204, 0.22);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s var(--ease), transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+      box-shadow: 0 6px 18px rgba(0, 122, 204, 0.25);
+      animation: textEnter 0.6s var(--ease) both;
+      animation-delay: 0.34s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.35), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s var(--ease);
+      pointer-events: none;
     }
 
     button:hover {
-      background: #0066a8;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 22px rgba(0, 122, 204, 0.32);
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(0, 122, 204, 0.35);
     }
 
-    button:active { transform: translateY(0) scale(0.98); }
+    button:hover::after { opacity: 1; }
+
+    button:active {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 4px 12px rgba(0, 122, 204, 0.25);
+    }
 
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.65;
       cursor: not-allowed;
       transform: none;
+      box-shadow: 0 4px 12px rgba(0, 122, 204, 0.15);
     }
 
+    /* Button spinner */
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    button.loading .btn-spinner { display: block; }
+    button.loading .btn-icon { display: none; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .btn-icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Status line */
     .status {
-      font-size: 0.8rem;
-      color: #80868b;
+      font-size: 0.82rem;
+      color: var(--text-3);
       min-height: 18px;
-      margin-top: 4px;
+      margin-top: 2px;
+      transition: color 0.25s var(--ease), opacity 0.25s var(--ease);
     }
 
+    .status.error { color: #d93025; }
+    .status.success { color: #1e8e3e; }
+
+    /* Small "you are offline" pill at the top of the card */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px 6px 10px;
+      background: rgba(217, 48, 37, 0.08);
+      color: #b3251d;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      animation: textEnter 0.6s var(--ease) both;
+      animation-delay: 0.04s;
+    }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d93025;
+      box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.5);
+      animation: pillPulse 1.8s ease-out infinite;
+    }
+
+    @keyframes pillPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.5); }
+      70%  { box-shadow: 0 0 0 10px rgba(217, 48, 37, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }
+    }
+
+    /* When online-detected: swap pill to green */
+    .pill.online {
+      background: rgba(30, 142, 62, 0.08);
+      color: #1e6e34;
+    }
+
+    .pill.online .pill-dot {
+      background: #1e8e3e;
+      animation: pillPulseGreen 1.8s ease-out infinite;
+    }
+
+    @keyframes pillPulseGreen {
+      0%   { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.5); }
+      70%  { box-shadow: 0 0 0 10px rgba(30, 142, 62, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 420px) {
+      .card { padding: 30px 22px 26px; border-radius: 24px; gap: 16px; }
+      h2 { font-size: 1.25rem; }
+      .subtitle { font-size: 0.9rem; }
+      .icon-wrap { width: 96px; height: 96px; }
+      .icon { width: 74px; height: 74px; border-radius: 20px; }
+      .icon svg { width: 36px; height: 36px; }
+    }
+
+    /* Respect motion preferences */
     @media (prefers-reduced-motion: reduce) {
-      .card, .icon::after {
+      *,
+      *::before,
+      *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
       }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="icon">
-      <svg viewBox="0 0 24 24">
-        <line x1="1" y1="1" x2="23" y2="23"></line>
-        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-        <line x1="12" y1="20" x2="12.01" y2="20"></line>
-      </svg>
+  <div class="card" role="alert" aria-live="assertive">
+
+    <span class="pill" id="statusPill">
+      <span class="pill-dot"></span>
+      <span id="pillText">You're offline</span>
+    </span>
+
+    <div class="icon-wrap">
+      <div class="icon-ring"></div>
+      <div class="icon-pulse"></div>
+      <div class="icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+          <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+      </div>
     </div>
+
     <h2>No Internet Connection</h2>
-    <p>Check your Wi-Fi or mobile data and try again.</p>
-    <button id="retryBtn" onclick="retry()">Retry</button>
-    <div class="status" id="status"></div>
+    <p class="subtitle">
+      RelayTalk needs an active connection to send and receive messages. Check your network and try again.
+    </p>
+
+    <div class="tips">
+      <div class="tip">
+        <div class="tip-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </div>
+        <div class="tip-text">
+          <strong>Check Wi-Fi or mobile data</strong>
+          Make sure your connection is active and stable.
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+          </svg>
+        </div>
+        <div class="tip-text">
+          <strong>Try again in a moment</strong>
+          Some networks recover on their own after a few seconds.
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2v6"></path>
+            <path d="M5.64 5.64l4.24 4.24"></path>
+            <path d="M2 12h6"></path>
+            <path d="M5.64 18.36l4.24-4.24"></path>
+            <path d="M12 22v-6"></path>
+            <path d="M18.36 18.36l-4.24-4.24"></path>
+            <path d="M22 12h-6"></path>
+            <path d="M18.36 5.64l-4.24 4.24"></path>
+          </svg>
+        </div>
+        <div class="tip-text">
+          <strong>Toggle airplane mode</strong>
+          Turn it on for a moment, then off — it often refreshes the network.
+        </div>
+      </div>
+    </div>
+
+    <button id="retryBtn" onclick="retry()">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M23 4v6h-6"></path>
+        <path d="M1 20v-6h6"></path>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+      </svg>
+      <span id="retryText">Try Again</span>
+    </button>
+
+    <div class="status" id="status" aria-live="polite"></div>
   </div>
 
   <script>
     const statusEl = document.getElementById('status');
     const retryBtn = document.getElementById('retryBtn');
+    const retryText = document.getElementById('retryText');
+    const statusPill = document.getElementById('statusPill');
+    const pillText = document.getElementById('pillText');
+
+    const HOME_URL = 'https://relaytalk.github.io/';
+    const PING_URL = 'https://relaytalk.vercel.app/manifest.json';
+
+    function setStatus(msg, kind) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    function setPill(online) {
+      if (online) {
+        statusPill.classList.add('online');
+        pillText.textContent = "You're back online";
+      } else {
+        statusPill.classList.remove('online');
+        pillText.textContent = "You're offline";
+      }
+    }
 
     async function isOnline() {
       try {
-        const res = await fetch('https://relaytalk.vercel.app/manifest.json', {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3500);
+        const res = await fetch(PING_URL + '?t=' + Date.now(), {
           method: 'HEAD',
-          cache: 'no-store'
+          cache: 'no-store',
+          signal: ctrl.signal
         });
+        clearTimeout(t);
         return res.ok || res.status < 500;
       } catch (e) {
         return false;
@@ -174,30 +612,60 @@
     }
 
     async function retry() {
-      statusEl.textContent = 'Checking connection…';
+      if (retryBtn.disabled) return;
+
+      setStatus('Checking connection…');
       retryBtn.disabled = true;
+      retryBtn.classList.add('loading');
+      retryText.textContent = 'Checking…';
 
       const online = await isOnline();
 
       if (online) {
-        statusEl.textContent = 'Connected — reloading…';
-        window.location.replace('https://relaytalk.github.io/');
+        setPill(true);
+        setStatus('Connected — reloading…', 'success');
+        retryText.textContent = 'Connected';
+        setTimeout(() => {
+          window.location.replace(HOME_URL);
+        }, 400);
       } else {
-        statusEl.textContent = 'Still offline. Please check your connection.';
+        setStatus('Still offline. Please check your connection.', 'error');
         retryBtn.disabled = false;
+        retryBtn.classList.remove('loading');
+        retryText.textContent = 'Try Again';
       }
     }
 
-    window.addEventListener('online', () => {
-      statusEl.textContent = 'Back online — reloading…';
+    // Auto-retry the moment the OS reports we're online again.
+    window.addEventListener('online', async () => {
+      setPill(true);
+      setStatus('Back online — reconnecting…', 'success');
+      retryText.textContent = 'Connected';
+      retryBtn.classList.add('loading');
       setTimeout(() => {
-        window.location.replace('https://relaytalk.github.io/');
-      }, 300);
+        window.location.replace(HOME_URL);
+      }, 500);
     });
 
+    window.addEventListener('offline', () => {
+      setPill(false);
+      setStatus('You went offline again.', 'error');
+      retryBtn.classList.remove('loading');
+      retryBtn.disabled = false;
+      retryText.textContent = 'Try Again';
+    });
+
+    // Also do a silent check on load — if we're actually online
+    // (because the SW only intercepted a transient failure), jump back.
     (async () => {
-      if (await isOnline()) {
-        window.location.replace('https://relaytalk.github.io/');
+      const online = await isOnline();
+      if (online) {
+        setPill(true);
+        setStatus('Connection restored — reloading…', 'success');
+        retryText.textContent = 'Connected';
+        setTimeout(() => {
+          window.location.replace(HOME_URL);
+        }, 500);
       }
     })();
   </script>
