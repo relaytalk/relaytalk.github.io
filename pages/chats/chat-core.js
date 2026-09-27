@@ -281,7 +281,11 @@ function showTypingIndicator(show) {
 }
 
 // ============================================================
-// CALL EVENTS — one "Phone Call" bubble per call
+// CALL EVENTS
+//   • Only the CALLER inserts the call message.
+//   • The message is attributed to the real caller, so it
+//     renders on the correct side for both users.
+//   • Dedupe key: metadata.call_id.
 // ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
@@ -298,8 +302,13 @@ function setupCallsListener(friendId) {
         }, (payload) => {
             const call = payload.new;
             if (!call) return;
-
             if (!isOurCall(call, friendId)) return;
+
+            // Only the caller's device inserts the chat bubble.
+            // The callee's device will receive it via chatChannel
+            // (direct_messages INSERT) and render it.
+            if (call.caller_id !== currentUser.id) return;
+
             insertCallEventMessage(call);
         })
         .on('postgres_changes', {
@@ -309,13 +318,14 @@ function setupCallsListener(friendId) {
         }, (payload) => {
             const call = payload.new;
             if (!call) return;
-
             if (!isOurCall(call, friendId)) return;
-            // We only insert once per call. On updates, if the call row
-            // somehow ended up without a chat message (e.g., insert was
-            // missed), insert now. Otherwise, do nothing.
-            const eventKey = `call_${call.id}`;
-            if (insertCallEventMessage._seen && insertCallEventMessage._seen.has(eventKey)) return;
+
+            // Only the caller's device handles this.
+            if (call.caller_id !== currentUser.id) return;
+
+            // If we already inserted the bubble for this call, skip.
+            // Otherwise, insert now (in case INSERT event was missed).
+            if (hasCallMessage(call.id)) return;
             insertCallEventMessage(call);
         })
         .subscribe();
@@ -331,44 +341,58 @@ function isOurCall(call, friendId) {
     );
 }
 
+function hasCallMessage(callId) {
+    return currentMessages.some(m =>
+        m.message_type === 'call' &&
+        m.metadata &&
+        String(m.metadata.call_id) === String(callId)
+    );
+}
+
 async function insertCallEventMessage(call) {
     if (!call || !call.id) return;
     if (!currentUser || !chatFriend) return;
 
-    // Only one message per call.
-    const eventKey = `call_${call.id}`;
-    if (insertCallEventMessage._seen && insertCallEventMessage._seen.has(eventKey)) return;
-    if (!insertCallEventMessage._seen) insertCallEventMessage._seen = new Set();
+    // Only caller inserts.
+    if (call.caller_id !== currentUser.id) return;
 
-    // Check if we already have it in memory.
-    if (currentMessages.some(m => m.metadata && m.metadata.call_id === call.id)) {
-        insertCallEventMessage._seen.add(eventKey);
-        return;
-    }
+    // In-memory dedupe.
+    if (hasCallMessage(call.id)) return;
 
-    // Check the DB to be extra safe against duplicates after reload.
+    // DB dedupe — protects against reloads and races.
     try {
         const { data: existing } = await supabase
             .from('direct_messages')
-            .select('id')
+            .select('id, metadata')
             .eq('message_type', 'call')
-            .eq('metadata->>call_id', String(call.id))
+            .contains('metadata', { call_id: call.id })
             .maybeSingle();
 
-        if (existing) {
-            insertCallEventMessage._seen.add(eventKey);
-            return;
-        }
-    } catch (e) {}
+        if (existing) return;
+    } catch (e) {
+        // If the contains() query fails (older Postgres), fall back
+        // to a broader fetch. Cheap enough for a single call check.
+        try {
+            const { data } = await supabase
+                .from('direct_messages')
+                .select('id, metadata')
+                .eq('message_type', 'call')
+                .limit(20);
 
-    insertCallEventMessage._seen.add(eventKey);
+            const hit = (data || []).some(r =>
+                r.metadata && String(r.metadata.call_id) === String(call.id)
+            );
+            if (hit) return;
+        } catch (_) {}
+    }
 
+    // The call bubble is attributed to the actual caller.
     const messageData = {
-        sender_id: currentUser.id,
-        receiver_id: chatFriend.id,
+        sender_id: call.caller_id,
+        receiver_id: call.callee_id || call.receiver_id,
         content: '',
         chat_id: chatFriend.id,
-        created_at: new Date().toISOString(),
+        created_at: call.created_at || new Date().toISOString(),
         message_type: 'call',
         metadata: {
             call_id: call.id
@@ -387,11 +411,9 @@ async function insertCallEventMessage(call) {
             return;
         }
 
-        if (!currentMessages.some(m => m.id === data.id)) {
-            currentMessages.push(data);
-            window.currentMessages = currentMessages;
-        }
-        addMessageToUI(data, false);
+        // We do NOT addMessageToUI here — the realtime INSERT on
+        // chatChannel will render it. This prevents duplicate rendering
+        // on the caller's own device.
     } catch (e) {
         console.warn('Call event error:', e);
     }
@@ -493,7 +515,11 @@ async function loadOldMessages(friendId) {
         currentMessages = messages || [];
         window.currentMessages = currentMessages;
 
-        await loadReactionsForMessages(currentMessages.filter(m => m.message_type !== 'call').map(m => m.id));
+        await loadReactionsForMessages(
+            currentMessages
+                .filter(m => m.message_type !== 'call')
+                .map(m => m.id)
+        );
         showMessages(currentMessages);
 
         await markMessagesAsRead(friendId);
@@ -633,7 +659,9 @@ function renderSingleMessage(msg, isSent, time) {
     `;
 }
 
-// Single, quiet "Phone Call" bubble for both sides.
+// Single, quiet "Phone Call" bubble.
+// Attribution is based on `sender_id` which equals the real caller,
+// so the side is correct for both users.
 function renderCallMessage(msg, isSent, time) {
     return `
         <div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}">
