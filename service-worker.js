@@ -1,12 +1,11 @@
-// RelayTalk Service Worker - v6.1.0
+// RelayTalk Service Worker - v6.1.2
 // Push notifications + offline.html cache only.
 // Everything else passes through to the network (no caching).
 
-const OFFLINE_CACHE = 'relaytalk-offline-v2';
-const APP_VERSION = '6.1.0';
+const OFFLINE_CACHE = 'relaytalk-offline-v3';
+const APP_VERSION = '6.1.2';
 
 // Paths to precache — only the offline fallback page.
-// Adjust the path if your offline.html lives elsewhere.
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_URL_ALT = '/www/offline.html';
 
@@ -19,7 +18,6 @@ self.addEventListener('install', event => {
         (async () => {
             try {
                 const cache = await caches.open(OFFLINE_CACHE);
-                // Try the primary path first, then fall back to the /www/ path.
                 try {
                     await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
                     console.log('✅ Cached', OFFLINE_URL);
@@ -45,7 +43,6 @@ self.addEventListener('activate', event => {
     console.log('🔄 Activating SW v' + APP_VERSION);
     event.waitUntil(
         (async () => {
-            // Delete every cache EXCEPT the one that holds offline.html.
             const names = await caches.keys();
             await Promise.all(
                 names.map(n => {
@@ -59,7 +56,6 @@ self.addEventListener('activate', event => {
 
             await self.clients.claim();
 
-            // Let open pages know we're ready.
             const clients = await self.clients.matchAll();
             clients.forEach(client => {
                 client.postMessage({ type: 'SW_READY', version: APP_VERSION });
@@ -69,7 +65,7 @@ self.addEventListener('activate', event => {
 });
 
 // ============================================================
-// PUSH — unchanged behaviour
+// PUSH
 // ============================================================
 self.addEventListener('push', function (event) {
     console.log('📬 [SW] Push received');
@@ -123,7 +119,7 @@ self.addEventListener('push', function (event) {
 });
 
 // ============================================================
-// NOTIFICATION CLICK — unchanged behaviour
+// NOTIFICATION CLICK
 // ============================================================
 self.addEventListener('notificationclick', function (event) {
     console.log('📬 [SW] Click:', event.action);
@@ -149,43 +145,27 @@ self.addEventListener('notificationclick', function (event) {
 });
 
 // ============================================================
-// FETCH — pass-through, EXCEPT for navigations when offline.
-// ============================================================
-// Rule: never cache anything except offline.html.
-// Behaviour:
-//   • Non-navigation requests → untouched (browser handles).
-//   • Navigation requests:
-//       - Try network first.
-//       - On failure (offline / ERR_INTERNET_DISCONNECTED),
-//         serve cached offline.html.
+// FETCH — pass-through, except navigations when offline.
 // ============================================================
 self.addEventListener('fetch', (event) => {
     const req = event.request;
 
-    // Only intercept top-level navigations. Everything else (XHR, images,
-    // scripts, CSS, fonts, API calls) passes straight through to the network.
     if (req.mode !== 'navigate') return;
-
-    // Only handle GETs. POST/others fall through.
     if (req.method !== 'GET') return;
 
-    // Don't intercept requests to our own offline.html (would recurse).
     try {
         const u = new URL(req.url);
         if (u.pathname.endsWith('/offline.html')) return;
     } catch (e) {
-        // If URL parsing fails, just let it pass through.
         return;
     }
 
     event.respondWith(
         (async () => {
             try {
-                // Network-first for navigations.
                 const networkResp = await fetch(req);
                 return networkResp;
             } catch (err) {
-                // Network failed — serve the offline fallback.
                 console.log('📴 [SW] Navigation failed, serving offline.html');
                 const cache = await caches.open(OFFLINE_CACHE);
 
@@ -197,8 +177,6 @@ self.addEventListener('fetch', (event) => {
                     return cached;
                 }
 
-                // Last resort: minimal inline HTML so the user never sees
-                // the WebView's default "Web page not available" screen.
                 return new Response(
                     '<!DOCTYPE html><html><head><meta charset="utf-8">' +
                     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -220,7 +198,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// MESSAGE HANDLER — unchanged API
+// MESSAGE HANDLER
 // ============================================================
 self.addEventListener('message', event => {
     const { type } = event.data || {};
@@ -237,13 +215,12 @@ self.addEventListener('message', event => {
                 event.ports[0].postMessage({
                     version: APP_VERSION,
                     online: isOnline,
-                    totalCached: 1 // we always keep offline.html
+                    totalCached: 1
                 });
             }
             break;
 
         case 'CLEAR_CACHE_EXCEPT_OFFLINE':
-            // Utility: keep only offline.html cached.
             event.waitUntil(
                 (async () => {
                     const names = await caches.keys();
@@ -266,12 +243,7 @@ self.addEventListener('pushsubscriptionchange', () => {
 // ============================================================
 // ONLINE / OFFLINE TRACKING
 // ============================================================
-self.addEventListener('online', () => {
-    isOnline = true;
-});
-
-self.addEventListener('offline', () => {
-    isOnline = false;
-});
+self.addEventListener('online', () => { isOnline = true; });
+self.addEventListener('offline', () => { isOnline = false; });
 
 console.log('🚀 RelayTalk SW v' + APP_VERSION + ' loaded (offline.html cached only)');
