@@ -1,5 +1,5 @@
 // utils/native-init.js
-// FCM push + incoming call handling + runtime permissions.
+// FCM push + incoming call handling + runtime permissions + presence.
 
 (function () {
   'use strict';
@@ -75,8 +75,6 @@
     console.log('[native-init] Requesting media permissions (' + reason + ')');
 
     try {
-      // Request both audio + video in one go. Android will show
-      // two dialogs back to back (mic, then camera).
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: { facingMode: 'user' },
@@ -85,7 +83,6 @@
       console.log('[native-init] Media permissions GRANTED');
     } catch (e) {
       console.warn('[native-init] Media permission DENIED or failed:', e.name, e.message);
-      // If user denied, reset flag so we can retry on next launch
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
         mediaPermissionsRequested = false;
       }
@@ -123,6 +120,30 @@
     } catch (e) {
       console.error('[native-init] Token save error:', e);
       return false;
+    }
+  }
+
+  // ============================================================
+  // PRESENCE — set to 'online' when app foreground, 'background' when bg
+  // ============================================================
+  async function setPresence(status) {
+    try {
+      const supabase = await getSupabase();
+      if (!supabase) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      await supabase
+        .from('profiles')
+        .update({
+          status: status,
+          last_seen: new Date().toISOString(),
+        })
+        .eq('id', session.user.id);
+
+      console.log('[native-init] Presence set to:', status);
+    } catch (e) {
+      console.warn('[native-init] Presence update failed:', e);
     }
   }
 
@@ -198,7 +219,7 @@
   }
 
   // ============================================================
-  // NAVIGATION — chat (messages + reactions)
+  // NAVIGATION — chat
   // ============================================================
   function navigateToChat(data) {
     let url = data.url || '';
@@ -237,11 +258,24 @@
       }
     });
 
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       const data = notification.data || {};
       console.log('[native-init] Push received (foreground):', data);
 
+      // Because FCM delivers a `notification` block, Android has ALREADY
+      // shown the OS banner by the time this fires. To prevent the user
+      // from seeing a duplicate OS banner while the app is open, we
+      // remove any delivered notifications immediately.
+      try {
+        if (LocalNotifications && LocalNotifications.removeAllDeliveredNotifications) {
+          await LocalNotifications.removeAllDeliveredNotifications();
+        }
+      } catch (e) {
+        console.warn('[native-init] Could not clear delivered notifications:', e);
+      }
+
       const type = data.type || '';
+
       if (type === 'incoming_call' && data.room && data.callId) {
         if (window.location.pathname.includes('/call-app/call/')) {
           window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
@@ -290,32 +324,43 @@
 
   checkColdStart();
 
+  // ============================================================
+  // APP STATE — presence + cold-start recovery
+  // ============================================================
   if (App && App.addListener) {
-    App.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) checkColdStart();
+    App.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive) {
+        // App came to foreground → mark online + recover cold-start
+        await setPresence('online');
+        checkColdStart();
+      } else {
+        // App went to background → mark background
+        // (Server will now allow push notifications to go through.)
+        await setPresence('background');
+      }
     });
+
+    // Also mark on app pause/resume (in case appStateChange doesn't fire)
+    App.addListener('pause', () => setPresence('background'));
+    App.addListener('resume', () => setPresence('online'));
   }
 
   // ============================================================
   // BOOT SEQUENCE
   // ============================================================
-  // Order matters:
-  //   1. Create channels (silent, no prompt)
-  //   2. Ask push permission (shows notification dialog)
-  //   3. Ask media permission (shows mic + camera dialogs)
-  //
-  // We chain them so Android shows prompts cleanly, one at a time.
   async function bootPermissions() {
     await registerChannels();
 
     const pushOk = await registerDevice();
     console.log('[native-init] Push registration complete:', pushOk);
 
-    // Small delay so the OS finishes dismissing the notification prompt
-    // before showing the mic/camera ones. 400ms is enough on all tested devices.
     setTimeout(() => {
       requestMediaPermissions('after-push-prompt');
     }, 400);
+
+    // Mark this session as 'online' now that the app is active
+    // (Supabase session may not be ready instantly — retry shortly)
+    setTimeout(() => setPresence('online'), 1500);
   }
 
   bootPermissions();
@@ -333,6 +378,10 @@
   // Retry pending FCM token save after login
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
+
+    // Set presence on visibility change too — belt and suspenders
+    setPresence('online');
+
     const pending = sessionStorage.getItem('pending_fcm_token');
     if (!pending) return;
     const ok = await saveToken(pending);
