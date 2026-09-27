@@ -56,14 +56,10 @@ jobs:
             printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RelayTalk</title></head><body></body></html>' > www/index.html
           fi
 
-      - name: Verify override files exist
+      - name: Verify override build.gradle exists
         run: |
           if [ ! -f "android-overrides/app/build.gradle" ]; then
             echo "ERROR: android-overrides/app/build.gradle not found"
-            exit 1
-          fi
-          if [ ! -f "android-overrides/app/src/main/java/app/relaytalk/mobile/MainActivity.java" ]; then
-            echo "ERROR: android-overrides MainActivity.java not found"
             exit 1
           fi
 
@@ -158,13 +154,6 @@ jobs:
         run: |
           cp android-overrides/app/build.gradle android/app/build.gradle
 
-      - name: Inject custom MainActivity (offline handler)
-        run: |
-          TARGET=android/app/src/main/java/app/relaytalk/mobile
-          mkdir -p "$TARGET"
-          cp android-overrides/app/src/main/java/app/relaytalk/mobile/MainActivity.java "$TARGET/MainActivity.java"
-          echo "MainActivity.java injected"
-
       - name: Copy custom icons and splash assets
         run: |
           set -e
@@ -193,20 +182,13 @@ jobs:
           convert "$SRC" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
           echo "=== Splash (small centered logo, white bg) ==="
-          # The splash png is a full-screen white canvas with a SMALL logo
-          # in the center. This prevents stretching/cropping on any device.
-          # The Android native layer scales it with CENTER_CROP inside a
-          # drawable that references the image centered — see capacitor.config.
-
           mkdir -p android/app/src/main/res/drawable
 
-          # Small centered logo (roughly 25% of screen)
           convert -size 512x512 xc:"$SPLASH_BG" \
                   \( "$SRC" -resize 128x128 \) \
                   -gravity center -composite \
                   android/app/src/main/res/drawable/splash.png
 
-          # Density-specific splash images (small centered logo)
           declare -A SPLASH_SIZES=(
             [drawable-land-mdpi]=288
             [drawable-land-hdpi]=512
