@@ -335,7 +335,6 @@ img { display: block; max-width: 100%; }
     box-shadow: 0 1px 2px rgba(26, 115, 232, 0.18);
 }
 
-/* Colored messages — same look for both sides */
 .message.sent[data-color="red"],
 .message.received[data-color="red"] { background: #fde2e2; color: #7a1d1d; }
 
