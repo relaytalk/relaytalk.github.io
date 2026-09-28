@@ -1,6 +1,6 @@
 // utils/callHub.js
-// Universal in-app notification listener.
-// Presence is delegated to native-init.js when running in the APK.
+// Universal in-app notification listener + presence manager.
+// Runs on every page. Manages presence for both website and app.
 
 import { initializeSupabase } from './supabase.js'
 
@@ -8,7 +8,7 @@ const CALL_APP_PATH = '/pages/call-app/call/index.html'
 const CHAT_APP_PATH = '/pages/chats/index.html'
 const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
-const PRESENCE_HEARTBEAT_MS = 30000
+const PRESENCE_HEARTBEAT_MS = 20000   // refresh online every 20s
 const WARMUP_INTERVAL_MS = 60000
 
 const CALL_BANNER_TIMEOUT_MS = 30000
@@ -17,6 +17,7 @@ const REACTION_BANNER_TIMEOUT_MS = 5000
 
 const SWIPE_DISMISS_PX = 80
 
+// Detect native app shell
 const IS_NATIVE = !!(
     window.Capacitor &&
     window.Capacitor.isNativePlatform &&
@@ -69,70 +70,87 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
-// PRESENCE — website only
+// PRESENCE — manages both website AND app
 // ============================================================
-async function setPresenceStatus(status) {
-    if (IS_NATIVE) return;
+let lastPresenceValue = null
+let lastPresenceWrite = 0
+const MIN_WRITE_GAP_MS = 3000
+
+async function setPresenceStatus(status, force) {
     if (!supabase || !currentUser) return
+
+    const now = Date.now()
+    if (
+        !force &&
+        status === lastPresenceValue &&
+        now - lastPresenceWrite < MIN_WRITE_GAP_MS
+    ) return
+
     try {
-        await supabase
+        const { error } = await supabase
             .from('profiles')
             .update({
                 status,
                 last_seen: new Date().toISOString()
             })
             .eq('id', currentUser.id)
+
+        if (!error) {
+            lastPresenceValue = status
+            lastPresenceWrite = now
+        }
     } catch (e) {}
 }
 
 function startPresence() {
-    if (IS_NATIVE) {
-        console.log('📞 [callHub] Native shell — presence delegated to native-init.js')
-        return
-    }
     if (presenceStarted || !currentUser) return
     presenceStarted = true
 
-    setPresenceStatus('online')
+    // Mark online immediately
+    setPresenceStatus('online', true)
 
+    // Heartbeat — always runs, every page
     presenceTimer = setInterval(() => {
         if (document.visibilityState === 'visible') {
-            setPresenceStatus('online')
+            setPresenceStatus('online', true)
         }
     }, PRESENCE_HEARTBEAT_MS)
 
-    window.addEventListener('beforeunload', () => {
-        try {
-            if (presenceTimer) clearInterval(presenceTimer)
-            if (supabase && currentUser) {
-                supabase
-                    .from('profiles')
-                    .update({
-                        status: 'offline',
-                        last_seen: new Date().toISOString()
-                    })
-                    .eq('id', currentUser.id)
-                    .then(() => {})
-                    .catch(() => {})
-            }
-        } catch (e) {}
-    })
-
+    // Visibility — offline when hidden, online when visible
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            setPresenceStatus('online')
+            setPresenceStatus('online', true)
         } else {
-            setPresenceStatus('offline')
+            setPresenceStatus('offline', true)
         }
     })
 
+    // Page lifecycle
     window.addEventListener('pagehide', () => {
-        setPresenceStatus('offline')
+        setPresenceStatus('offline', true)
     })
 
     window.addEventListener('pageshow', () => {
-        setPresenceStatus('online')
+        setPresenceStatus('online', true)
     })
+
+    window.addEventListener('beforeunload', () => {
+        if (presenceTimer) clearInterval(presenceTimer)
+        // Note: can't reliably await here. Visibilitychange handles it.
+    })
+
+    // Native app state — when app goes to background, mark offline
+    if (IS_NATIVE && window.Capacitor?.Plugins?.App) {
+        try {
+            window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
+                if (isActive) {
+                    setPresenceStatus('online', true)
+                } else {
+                    setPresenceStatus('offline', true)
+                }
+            })
+        } catch (e) {}
+    }
 }
 
 // ============================================================
