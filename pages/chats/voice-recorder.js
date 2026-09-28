@@ -2,7 +2,7 @@
 // Voice message recorder + Cloudinary uploader.
 // Loaded by chat-core.js on demand.
 
-const CLOUDINARY_CLOUD_NAME = 'relaytalk_voice';   // ← replace
+const CLOUDINARY_CLOUD_NAME = 'rsbivvqy';   // ← replace
 const CLOUDINARY_UPLOAD_PRESET = 'relaytalk_voice'; // ← from step 2
 
 class VoiceRecorder {
