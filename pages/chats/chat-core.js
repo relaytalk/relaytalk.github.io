@@ -77,6 +77,16 @@ const PICKER_EMOJIS = [
     '✨', '🙌', '👏', '🥰', '😅', '🤗'
 ];
 
+// ============================================================
+// VOICE RECORDER STATE
+// ============================================================
+let voiceRecorder = null;
+let voicePreviewAudioEl = null;
+let voicePreviewBars = [];
+
+// ============================================================
+// INIT
+// ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { success, user } = await auth.getCurrentUser();
@@ -151,6 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupLongPressHandlers();
         setupGlobalDismiss();
         setupKeyboardPreservation();
+        setupVoiceRecorder();
 
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -174,6 +185,7 @@ function setupKeyboardPreservation() {
 
     inputBar.querySelectorAll('button').forEach(btn => {
         if (btn.id === 'sendBtn' || btn.classList.contains('send-btn')) return;
+        if (btn.id === 'micBtn' || btn.classList.contains('mic-btn')) return;
 
         btn.addEventListener('mousedown', (e) => e.preventDefault());
         btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
@@ -281,11 +293,264 @@ function showTypingIndicator(show) {
 }
 
 // ============================================================
+// VOICE RECORDER
+// ============================================================
+function setupVoiceRecorder() {
+    const micBtn = document.getElementById('micBtn');
+    if (!micBtn) return;
+
+    if (!window.VoiceRecorder || !window.VoiceRecorder.isSupported()) {
+        micBtn.style.display = 'none';
+        return;
+    }
+
+    voiceRecorder = new window.VoiceRecorder();
+
+    const overlay = document.getElementById('voiceRecOverlay');
+    const waveform = document.getElementById('voiceRecWaveform');
+    const timerEl = document.getElementById('voiceRecTimer');
+    const cancelBtn = document.getElementById('voiceRecCancelBtn');
+    const stopBtn = document.getElementById('voiceRecStopBtn');
+
+    const BAR_COUNT = 32;
+    if (waveform) {
+        waveform.innerHTML = '';
+        for (let i = 0; i < BAR_COUNT; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.height = '4px';
+            waveform.appendChild(bar);
+        }
+    }
+
+    voiceRecorder.ui = {
+        onTimer: (ms) => {
+            if (timerEl) timerEl.textContent = formatDuration(ms);
+        },
+        onLevel: (dataArray) => {
+            if (!waveform) return;
+            const bars = waveform.querySelectorAll('.bar');
+            const step = Math.max(1, Math.floor(dataArray.length / bars.length));
+            bars.forEach((bar, i) => {
+                const v = dataArray[i * step] || 0;
+                const h = Math.max(4, Math.min(46, (v / 255) * 46));
+                bar.style.height = h + 'px';
+            });
+        }
+    };
+
+    voiceRecorder.onStateChange = (state) => {
+        if (state === 'recording') {
+            micBtn.classList.add('recording');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                if (timerEl) timerEl.textContent = '0:00';
+            }
+        } else {
+            micBtn.classList.remove('recording');
+            if (overlay) overlay.style.display = 'none';
+        }
+    };
+
+    micBtn.addEventListener('click', () => {
+        handleMicTap();
+    });
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', async () => {
+            await voiceRecorder.cancel();
+            if (overlay) overlay.style.display = 'none';
+        });
+    }
+
+    if (stopBtn) {
+        stopBtn.addEventListener('click', async () => {
+            const blob = await voiceRecorder.stop();
+            if (overlay) overlay.style.display = 'none';
+            if (blob) showVoicePreview();
+        });
+    }
+
+    setupVoicePreviewModal();
+}
+
+async function handleMicTap() {
+    if (!voiceRecorder) return;
+
+    if (voiceRecorder.isRecording) {
+        const blob = await voiceRecorder.stop();
+        if (blob) showVoicePreview();
+        return;
+    }
+
+    if (voiceRecorder.recordedBlob) voiceRecorder.discard();
+
+    await voiceRecorder.start();
+}
+
+function setupVoicePreviewModal() {
+    const overlay = document.getElementById('voicePreviewOverlay');
+    const playBtn = document.getElementById('voicePreviewPlay');
+    const waveform = document.getElementById('voicePreviewWaveform');
+    const durationEl = document.getElementById('voicePreviewDuration');
+    const closeBtn = document.getElementById('voicePreviewClose');
+    const cancelBtn = document.getElementById('voicePreviewCancel');
+    const sendBtn = document.getElementById('voicePreviewSend');
+
+    const BAR_COUNT = 40;
+    if (waveform) {
+        waveform.innerHTML = '';
+        voicePreviewBars = [];
+        for (let i = 0; i < BAR_COUNT; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            const h = 8 + Math.random() * 24;
+            bar.style.height = h + 'px';
+            waveform.appendChild(bar);
+            voicePreviewBars.push(bar);
+        }
+    }
+
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            if (!voicePreviewAudioEl) return;
+            if (voicePreviewAudioEl.paused) {
+                voicePreviewAudioEl.play();
+            } else {
+                voicePreviewAudioEl.pause();
+            }
+        });
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', () => closeVoicePreview());
+    if (cancelBtn) cancelBtn.addEventListener('click', () => closeVoicePreview());
+
+    if (sendBtn) {
+        sendBtn.addEventListener('click', async () => {
+            if (!voiceRecorder || !voiceRecorder.recordedBlob) {
+                closeVoicePreview();
+                return;
+            }
+
+            const originalHTML = sendBtn.innerHTML;
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = 'Sending…';
+
+            try {
+                const result = await voiceRecorder.upload();
+                await sendVoiceMessage(result.url, result.durationMs || voiceRecorder.recordingMs);
+                closeVoicePreview(true);
+            } catch (err) {
+                console.error('Voice upload failed:', err);
+                showToast('Failed to send voice message', '❌', 2500);
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = originalHTML;
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeVoicePreview();
+        });
+    }
+}
+
+function showVoicePreview() {
+    if (!voiceRecorder || !voiceRecorder.recordedBlob) return;
+
+    const overlay = document.getElementById('voicePreviewOverlay');
+    const durationEl = document.getElementById('voicePreviewDuration');
+    const playBtn = document.getElementById('voicePreviewPlay');
+
+    voicePreviewBars.forEach(b => b.classList.remove('played'));
+
+    if (durationEl) durationEl.textContent = formatDuration(voiceRecorder.recordingMs);
+
+    if (voicePreviewAudioEl) {
+        try { voicePreviewAudioEl.pause(); } catch (e) {}
+        voicePreviewAudioEl = null;
+    }
+    voicePreviewAudioEl = new Audio(voiceRecorder.recordedUrl);
+    voicePreviewAudioEl.preload = 'auto';
+
+    voicePreviewAudioEl.addEventListener('play', () => {
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    });
+    voicePreviewAudioEl.addEventListener('pause', () => {
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    });
+    voicePreviewAudioEl.addEventListener('ended', () => {
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        voicePreviewBars.forEach(b => b.classList.remove('played'));
+    });
+
+    voicePreviewAudioEl.addEventListener('timeupdate', () => {
+        const dur = voicePreviewAudioEl.duration || (voiceRecorder.recordingMs / 1000) || 1;
+        const frac = Math.min(1, voicePreviewAudioEl.currentTime / dur);
+        const upTo = Math.floor(frac * voicePreviewBars.length);
+        voicePreviewBars.forEach((b, i) => {
+            b.classList.toggle('played', i < upTo);
+        });
+    });
+
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function closeVoicePreview(afterSend = false) {
+    const overlay = document.getElementById('voicePreviewOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    if (voicePreviewAudioEl) {
+        try { voicePreviewAudioEl.pause(); } catch (e) {}
+        voicePreviewAudioEl = null;
+    }
+
+    voicePreviewBars.forEach(b => b.classList.remove('played'));
+
+    if (voiceRecorder) voiceRecorder.discard();
+}
+
+async function sendVoiceMessage(audioUrl, durationMs) {
+    if (!chatFriend || !currentUser) return;
+
+    const messageData = {
+        sender_id: currentUser.id,
+        receiver_id: chatFriend.id,
+        content: '',
+        chat_id: chatFriend.id,
+        created_at: new Date().toISOString(),
+        read: false,
+        message_type: 'audio',
+        audio_url: audioUrl,
+        audio_duration_ms: Math.round(durationMs || 0)
+    };
+
+    const { data, error } = await supabase
+        .from('direct_messages')
+        .insert(messageData)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    if (!currentMessages.some(m => m.id === data.id)) {
+        currentMessages.push(data);
+        window.currentMessages = currentMessages;
+    }
+    addMessageToUI(data, false);
+
+    playSentSound();
+    forceScrollToBottom();
+
+    isTyping = false;
+    window.isTyping = false;
+    if (typingTimeout) { clearTimeout(typingTimeout); typingTimeout = null; }
+    sendTypingStatus(false);
+}
+
+// ============================================================
 // CALL EVENTS
-//   • Only the CALLER inserts the call message.
-//   • The message is attributed to the real caller, so it
-//     renders on the correct side for both users.
-//   • Dedupe key: metadata.call_id.
 // ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
@@ -296,35 +561,21 @@ function setupCallsListener(friendId) {
     callsChannel = supabase
         .channel(`calls-chat:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'calls'
+            event: 'INSERT', schema: 'public', table: 'calls'
         }, (payload) => {
             const call = payload.new;
             if (!call) return;
             if (!isOurCall(call, friendId)) return;
-
-            // Only the caller's device inserts the chat bubble.
-            // The callee's device will receive it via chatChannel
-            // (direct_messages INSERT) and render it.
             if (call.caller_id !== currentUser.id) return;
-
             insertCallEventMessage(call);
         })
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'calls'
+            event: 'UPDATE', schema: 'public', table: 'calls'
         }, (payload) => {
             const call = payload.new;
             if (!call) return;
             if (!isOurCall(call, friendId)) return;
-
-            // Only the caller's device handles this.
             if (call.caller_id !== currentUser.id) return;
-
-            // If we already inserted the bubble for this call, skip.
-            // Otherwise, insert now (in case INSERT event was missed).
             if (hasCallMessage(call.id)) return;
             insertCallEventMessage(call);
         })
@@ -352,14 +603,9 @@ function hasCallMessage(callId) {
 async function insertCallEventMessage(call) {
     if (!call || !call.id) return;
     if (!currentUser || !chatFriend) return;
-
-    // Only caller inserts.
     if (call.caller_id !== currentUser.id) return;
-
-    // In-memory dedupe.
     if (hasCallMessage(call.id)) return;
 
-    // DB dedupe — protects against reloads and races.
     try {
         const { data: existing } = await supabase
             .from('direct_messages')
@@ -367,26 +613,9 @@ async function insertCallEventMessage(call) {
             .eq('message_type', 'call')
             .contains('metadata', { call_id: call.id })
             .maybeSingle();
-
         if (existing) return;
-    } catch (e) {
-        // If the contains() query fails (older Postgres), fall back
-        // to a broader fetch. Cheap enough for a single call check.
-        try {
-            const { data } = await supabase
-                .from('direct_messages')
-                .select('id, metadata')
-                .eq('message_type', 'call')
-                .limit(20);
+    } catch (e) {}
 
-            const hit = (data || []).some(r =>
-                r.metadata && String(r.metadata.call_id) === String(call.id)
-            );
-            if (hit) return;
-        } catch (_) {}
-    }
-
-    // The call bubble is attributed to the actual caller.
     const messageData = {
         sender_id: call.caller_id,
         receiver_id: call.callee_id || call.receiver_id,
@@ -394,33 +623,23 @@ async function insertCallEventMessage(call) {
         chat_id: chatFriend.id,
         created_at: call.created_at || new Date().toISOString(),
         message_type: 'call',
-        metadata: {
-            call_id: call.id
-        }
+        metadata: { call_id: call.id }
     };
 
     try {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('direct_messages')
             .insert(messageData)
             .select()
             .single();
-
-        if (error) {
-            console.warn('Call event insert failed:', error.message);
-            return;
-        }
-
-        // We do NOT addMessageToUI here — the realtime INSERT on
-        // chatChannel will render it. This prevents duplicate rendering
-        // on the caller's own device.
+        if (error) console.warn('Call event insert failed:', error.message);
     } catch (e) {
         console.warn('Call event error:', e);
     }
 }
 
 // ============================================================
-// SEND MESSAGE
+// SEND MESSAGE (text)
 // ============================================================
 async function sendMessage() {
     if (isSending) return;
@@ -516,9 +735,7 @@ async function loadOldMessages(friendId) {
         window.currentMessages = currentMessages;
 
         await loadReactionsForMessages(
-            currentMessages
-                .filter(m => m.message_type !== 'call')
-                .map(m => m.id)
+            currentMessages.filter(m => m.message_type !== 'call').map(m => m.id)
         );
         showMessages(currentMessages);
 
@@ -576,6 +793,10 @@ function isCallMessage(msg) {
     return msg && msg.message_type === 'call';
 }
 
+function isAudioMessage(msg) {
+    return msg && (msg.message_type === 'audio' || !!msg.audio_url);
+}
+
 function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -606,7 +827,8 @@ function showMessages(messages) {
             lastDate = date;
         }
 
-        html += `<div class="message-wrap ${isSent ? 'sent' : 'received'}" data-wrap-id="${msg.id}">${renderSingleMessage(msg, isSent, time)}${isCallMessage(msg) ? '' : renderReactionPills(msg.id)}</div>`;
+        const pills = (isCallMessage(msg) || isAudioMessage(msg)) ? '' : renderReactionPills(msg.id);
+        html += `<div class="message-wrap ${isSent ? 'sent' : 'received'}" data-wrap-id="${msg.id}">${renderSingleMessage(msg, isSent, time)}${pills}</div>`;
     });
 
     container.innerHTML = html;
@@ -617,6 +839,10 @@ function showMessages(messages) {
 function renderSingleMessage(msg, isSent, time) {
     if (isCallMessage(msg)) {
         return renderCallMessage(msg, isSent, time);
+    }
+
+    if (isAudioMessage(msg)) {
+        return renderAudioMessage(msg, isSent, time);
     }
 
     const color = msg.color || null;
@@ -659,9 +885,6 @@ function renderSingleMessage(msg, isSent, time) {
     `;
 }
 
-// Single, quiet "Phone Call" bubble.
-// Attribution is based on `sender_id` which equals the real caller,
-// so the side is correct for both users.
 function renderCallMessage(msg, isSent, time) {
     return `
         <div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}">
@@ -675,6 +898,41 @@ function renderCallMessage(msg, isSent, time) {
                     <span class="call-label">Phone Call</span>
                     <span class="call-sub">${time}</span>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderAudioMessage(msg, isSent, time) {
+    const url = escapeAttr(msg.audio_url || '');
+    const durationMs = Number(msg.audio_duration_ms || 0);
+    const durationLabel = formatDuration(durationMs);
+    const color = msg.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+
+    const seed = String(msg.id || '0');
+    const bars = [];
+    for (let i = 0; i < 32; i++) {
+        const code = seed.charCodeAt(i % seed.length) || 50;
+        const h = 6 + ((code * (i + 7)) % 20);
+        bars.push(`<div class="bar" style="height:${h}px;"></div>`);
+    }
+    const waveformHtml = bars.join('');
+
+    return `
+        <div class="message ${isSent ? 'sent' : 'received'} audio-message" data-message-id="${msg.id}" ${colorAttr}>
+            <div class="audio-bubble" data-audio-url="${url}" data-audio-duration="${durationMs}">
+                <button class="audio-play-btn" data-action="audio-toggle" aria-label="Play voice message">
+                    <i class="fas fa-play"></i>
+                </button>
+                <div class="audio-body">
+                    <div class="audio-waveform">${waveformHtml}</div>
+                    <div class="audio-meta">
+                        <span class="audio-duration">${durationLabel}</span>
+                        <span class="audio-time">${time}</span>
+                    </div>
+                </div>
+                <audio preload="none" src="${url}"></audio>
             </div>
         </div>
     `;
@@ -697,7 +955,7 @@ function addMessageToUI(message, isFromRealtime = false) {
     const wrap = document.createElement('div');
     wrap.className = `message-wrap ${isSent ? 'sent' : 'received'}`;
     wrap.dataset.wrapId = message.id;
-    const pills = isCallMessage(message) ? '' : renderReactionPills(message.id);
+    const pills = (isCallMessage(message) || isAudioMessage(message)) ? '' : renderReactionPills(message.id);
     wrap.innerHTML = renderSingleMessage(message, isSent, time) + pills;
     container.appendChild(wrap);
 
@@ -755,7 +1013,7 @@ function refreshMessageBubble(messageId) {
         wrap.insertAdjacentHTML('afterbegin', bubbleHTML);
     }
 
-    if (isDeletedMessage(msg) || isCallMessage(msg)) {
+    if (isDeletedMessage(msg) || isCallMessage(msg) || isAudioMessage(msg)) {
         const pills = wrap.querySelector('.reaction-pills');
         if (pills) pills.remove();
     }
@@ -767,12 +1025,25 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function escapeAttr(text) {
+    return String(text || '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+function formatDuration(ms) {
+    const totalSec = Math.max(0, Math.floor((ms || 0) / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 // ============================================================
 // REACTIONS
 // ============================================================
 function renderReactionPills(messageId) {
     const msg = currentMessages.find(m => m.id === messageId);
-    if (msg && (isDeletedMessage(msg) || isCallMessage(msg))) return '';
+    if (msg && (isDeletedMessage(msg) || isCallMessage(msg) || isAudioMessage(msg))) return '';
 
     const reactions = messageReactions[messageId] || [];
     if (reactions.length === 0) return '';
@@ -814,7 +1085,7 @@ function updateReactionPills(messageId) {
 
 async function toggleReaction(messageId, emoji) {
     const target = currentMessages.find(m => m.id === messageId);
-    if (target && (isDeletedMessage(target) || isCallMessage(target))) {
+    if (target && (isDeletedMessage(target) || isCallMessage(target) || isAudioMessage(target))) {
         showToast('Cannot react to this message', '⚠️', 1500);
         return;
     }
@@ -884,6 +1155,14 @@ function setupLongPressHandlers() {
             toggleReaction(parseInt(pill.dataset.messageId), pill.dataset.emoji);
             return;
         }
+
+        // Audio play/pause toggle
+        const audioToggle = e.target.closest('[data-action="audio-toggle"]');
+        if (audioToggle) {
+            e.stopPropagation();
+            handleAudioToggle(audioToggle);
+            return;
+        }
     });
 }
 
@@ -893,6 +1172,7 @@ function handlePressStart(e) {
     if (e.target.closest('.reaction-pill')) return;
     if (e.target.closest('.message-image-container')) return;
     if (e.target.closest('.quick-reaction-bar')) return;
+    if (e.target.closest('.audio-play-btn')) return;
     if (wrap.querySelector('.call-message')) return;
 
     longPressTarget = wrap;
@@ -912,6 +1192,77 @@ function handlePressEnd() {
 function handlePressCancel() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     longPressTarget = null;
+}
+
+// ============================================================
+// AUDIO PLAYBACK
+// ============================================================
+let currentlyPlayingAudio = null;
+let currentlyPlayingBtn = null;
+
+function handleAudioToggle(btn) {
+    const bubble = btn.closest('.audio-bubble');
+    if (!bubble) return;
+
+    const audioEl = bubble.querySelector('audio');
+    if (!audioEl) return;
+
+    // If a different audio is playing, stop it first
+    if (currentlyPlayingAudio && currentlyPlayingAudio !== audioEl) {
+        try {
+            currentlyPlayingAudio.pause();
+            currentlyPlayingAudio.currentTime = 0;
+        } catch (e) {}
+        if (currentlyPlayingBtn) {
+            currentlyPlayingBtn.innerHTML = '<i class="fas fa-play"></i>';
+        }
+        clearPlayingWaveform(currentlyPlayingAudio);
+    }
+
+    if (audioEl.paused) {
+        audioEl.play().catch((err) => {
+            console.warn('Audio playback failed:', err);
+            showToast('Could not play audio', '❌', 1500);
+        });
+        btn.innerHTML = '<i class="fas fa-pause"></i>';
+        currentlyPlayingAudio = audioEl;
+        currentlyPlayingBtn = btn;
+
+        audioEl.onended = () => {
+            btn.innerHTML = '<i class="fas fa-play"></i>';
+            clearPlayingWaveform(audioEl);
+            if (currentlyPlayingAudio === audioEl) {
+                currentlyPlayingAudio = null;
+                currentlyPlayingBtn = null;
+            }
+        };
+        audioEl.ontimeupdate = () => updatePlayingWaveform(audioEl, bubble);
+    } else {
+        audioEl.pause();
+        btn.innerHTML = '<i class="fas fa-play"></i>';
+        if (currentlyPlayingAudio === audioEl) {
+            currentlyPlayingAudio = null;
+            currentlyPlayingBtn = null;
+        }
+    }
+}
+
+function updatePlayingWaveform(audioEl, bubble) {
+    const dur = audioEl.duration;
+    if (!dur || !isFinite(dur)) return;
+    const frac = Math.min(1, audioEl.currentTime / dur);
+    const bars = bubble.querySelectorAll('.audio-waveform .bar');
+    const upTo = Math.floor(frac * bars.length);
+    bars.forEach((b, i) => {
+        b.classList.toggle('played', i < upTo);
+    });
+}
+
+function clearPlayingWaveform(audioEl) {
+    const bubble = audioEl.closest('.audio-bubble');
+    if (!bubble) return;
+    const bars = bubble.querySelectorAll('.audio-waveform .bar');
+    bars.forEach(b => b.classList.remove('played'));
 }
 
 // ============================================================
@@ -952,7 +1303,8 @@ function buildQuickBar(wrap) {
 
     const isMine = msg.sender_id === currentUser.id;
     const isImage = !!msg.image_url;
-    const isText = !isImage && (msg.content || '').trim().length > 0;
+    const isAudio = isAudioMessage(msg);
+    const isText = !isImage && !isAudio && (msg.content || '').trim().length > 0;
     const myEmoji = (messageReactions[messageId] || []).find(r => r.user_id === currentUser.id)?.emoji;
 
     const editBtnHTML = (isMine && isText) ? `
@@ -976,13 +1328,22 @@ function buildQuickBar(wrap) {
         </button>
     ` : '';
 
-    const copyBtnHTML = isImage ? '' : `
+    const copyBtnHTML = (isImage || isAudio) ? '' : `
         <button class="action-btn-icon" data-action="copy" title="Copy">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
             </svg>
         </button>
+    `;
+
+    const reactHTML = isAudio ? '' : `
+        <div class="action-bar-row action-bar-emojis">
+            ${QUICK_REACTIONS.map(e => `
+                <button class="quick-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
+            `).join('')}
+            <button class="quick-emoji quick-more" data-action="more">＋</button>
+        </div>
     `;
 
     quickBarElement = document.createElement('div');
@@ -1001,12 +1362,7 @@ function buildQuickBar(wrap) {
                 </svg>
             </button>
         </div>
-        <div class="action-bar-row action-bar-emojis">
-            ${QUICK_REACTIONS.map(e => `
-                <button class="quick-emoji ${myEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</button>
-            `).join('')}
-            <button class="quick-emoji quick-more" data-action="more">＋</button>
-        </div>
+        ${reactHTML}
     `;
 
     wrap.appendChild(quickBarElement);
@@ -1074,7 +1430,7 @@ async function handleCopy() {
     if (!selectedMessageId) return;
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg) return;
-    if (msg.image_url) { closeAll(); return; }
+    if (msg.image_url || isAudioMessage(msg)) { closeAll(); return; }
 
     try {
         const text = (msg.content || '').trim();
@@ -1096,7 +1452,7 @@ function handleEdit() {
     if (!selectedMessageId) return;
     const msg = currentMessages.find(m => m.id === selectedMessageId);
     if (!msg || msg.sender_id !== currentUser.id) return;
-    if (msg.image_url) return;
+    if (msg.image_url || isAudioMessage(msg)) return;
     if (isDeletedMessage(msg) || isCallMessage(msg)) return;
 
     const msgId = msg.id;
@@ -1133,6 +1489,8 @@ async function performDelete(msgId) {
             content: '__DELETED__',
             image_url: null,
             thumbnail_url: null,
+            audio_url: null,
+            audio_duration_ms: null,
             color: null,
             edited_at: deletedAt
         };
@@ -1174,6 +1532,8 @@ async function performDelete(msgId) {
                 content: '__DELETED__',
                 image_url: null,
                 thumbnail_url: null,
+                audio_url: null,
+                audio_duration_ms: null,
                 color: null,
                 edited_at: deletedAt
             };
@@ -1341,7 +1701,7 @@ function setupRealtime(friendId) {
                 delete messageReactions[updated.id];
             }
             refreshMessageBubble(updated.id);
-            if (!isCallMessage(updated)) updateReactionPills(updated.id);
+            if (!isCallMessage(updated) && !isAudioMessage(updated)) updateReactionPills(updated.id);
         })
         .on('postgres_changes', {
             event: 'DELETE', schema: 'public', table: 'direct_messages'
@@ -1398,7 +1758,7 @@ function setupRealtime(friendId) {
 function handleReactionChange(row) {
     const messageId = row.message_id;
     const msg = currentMessages.find(m => m.id === messageId);
-    if (msg && (isDeletedMessage(msg) || isCallMessage(msg))) return;
+    if (msg && (isDeletedMessage(msg) || isCallMessage(msg) || isAudioMessage(msg))) return;
 
     if (!document.querySelector(`[data-message-id="${messageId}"]`)) return;
     if (!messageReactions[messageId]) messageReactions[messageId] = [];
@@ -1620,6 +1980,13 @@ function openGuide() {
                 </div>
             </div>
             <div class="guide-item">
+                <div class="guide-icon">🎙️</div>
+                <div>
+                    <strong>Send a voice message</strong>
+                    <p>Tap the mic button, speak, then tap stop to preview. Slide the preview to cancel or tap send.</p>
+                </div>
+            </div>
+            <div class="guide-item">
                 <div class="guide-icon">🖼️</div>
                 <div>
                     <strong>Share images</strong>
@@ -1644,28 +2011,28 @@ function openGuide() {
                 <div class="guide-icon">😀</div>
                 <div>
                     <strong>React to messages</strong>
-                    <p>Long-press any message → pick an emoji. Tap the same emoji to remove it.</p>
+                    <p>Long-press any text or image message → pick an emoji.</p>
                 </div>
             </div>
             <div class="guide-item">
                 <div class="guide-icon">📋</div>
                 <div>
                     <strong>Copy a message</strong>
-                    <p>Long-press → tap the copy icon. Images don't show copy.</p>
+                    <p>Long-press → tap the copy icon. Images and voice messages don't show copy.</p>
                 </div>
             </div>
             <div class="guide-item">
                 <div class="guide-icon">✏️</div>
                 <div>
                     <strong>Edit your message</strong>
-                    <p>Long-press your own message → tap the pencil icon.</p>
+                    <p>Long-press your own text message → tap the pencil icon.</p>
                 </div>
             </div>
             <div class="guide-item">
                 <div class="guide-icon">🗑️</div>
                 <div>
-                    <strong>Delete your message or image</strong>
-                    <p>Long-press → tap the trash icon. Works for text and images.</p>
+                    <strong>Delete your message</strong>
+                    <p>Long-press your own message → tap the trash icon. Works for text, images, and voice.</p>
                 </div>
             </div>
             <div class="guide-item">
