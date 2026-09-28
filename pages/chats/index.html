@@ -21,7 +21,9 @@
         https://*.github.io
         https://github.com
         https://fonts.googleapis.com
-        https://cdnjs.cloudflare.com;
+        https://cdnjs.cloudflare.com
+        https://api.cloudinary.com
+        https://res.cloudinary.com;
 
         script-src 'self' 'unsafe-inline' 'unsafe-eval'
         https://kponqaktavkrchebmiwr.supabase.co
@@ -40,6 +42,7 @@
         https://*.ibb.co
         https://i.ibb.co
         https://*.imgbb.com
+        https://res.cloudinary.com
         https:;
 
         font-src 'self' data:
@@ -52,13 +55,17 @@
         wss://kponqaktavkrchebmiwr.supabase.co
         https://api.supabase.com
         https://api.imgbb.com
+        https://api.cloudinary.com
+        https://res.cloudinary.com
         https://*.github.io
         https://i.ibb.co
         https://cdn.jsdelivr.net
         https://cdnjs.cloudflare.com;
 
         worker-src 'self' blob:;
-        media-src 'self' blob:;
+        media-src 'self' blob:
+        https://res.cloudinary.com
+        https://*.cloudinary.com;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
@@ -69,13 +76,15 @@
     <link rel="dns-prefetch" href="https://i.ibb.co">
     <link rel="preconnect" href="https://kponqaktavkrchebmiwr.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://kponqaktavkrchebmiwr.supabase.co">
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+    <link rel="dns-prefetch" href="https://res.cloudinary.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <meta property="og:title" content="RelayTalk Chat">
-    <meta property="og:description" content="Real-time chat application with image sharing">
+    <meta property="og:description" content="Real-time chat application with image and voice sharing">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://relaytalk.github.io">
     <meta property="og:image" content="https://i.ibb.co/placeholder/relaytalk-og.png">
@@ -156,6 +165,9 @@
                 <button class="attach-btn" id="attachBtn" onclick="showImagePicker()" aria-label="Attach">
                     <i class="fas fa-paperclip"></i>
                 </button>
+                <button class="mic-btn" id="micBtn" type="button" aria-label="Record voice message">
+                    <i class="fas fa-microphone"></i>
+                </button>
                 <textarea
                     class="message-input"
                     id="messageInput"
@@ -167,6 +179,52 @@
                 ></textarea>
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled aria-label="Send">
                     <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Recording Overlay -->
+    <div class="voice-rec-overlay" id="voiceRecOverlay" style="display: none;">
+        <div class="voice-rec-panel">
+            <div class="voice-rec-header">
+                <span class="voice-rec-dot" aria-hidden="true"></span>
+                <span class="voice-rec-label">Recording</span>
+            </div>
+            <div class="voice-rec-waveform" id="voiceRecWaveform"></div>
+            <div class="voice-rec-timer" id="voiceRecTimer">0:00</div>
+            <div class="voice-rec-hint">Tap the stop button to preview · Cancel to discard</div>
+            <div class="voice-rec-actions">
+                <button type="button" class="voice-rec-btn voice-rec-cancel" id="voiceRecCancelBtn" aria-label="Cancel">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button type="button" class="voice-rec-btn voice-rec-stop" id="voiceRecStopBtn" aria-label="Stop &amp; Preview">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Preview Modal -->
+    <div class="voice-preview-overlay" id="voicePreviewOverlay" style="display: none;">
+        <div class="voice-preview-panel">
+            <div class="voice-preview-header">
+                <h3>Send voice message?</h3>
+                <button type="button" class="voice-preview-close" id="voicePreviewClose" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="voice-preview-body">
+                <button type="button" class="voice-preview-play" id="voicePreviewPlay" aria-label="Play/Pause">
+                    <i class="fas fa-play"></i>
+                </button>
+                <div class="voice-preview-waveform" id="voicePreviewWaveform"></div>
+                <div class="voice-preview-duration" id="voicePreviewDuration">0:00</div>
+            </div>
+            <div class="voice-preview-actions">
+                <button type="button" class="btn-secondary" id="voicePreviewCancel">Cancel</button>
+                <button type="button" class="btn-primary" id="voicePreviewSend">
+                    <i class="fas fa-paper-plane" style="margin-right: 6px;"></i> Send
                 </button>
             </div>
         </div>
@@ -248,6 +306,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="voice-recorder.js"></script>
     <script type="module" src="script.js"></script>
     <script type="module" src="/utils/callHub.js"></script>
 
