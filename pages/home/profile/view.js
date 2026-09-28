@@ -7,6 +7,25 @@ let supabase = null;
 let currentUser = null;
 let viewedUser = null;
 let friendSinceDate = null;
+let statusChannel = null;
+
+// Online freshness window — matches callHub.js / friends.js / chat-core.js
+const ONLINE_FRESH_WINDOW_MS = 60000;
+
+// ============================================================
+// ONLINE HELPER
+// ============================================================
+function isUserOnline(profile) {
+    if (!profile) return false;
+    if (profile.status !== 'online') return false;
+    if (!profile.last_seen) return false;
+    try {
+        const ageMs = Date.now() - new Date(profile.last_seen).getTime();
+        return ageMs < ONLINE_FRESH_WINDOW_MS;
+    } catch (e) {
+        return false;
+    }
+}
 
 // ============================================================
 // INIT
@@ -55,6 +74,7 @@ async function initViewPage() {
 
         renderPage();
         subscribeToStatus();
+        startStatusTicker();
 
     } catch (error) {
         console.error('View init error:', error);
@@ -113,7 +133,7 @@ function renderPage() {
     document.getElementById('viewName').textContent = viewedUser.full_name || viewedUser.username;
     document.getElementById('viewUsername').textContent = `@${viewedUser.username}`;
 
-    updateStatusUI(viewedUser.status, viewedUser.last_seen);
+    updateStatusUI(viewedUser);
 
     const bioBox = document.getElementById('viewBioBox');
     if (viewedUser.bio && viewedUser.bio.trim()) {
@@ -136,17 +156,25 @@ function renderPage() {
     }
 }
 
-function updateStatusUI(status, lastSeen) {
+// ============================================================
+// STATUS UI — online if status==='online' AND last_seen is fresh
+// ============================================================
+function updateStatusUI(profile) {
     const dot = document.getElementById('viewStatusDot');
     const text = document.getElementById('viewStatusText');
+    if (!dot || !text) return;
 
-    if (status === 'online') {
+    const online = isUserOnline(profile);
+
+    if (online) {
         dot.classList.add('online');
         text.textContent = 'Online';
         text.classList.add('online');
     } else {
         dot.classList.remove('online');
-        const label = lastSeen ? `Last seen ${formatLastSeenShort(lastSeen)}` : 'Offline';
+        const label = profile.last_seen
+            ? `Last seen ${formatLastSeenShort(profile.last_seen)}`
+            : 'Offline';
         text.textContent = label;
         text.classList.remove('online');
     }
@@ -178,7 +206,12 @@ function formatLastSeenShort(ts) {
 // STATUS REALTIME
 // ============================================================
 function subscribeToStatus() {
-    supabase
+    if (statusChannel) {
+        supabase.removeChannel(statusChannel);
+        statusChannel = null;
+    }
+
+    statusChannel = supabase
         .channel(`view-status:${viewedUser.id}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -192,7 +225,7 @@ function subscribeToStatus() {
                 viewedUser.avatar_url = payload.new.avatar_url || viewedUser.avatar_url;
                 viewedUser.bio = payload.new.bio;
 
-                updateStatusUI(payload.new.status, payload.new.last_seen);
+                updateStatusUI(viewedUser);
 
                 if (payload.new.avatar_url) {
                     const img = document.getElementById('viewAvatarImg');
@@ -220,13 +253,33 @@ function subscribeToStatus() {
 }
 
 // ============================================================
+// STATUS TICKER
+// ============================================================
+// The realtime listener only fires when the DB row changes. If the
+// user stops heartbeating, we don't get an UPDATE — the row stays
+// 'online' forever. So we re-evaluate the label locally every 20s
+// and flip to "Offline" once last_seen gets stale.
+let statusTicker = null;
+
+function startStatusTicker() {
+    if (statusTicker) clearInterval(statusTicker);
+    statusTicker = setInterval(() => {
+        if (viewedUser) updateStatusUI(viewedUser);
+    }, 20000);
+
+    window.addEventListener('beforeunload', () => {
+        if (statusTicker) clearInterval(statusTicker);
+        if (statusChannel && supabase) supabase.removeChannel(statusChannel);
+    });
+}
+
+// ============================================================
 // ACTIONS
 // ============================================================
 window.closeView = function() {
     if (window.history.length > 1) {
         window.history.back();
     } else {
-        // FIX: was '../../home/index.html' (broken path)
         window.location.href = '../index.html';
     }
 };
