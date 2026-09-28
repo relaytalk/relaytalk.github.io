@@ -4,6 +4,9 @@ import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
+// ============================================
+// IMMEDIATE REDIRECT CHECK
+// ============================================
 (function() {
     try {
         let hasSession = false;
@@ -28,6 +31,23 @@ console.log("✨ Relay Home Page Loaded");
         window.location.replace('/');
     }
 })();
+
+// ============================================
+// ONLINE HELPER
+// ============================================
+const ONLINE_FRESH_WINDOW_MS = 60000;
+
+function isUserOnline(profile) {
+    if (!profile) return false;
+    if (profile.status !== 'online') return false;
+    if (!profile.last_seen) return false;
+    try {
+        const ageMs = Date.now() - new Date(profile.last_seen).getTime();
+        return ageMs < ONLINE_FRESH_WINDOW_MS;
+    } catch (e) {
+        return false;
+    }
+}
 
 class ToastNotification {
     constructor() {
@@ -425,7 +445,7 @@ async function loadFriends() {
 
         if (profiles && profiles.length > 0) {
             profiles.forEach(profile => {
-                const isOnline = profile.status === 'online';
+                const isOnline = isUserOnline(profile);
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
                 const unread = unreadMap[profile.id] || 0;
