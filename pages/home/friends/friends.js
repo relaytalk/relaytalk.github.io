@@ -30,6 +30,21 @@ let locallyReadCallIds = new Set();
 const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
 const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
 
+// Online if status === 'online' AND last_seen within this window
+const ONLINE_FRESH_WINDOW_MS = 60000;
+
+function isUserOnline(profile) {
+    if (!profile) return false;
+    if (profile.status !== 'online') return false;
+    if (!profile.last_seen) return false;
+    try {
+        const ageMs = Date.now() - new Date(profile.last_seen).getTime();
+        return ageMs < ONLINE_FRESH_WINDOW_MS;
+    } catch (e) {
+        return false;
+    }
+}
+
 function getSeenIds(key) {
     try {
         const raw = localStorage.getItem(key);
@@ -220,9 +235,7 @@ async function loadFriends() {
             .in('id', friendIds)
             .order('username');
 
-        allFriends = (profiles || []).map(p => ({
-            ...p
-        }));
+        allFriends = (profiles || []).map(p => ({ ...p }));
 
         filteredFriends = [...allFriends];
         renderFriendsList();
@@ -244,7 +257,7 @@ function renderFriendsList() {
 
     filteredFriends.forEach(friend => {
         const initial = friend.username ? friend.username.charAt(0).toUpperCase() : '?';
-        const online = friend.status === 'online';
+        const online = isUserOnline(friend);
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
         const avatarSrc = friend.avatar_url || '';
 
