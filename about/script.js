@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var TABS = ['details', 'features', 'claims', 'help'];
+    var TABS = ['details', 'features', 'help'];
     var DEFAULT_TAB = 'details';
 
     var tabButtons = document.querySelectorAll('.about-tab');
