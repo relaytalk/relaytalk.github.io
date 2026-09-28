@@ -1,8 +1,15 @@
 // utils/native-init.js
-// FCM push + incoming call handling + runtime permissions + presence.
+// FCM registration + notification tap navigation + media permissions.
+// Presence is now managed by callHub.js on every page.
 
 (function () {
   'use strict';
+
+  // Guard against double-loading
+  if (window.__relayNativeInitInstalled) {
+    return;
+  }
+  window.__relayNativeInitInstalled = true;
 
   const isNative = !!(
     window.Capacitor &&
@@ -58,7 +65,7 @@
   }
 
   // ============================================================
-  // RUNTIME PERMISSIONS (mic + camera)
+  // MEDIA PERMISSIONS
   // ============================================================
   let mediaPermissionsRequested = false;
 
@@ -72,9 +79,7 @@
         video: { facingMode: 'user' },
       });
       stream.getTracks().forEach(t => t.stop());
-      console.log('[native-init] Media permissions granted');
     } catch (e) {
-      console.warn('[native-init] Media permissions denied:', e.name);
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
         mediaPermissionsRequested = false;
       }
@@ -82,7 +87,7 @@
   }
 
   // ============================================================
-  // SUPABASE
+  // SUPABASE (for saving token)
   // ============================================================
   let supabasePromise = null;
 
@@ -131,71 +136,6 @@
   }
 
   // ============================================================
-  // PRESENCE
-  //   Foreground: status='online', heartbeat every 30s.
-  //   Background: status='offline' (immediate).
-  //   Debounced, session-safe, retried on cold start.
-  // ============================================================
-  let lastPresenceWrite = 0;
-  let lastPresenceValue = null;
-  let presenceHeartbeat = null;
-  const HEARTBEAT_MS = 30000;
-  const MIN_WRITE_GAP_MS = 3000;
-
-  async function writePresence(status, force) {
-    try {
-      const now = Date.now();
-      if (
-        !force &&
-        status === lastPresenceValue &&
-        now - lastPresenceWrite < MIN_WRITE_GAP_MS
-      ) {
-        return;
-      }
-
-      const supabase = await getSupabase();
-      if (!supabase) return;
-      const session = await getSession();
-      if (!session?.user) return;
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          status: status,
-          last_seen: new Date().toISOString(),
-        })
-        .eq('id', session.user.id);
-
-      if (error) {
-        console.warn('[native-init] Presence write error:', error.message);
-        return;
-      }
-
-      lastPresenceWrite = now;
-      lastPresenceValue = status;
-      console.log('[native-init] Presence →', status);
-    } catch (e) {
-      console.warn('[native-init] Presence update failed:', e);
-    }
-  }
-
-  function startHeartbeat() {
-    stopHeartbeat();
-    presenceHeartbeat = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        writePresence('online', true);
-      }
-    }, HEARTBEAT_MS);
-  }
-
-  function stopHeartbeat() {
-    if (presenceHeartbeat) {
-      clearInterval(presenceHeartbeat);
-      presenceHeartbeat = null;
-    }
-  }
-
-  // ============================================================
   // PUSH REGISTRATION
   // ============================================================
   async function registerDevice() {
@@ -208,12 +148,10 @@
       }
 
       if (perm.receive !== 'granted') {
-        console.log('[native-init] Push permission not granted');
         return false;
       }
 
       await PushNotifications.register();
-      console.log('[native-init] Registered with FCM');
       return true;
     } catch (e) {
       console.error('[native-init] Register error:', e);
@@ -232,7 +170,7 @@
   }
 
   // ============================================================
-  // NAVIGATION — calls
+  // NAVIGATION
   // ============================================================
   function buildIncomingCallUrl(data) {
     const params = new URLSearchParams({
@@ -259,9 +197,6 @@
     window.location.replace(url);
   }
 
-  // ============================================================
-  // NAVIGATION — chat
-  // ============================================================
   function navigateToChat(data) {
     let url = data.url || '';
     if (!url) {
@@ -299,10 +234,8 @@
 
     PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       const data = notification.data || {};
-      console.log('[native-init] Push received (foreground):', data);
 
-      // If the server-side presence gate missed (race), remove any banner
-      // the OS may have shown so the user doesn't see a duplicate.
+      // Remove any OS banner that managed to appear (defensive)
       try {
         if (LocalNotifications && LocalNotifications.removeAllDeliveredNotifications) {
           await LocalNotifications.removeAllDeliveredNotifications();
@@ -358,61 +291,27 @@
   checkColdStart();
 
   // ============================================================
-  // APP STATE — presence on foreground/background
+  // APP STATE — only cold-start recovery now (presence in callHub)
   // ============================================================
   if (App && App.addListener) {
-    App.addListener('appStateChange', async ({ isActive }) => {
-      if (isActive) {
-        writePresence('online', true);
-        startHeartbeat();
-        checkColdStart();
-      } else {
-        stopHeartbeat();
-        writePresence('offline', true);
-      }
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) checkColdStart();
     });
   }
-
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      writePresence('online', false);
-      startHeartbeat();
-    } else {
-      writePresence('offline', false);
-      stopHeartbeat();
-    }
-  });
 
   // ============================================================
   // BOOT
   // ============================================================
-  async function bootPermissions() {
+  async function boot() {
     await registerChannels();
-
-    const pushOk = await registerDevice();
+    await registerDevice();
 
     setTimeout(() => {
       requestMediaPermissions('after-push-prompt');
     }, 400);
-
-    // Wait for session, then mark online + start heartbeat.
-    let attempts = 0;
-    const tryPresence = async () => {
-      attempts++;
-      const session = await getSession();
-      if (session?.user) {
-        writePresence('online', true);
-        startHeartbeat();
-        return;
-      }
-      if (attempts < 10) {
-        setTimeout(tryPresence, 500);
-      }
-    };
-    tryPresence();
   }
 
-  bootPermissions();
+  boot();
 
   const firstTap = () => {
     requestMediaPermissions('first-user-tap');
