@@ -8,7 +8,7 @@ const CALL_APP_PATH = '/pages/call-app/call/index.html'
 const CHAT_APP_PATH = '/pages/chats/index.html'
 const MISSED_CALL_POLL_MS = 15000
 const DEFAULT_RETURN = '/pages/home/friends/index.html'
-const PRESENCE_HEARTBEAT_MS = 20000   // refresh online every 20s
+const PRESENCE_HEARTBEAT_MS = 20000
 const WARMUP_INTERVAL_MS = 60000
 
 const CALL_BANNER_TIMEOUT_MS = 30000
@@ -17,7 +17,10 @@ const REACTION_BANNER_TIMEOUT_MS = 5000
 
 const SWIPE_DISMISS_PX = 80
 
-// Detect native app shell
+// Online if status === 'online' AND last_seen within this many ms.
+// With a 20s heartbeat, this allows 3 missed beats before marking offline.
+const ONLINE_FRESH_WINDOW_MS = 60000
+
 const IS_NATIVE = !!(
     window.Capacitor &&
     window.Capacitor.isNativePlatform &&
@@ -50,6 +53,24 @@ const MAX_RECONNECT_ATTEMPTS = 6
 window.callHubReady = false
 
 // ============================================================
+// ONLINE / OFFLINE HELPER
+// Exposed globally so other scripts can use the same logic.
+// ============================================================
+function isUserOnline(profile) {
+    if (!profile) return false
+    if (profile.status !== 'online') return false
+    if (!profile.last_seen) return false
+    try {
+        const ageMs = Date.now() - new Date(profile.last_seen).getTime()
+        return ageMs < ONLINE_FRESH_WINDOW_MS
+    } catch (e) {
+        return false
+    }
+}
+
+window.isUserOnline = isUserOnline
+
+// ============================================================
 // RETURN-URL
 // ============================================================
 function getCurrentPageUrl() {
@@ -70,7 +91,7 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
-// PRESENCE — manages both website AND app
+// PRESENCE
 // ============================================================
 let lastPresenceValue = null
 let lastPresenceWrite = 0
@@ -106,17 +127,14 @@ function startPresence() {
     if (presenceStarted || !currentUser) return
     presenceStarted = true
 
-    // Mark online immediately
     setPresenceStatus('online', true)
 
-    // Heartbeat — always runs, every page
     presenceTimer = setInterval(() => {
         if (document.visibilityState === 'visible') {
             setPresenceStatus('online', true)
         }
     }, PRESENCE_HEARTBEAT_MS)
 
-    // Visibility — offline when hidden, online when visible
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             setPresenceStatus('online', true)
@@ -125,7 +143,6 @@ function startPresence() {
         }
     })
 
-    // Page lifecycle
     window.addEventListener('pagehide', () => {
         setPresenceStatus('offline', true)
     })
@@ -136,10 +153,8 @@ function startPresence() {
 
     window.addEventListener('beforeunload', () => {
         if (presenceTimer) clearInterval(presenceTimer)
-        // Note: can't reliably await here. Visibilitychange handles it.
     })
 
-    // Native app state — when app goes to background, mark offline
     if (IS_NATIVE && window.Capacitor?.Plugins?.App) {
         try {
             window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
@@ -365,6 +380,7 @@ function isOnChatPageWith(friendId) {
 
 function buildMessagePreview(row) {
     const text = (row.content || '').trim()
+    if (row.audio_url && !text) return '🎤 Voice message'
     if (row.image_url && !text) return '📷 Photo'
     if (row.image_url && text) return '📷 ' + text
     if (!text) return 'New message'
