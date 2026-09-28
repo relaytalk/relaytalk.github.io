@@ -77,6 +77,24 @@ const PICKER_EMOJIS = [
     '✨', '🙌', '👏', '🥰', '😅', '🤗'
 ];
 
+// Online freshness window (matches callHub.js)
+const ONLINE_FRESH_WINDOW_MS = 60000;
+
+// ============================================================
+// ONLINE / OFFLINE HELPER
+// ============================================================
+function isUserOnline(profile) {
+    if (!profile) return false;
+    if (profile.status !== 'online') return false;
+    if (!profile.last_seen) return false;
+    try {
+        const ageMs = Date.now() - new Date(profile.last_seen).getTime();
+        return ageMs < ONLINE_FRESH_WINDOW_MS;
+    } catch (e) {
+        return false;
+    }
+}
+
 // ============================================================
 // VOICE RECORDER STATE
 // ============================================================
@@ -1156,7 +1174,6 @@ function setupLongPressHandlers() {
             return;
         }
 
-        // Audio play/pause toggle
         const audioToggle = e.target.closest('[data-action="audio-toggle"]');
         if (audioToggle) {
             e.stopPropagation();
@@ -1207,7 +1224,6 @@ function handleAudioToggle(btn) {
     const audioEl = bubble.querySelector('audio');
     if (!audioEl) return;
 
-    // If a different audio is playing, stop it first
     if (currentlyPlayingAudio && currentlyPlayingAudio !== audioEl) {
         try {
             currentlyPlayingAudio.pause();
@@ -1894,7 +1910,7 @@ function showUserInfo() {
     if (!chatFriend) return;
     const modal = document.getElementById('userInfoModal');
     const content = document.getElementById('userInfoContent');
-    const isOnline = chatFriend.status === 'online';
+    const online = isUserOnline(chatFriend);
     const initial = chatFriend.username ? chatFriend.username.charAt(0).toUpperCase() : '?';
 
     content.innerHTML = `
@@ -1906,9 +1922,9 @@ function showUserInfo() {
         <div class="user-info-details">
             <h3 class="user-info-name">${chatFriend.full_name || chatFriend.username}</h3>
             <p class="user-info-username">@${chatFriend.username}</p>
-            <div class="user-info-status ${isOnline ? '' : 'offline'}">
-                <span class="status-dot ${isOnline ? '' : 'offline'}"></span>
-                ${isOnline ? 'Online' : 'Offline'}
+            <div class="user-info-status ${online ? '' : 'offline'}">
+                <span class="status-dot ${online ? '' : 'offline'}"></span>
+                ${online ? 'Online' : 'Offline'}
             </div>
         </div>
         <div class="user-info-actions">
@@ -2179,11 +2195,18 @@ function showToast(message, icon = '✅', duration = 1500) {
     setTimeout(() => toast.style.display = 'none', duration);
 }
 
+// ============================================================
+// FRIEND STATUS — online if status==='online' AND last_seen is fresh
+// ============================================================
 function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
+    if (!dot || !text) return;
 
-    if (status === 'online') {
+    const profile = { status, last_seen: lastSeen };
+    const online = isUserOnline(profile);
+
+    if (online) {
         dot.className = 'status-dot';
         text.textContent = 'Online';
     } else {
