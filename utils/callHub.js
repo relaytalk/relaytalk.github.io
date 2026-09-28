@@ -1,7 +1,6 @@
 // utils/callHub.js
 // Universal in-app notification listener.
-// NOTE: presence management is delegated to native-init.js when
-// running inside the Capacitor APK, to avoid race conditions.
+// Presence is delegated to native-init.js when running in the APK.
 
 import { initializeSupabase } from './supabase.js'
 
@@ -18,7 +17,6 @@ const REACTION_BANNER_TIMEOUT_MS = 5000
 
 const SWIPE_DISMISS_PX = 80
 
-// Detect native shell — when native, native-init.js handles presence.
 const IS_NATIVE = !!(
     window.Capacitor &&
     window.Capacitor.isNativePlatform &&
@@ -51,7 +49,7 @@ const MAX_RECONNECT_ATTEMPTS = 6
 window.callHubReady = false
 
 // ============================================================
-// RETURN-URL HELPER
+// RETURN-URL
 // ============================================================
 function getCurrentPageUrl() {
     try {
@@ -71,10 +69,10 @@ function rememberReturnUrl() {
 }
 
 // ============================================================
-// PRESENCE — only runs when NOT in native shell
+// PRESENCE — website only
 // ============================================================
 async function setPresenceStatus(status) {
-    if (IS_NATIVE) return; // native-init.js owns presence in the app
+    if (IS_NATIVE) return;
     if (!supabase || !currentUser) return
     try {
         await supabase
@@ -89,7 +87,7 @@ async function setPresenceStatus(status) {
 
 function startPresence() {
     if (IS_NATIVE) {
-        console.log('📞 [callHub] Native shell detected — presence delegated to native-init.js')
+        console.log('📞 [callHub] Native shell — presence delegated to native-init.js')
         return
     }
     if (presenceStarted || !currentUser) return
@@ -98,7 +96,9 @@ function startPresence() {
     setPresenceStatus('online')
 
     presenceTimer = setInterval(() => {
-        setPresenceStatus('online')
+        if (document.visibilityState === 'visible') {
+            setPresenceStatus('online')
+        }
     }, PRESENCE_HEARTBEAT_MS)
 
     window.addEventListener('beforeunload', () => {
@@ -165,7 +165,6 @@ async function initCallHub() {
         supabase = await initializeSupabase()
 
         if (!supabase || !supabase.auth) {
-            console.warn('📞 [callHub] Supabase not ready, retrying in 2s...')
             setTimeout(initCallHub, 2000)
             return
         }
@@ -177,7 +176,6 @@ async function initCallHub() {
         }
 
         currentUser = session.user
-        console.log('📞 [callHub] Ready for user:', currentUser.email)
 
         startPresence()
         startWarmup()
@@ -405,9 +403,7 @@ async function handleIncomingReaction(row) {
             emoji: row.emoji || '❤️',
             preview
         })
-    } catch (e) {
-        console.warn('📞 [callHub] handleIncomingReaction error:', e)
-    }
+    } catch (e) {}
 }
 
 function buildReactionPreview(msg) {
@@ -418,7 +414,7 @@ function buildReactionPreview(msg) {
 }
 
 // ============================================================
-// SHARED PROFILE LOOKUP
+// PROFILE LOOKUP
 // ============================================================
 const profileCache = new Map()
 
@@ -447,11 +443,8 @@ async function getProfile(userId) {
 function attachSwipeDismiss(banner, onDismiss) {
     if (!banner) return
 
-    let startX = 0
-    let startY = 0
-    let currentX = 0
-    let dragging = false
-    let decided = false
+    let startX = 0, startY = 0, currentX = 0
+    let dragging = false, decided = false
 
     function reset() {
         dragging = false
@@ -476,7 +469,6 @@ function attachSwipeDismiss(banner, onDismiss) {
 
     function onMove(clientX, clientY) {
         if (!dragging) return
-
         const dx = clientX - startX
         const dy = clientY - startY
 
@@ -548,7 +540,7 @@ function attachSwipeDismiss(banner, onDismiss) {
 }
 
 // ============================================================
-// INCOMING CALL BANNER
+// CALL BANNER
 // ============================================================
 async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
@@ -582,7 +574,6 @@ async function handleIncomingCall(callRow) {
 
 function showBanner(call) {
     clearAnyNotificationBanner()
-
     bannerVisible = true
     const initial = (call.callerName || '?').charAt(0).toUpperCase()
 
@@ -623,7 +614,6 @@ function showBanner(call) {
     injectBannerStyles()
 
     const btnContainer = banner.querySelector('.callHub-actions')
-
     const onPress = (e) => {
         const target = e.target.closest('button[data-action]')
         if (!target) return
@@ -642,7 +632,6 @@ function showBanner(call) {
         }
 
         if (!callData.callId || !callData.room) return
-
         if (action === 'accept') acceptIncoming(callData)
         else if (action === 'decline') rejectIncoming(callData)
     }
@@ -684,7 +673,6 @@ function dismissBanner() {
 // ============================================================
 function showMessageBanner(data) {
     clearAnyNotificationBanner()
-
     const initial = (data.senderName || '?').charAt(0).toUpperCase()
 
     const banner = document.createElement('div')
@@ -707,12 +695,8 @@ function showMessageBanner(data) {
     `
 
     let swipeJustHappened = false
-
     banner.addEventListener('click', (e) => {
-        if (swipeJustHappened) {
-            swipeJustHappened = false
-            return
-        }
+        if (swipeJustHappened) { swipeJustHappened = false; return }
         e.preventDefault()
         openChatWith(data.senderId, data.senderName)
     })
@@ -751,7 +735,6 @@ function openChatWith(friendId, friendName) {
 // ============================================================
 function showReactionBanner(data) {
     clearAnyNotificationBanner()
-
     const initial = (data.reactorName || '?').charAt(0).toUpperCase()
 
     const banner = document.createElement('div')
@@ -775,12 +758,8 @@ function showReactionBanner(data) {
     `
 
     let swipeJustHappened = false
-
     banner.addEventListener('click', (e) => {
-        if (swipeJustHappened) {
-            swipeJustHappened = false
-            return
-        }
+        if (swipeJustHappened) { swipeJustHappened = false; return }
         e.preventDefault()
         openChatWith(data.reactorId, data.reactorName)
     })
@@ -830,7 +809,6 @@ function clearAnyNotificationBanner() {
 // ============================================================
 async function acceptIncoming(callData) {
     if (!callData || !callData.callId) return
-
     const returnTo = rememberReturnUrl()
 
     bannerVisible = false
@@ -1180,9 +1158,6 @@ window.addEventListener('beforeunload', () => {
     if (warmupTimer) clearInterval(warmupTimer)
 })
 
-// ============================================================
-// AUTO-START
-// ============================================================
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCallHub)
 } else {
