@@ -40,10 +40,7 @@
         lightColor: '#007acc',
         sound: 'default',
       });
-      console.log('[native-init] Channel registered: incoming_calls');
-    } catch (e) {
-      console.warn('[native-init] incoming_calls channel failed:', e);
-    }
+    } catch (e) {}
 
     try {
       await LocalNotifications.createChannel({
@@ -57,10 +54,7 @@
         lightColor: '#007acc',
         sound: 'default',
       });
-      console.log('[native-init] Channel registered: messages');
-    } catch (e) {
-      console.warn('[native-init] messages channel failed:', e);
-    }
+    } catch (e) {}
   }
 
   // ============================================================
@@ -72,17 +66,15 @@
     if (mediaPermissionsRequested) return;
     mediaPermissionsRequested = true;
 
-    console.log('[native-init] Requesting media permissions (' + reason + ')');
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: { facingMode: 'user' },
       });
       stream.getTracks().forEach(t => t.stop());
-      console.log('[native-init] Media permissions GRANTED');
+      console.log('[native-init] Media permissions granted');
     } catch (e) {
-      console.warn('[native-init] Media permission DENIED or failed:', e.name, e.message);
+      console.warn('[native-init] Media permissions denied:', e.name);
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
         mediaPermissionsRequested = false;
       }
@@ -132,36 +124,27 @@
         { user_id: session.user.id, token, platform: 'android' },
         { onConflict: 'user_id,token' }
       );
-      console.log('[native-init] Token saved to Supabase');
       return true;
     } catch (e) {
-      console.error('[native-init] Token save error:', e);
       return false;
     }
   }
 
   // ============================================================
-  // PRESENCE — single source of truth
-  // ============================================================
-  // Rules:
-  //   • Foreground  → status = 'online'      + last_seen refreshed every 30s
-  //   • Background  → status = 'offline'     + last_seen set once
-  //   • Cold start  → status = 'online'      (fresh launch)
-  //
-  // Debounce consecutive writes so we don't hammer the DB on
-  // rapid foreground/background toggles.
+  // PRESENCE
+  //   Foreground: status='online', heartbeat every 30s.
+  //   Background: status='offline' (immediate).
+  //   Debounced, session-safe, retried on cold start.
   // ============================================================
   let lastPresenceWrite = 0;
   let lastPresenceValue = null;
   let presenceHeartbeat = null;
-  const HEARTBEAT_MS = 30000;   // refresh last_seen every 30s while foreground
-  const MIN_WRITE_GAP_MS = 5000; // don't write twice within 5s
-  const HEARTBEAT_FRESH_WINDOW_MS = 45000; // server considers fresh within 45s
+  const HEARTBEAT_MS = 30000;
+  const MIN_WRITE_GAP_MS = 3000;
 
   async function writePresence(status, force) {
     try {
       const now = Date.now();
-      // Debounce rapid calls with the same value
       if (
         !force &&
         status === lastPresenceValue &&
@@ -173,10 +156,7 @@
       const supabase = await getSupabase();
       if (!supabase) return;
       const session = await getSession();
-      if (!session?.user) {
-        console.log('[native-init] No session yet — presence write skipped');
-        return;
-      }
+      if (!session?.user) return;
 
       const { error } = await supabase
         .from('profiles')
@@ -202,7 +182,6 @@
   function startHeartbeat() {
     stopHeartbeat();
     presenceHeartbeat = setInterval(() => {
-      // Only heartbeat if the app is visible
       if (document.visibilityState === 'visible') {
         writePresence('online', true);
       }
@@ -220,17 +199,12 @@
   // PUSH REGISTRATION
   // ============================================================
   async function registerDevice() {
-    if (!PushNotifications) {
-      console.warn('[native-init] PushNotifications plugin missing');
-      return false;
-    }
+    if (!PushNotifications) return false;
     try {
       let perm = await PushNotifications.checkPermissions();
-      console.log('[native-init] Push perm before:', perm.receive);
 
       if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
         perm = await PushNotifications.requestPermissions();
-        console.log('[native-init] Push perm after:', perm.receive);
       }
 
       if (perm.receive !== 'granted') {
@@ -249,7 +223,6 @@
 
   if (PushNotifications) {
     PushNotifications.addListener('registration', async (token) => {
-      console.log('[native-init] FCM token received');
       await saveToken(token.value);
     });
 
@@ -279,7 +252,6 @@
     const url = buildIncomingCallUrl(data);
     if (navigatingTo === url) return;
     navigatingTo = url;
-    console.log('[native-init] Navigating to call:', url);
     if (window.location.pathname.includes('/call-app/call/')) {
       window.dispatchEvent(new CustomEvent('relay:incoming-call', { detail: data }));
       return;
@@ -297,7 +269,6 @@
       if (!friendId) return;
       url = `/pages/chats/index.html?friendId=${friendId}`;
     }
-    console.log('[native-init] Navigating to chat:', url);
     if (window.location.pathname.includes('/pages/chats/')) {
       window.dispatchEvent(new CustomEvent('relay:open-chat', { detail: data }));
       return;
@@ -311,7 +282,6 @@
   if (PushNotifications) {
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       const data = (action.notification && action.notification.data) || {};
-      console.log('[native-init] Notification tapped:', action.actionId, data);
 
       const type = data.type || '';
       if (type === 'incoming_call' && data.room && data.callId) {
@@ -331,16 +301,13 @@
       const data = notification.data || {};
       console.log('[native-init] Push received (foreground):', data);
 
-      // If somehow we're foreground but a push still arrived (server
-      // race condition), remove the OS banner immediately so the user
-      // doesn't see a duplicate.
+      // If the server-side presence gate missed (race), remove any banner
+      // the OS may have shown so the user doesn't see a duplicate.
       try {
         if (LocalNotifications && LocalNotifications.removeAllDeliveredNotifications) {
           await LocalNotifications.removeAllDeliveredNotifications();
         }
-      } catch (e) {
-        console.warn('[native-init] Could not clear delivered notifications:', e);
-      }
+      } catch (e) {}
 
       const type = data.type || '';
 
@@ -385,37 +352,27 @@
           return;
         }
       }
-    } catch (e) {
-      console.warn('[native-init] Cold-start check failed:', e);
-    }
+    } catch (e) {}
   }
 
   checkColdStart();
 
   // ============================================================
-  // APP STATE
-  // ============================================================
-  // Capacitor App plugin only fires `appStateChange`. Use it as the
-  // single source of truth for foreground/background transitions.
+  // APP STATE — presence on foreground/background
   // ============================================================
   if (App && App.addListener) {
     App.addListener('appStateChange', async ({ isActive }) => {
       if (isActive) {
-        console.log('[native-init] App → foreground');
         writePresence('online', true);
         startHeartbeat();
         checkColdStart();
       } else {
-        console.log('[native-init] App → background');
         stopHeartbeat();
         writePresence('offline', true);
       }
     });
   }
 
-  // ============================================================
-  // BROWSER VISIBILITY (belt & suspenders — for WebView quirks)
-  // ============================================================
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
       writePresence('online', false);
@@ -427,22 +384,18 @@
   });
 
   // ============================================================
-  // BOOT SEQUENCE
+  // BOOT
   // ============================================================
   async function bootPermissions() {
     await registerChannels();
 
     const pushOk = await registerDevice();
-    console.log('[native-init] Push registration complete:', pushOk);
 
-    // Ask mic/camera perms after the push dialog has a moment to settle.
     setTimeout(() => {
       requestMediaPermissions('after-push-prompt');
     }, 400);
 
-    // Wait for the Supabase session to be ready, then mark online.
-    // We retry a few times because on cold start the auth module
-    // may not have hydrated the session yet.
+    // Wait for session, then mark online + start heartbeat.
     let attempts = 0;
     const tryPresence = async () => {
       attempts++;
@@ -450,13 +403,10 @@
       if (session?.user) {
         writePresence('online', true);
         startHeartbeat();
-        console.log('[native-init] Presence started after', attempts, 'attempt(s)');
         return;
       }
       if (attempts < 10) {
         setTimeout(tryPresence, 500);
-      } else {
-        console.warn('[native-init] Could not establish presence — no session');
       }
     };
     tryPresence();
@@ -464,7 +414,6 @@
 
   bootPermissions();
 
-  // Fallback media permissions on first user interaction
   const firstTap = () => {
     requestMediaPermissions('first-user-tap');
     document.removeEventListener('click', firstTap);
@@ -473,7 +422,6 @@
   document.addEventListener('click', firstTap, { once: true });
   document.addEventListener('touchstart', firstTap, { once: true });
 
-  // Retry pending FCM token save after login
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
     const pending = sessionStorage.getItem('pending_fcm_token');
