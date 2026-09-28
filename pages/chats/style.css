@@ -335,6 +335,7 @@ img { display: block; max-width: 100%; }
     box-shadow: 0 1px 2px rgba(26, 115, 232, 0.18);
 }
 
+/* Colored messages — same look for both sides */
 .message.sent[data-color="red"],
 .message.received[data-color="red"] { background: #fde2e2; color: #7a1d1d; }
 
@@ -378,7 +379,7 @@ img { display: block; max-width: 100%; }
 }
 
 /* ============================================================ */
-/* CALL MESSAGE — single quiet "Phone Call" bubble               */
+/* CALL MESSAGE                                                  */
 /* ============================================================ */
 
 .message.call-message {
@@ -437,6 +438,96 @@ img { display: block; max-width: 100%; }
     opacity: 0.65;
     line-height: 1.2;
     color: var(--text-2);
+}
+
+/* ============================================================ */
+/* AUDIO MESSAGE BUBBLE                                          */
+/* ============================================================ */
+
+.message.audio-message {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    max-width: 75%;
+}
+
+.audio-bubble {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.audio-play-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.audio-play-btn:hover { transform: scale(1.06); }
+.audio-play-btn:active { transform: scale(0.94); }
+
+.audio-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.audio-waveform {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.audio-waveform .bar {
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.42);
+    min-height: 3px;
+    transition: background 0.15s ease;
+}
+
+.audio-waveform .bar.played {
+    background: #ffffff;
+}
+
+.audio-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.7rem;
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+}
+
+.audio-duration {
+    color: inherit;
+    font-weight: 400;
+}
+
+.audio-time {
+    opacity: 0.75;
 }
 
 /* ============================================================ */
@@ -1007,6 +1098,41 @@ img { display: block; max-width: 100%; }
 
 .attach-btn:active { transform: scale(0.94); }
 
+.mic-btn {
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: var(--text-2);
+    font-size: 1.05rem;
+    transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mic-btn:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+.mic-btn:active { transform: scale(0.94); }
+
+.mic-btn.recording {
+    background: rgba(217, 48, 37, 0.1);
+    color: #d93025;
+    animation: micPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.35); }
+    50%      { box-shadow: 0 0 0 10px rgba(217, 48, 37, 0); }
+}
+
 .message-input {
     flex: 1;
     padding: 12px 16px;
@@ -1056,6 +1182,289 @@ img { display: block; max-width: 100%; }
 }
 
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+/* ============================================================ */
+/* VOICE RECORDING OVERLAY                                       */
+/* ============================================================ */
+
+.voice-rec-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(32, 33, 36, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: calc(24px + var(--safe-area-bottom));
+    animation: fadeIn 0.2s var(--ease-out);
+}
+
+.voice-rec-panel {
+    width: 90%;
+    max-width: 420px;
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 20px 22px 18px;
+    box-shadow: 0 20px 50px rgba(10, 37, 64, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: voiceRecIn 0.28s var(--ease-out);
+}
+
+@keyframes voiceRecIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.voice-rec-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #d93025;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.voice-rec-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d93025;
+    animation: recDot 1s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes recDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.85); }
+}
+
+.voice-rec-waveform {
+    height: 60px;
+    background: #f8f9fa;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0 12px;
+    overflow: hidden;
+}
+
+.voice-rec-waveform .bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--primary);
+    min-height: 4px;
+    transition: height 0.08s linear;
+}
+
+.voice-rec-timer {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: #202124;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.voice-rec-hint {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #5f6368;
+}
+
+.voice-rec-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.voice-rec-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #ffffff;
+    transition: transform 0.2s var(--ease-out), background 0.2s var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.voice-rec-btn:hover { transform: scale(1.06); }
+.voice-rec-btn:active { transform: scale(0.94); }
+
+.voice-rec-cancel { background: #d93025; }
+.voice-rec-cancel:hover { background: #b9251c; }
+
+.voice-rec-stop { background: var(--primary); }
+.voice-rec-stop:hover { background: var(--primary-hover); }
+
+/* ============================================================ */
+/* VOICE PREVIEW MODAL                                           */
+/* ============================================================ */
+
+.voice-preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(32, 33, 36, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s var(--ease-out);
+}
+
+.voice-preview-panel {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(10, 37, 64, 0.28);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: voiceRecIn 0.25s var(--ease-out);
+}
+
+.voice-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.voice-preview-header h3 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 500;
+    color: #202124;
+}
+
+.voice-preview-close {
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    transition: background 0.2s var(--ease-out);
+}
+
+.voice-preview-close:hover { background: var(--bg-hover); }
+
+.voice-preview-body {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 4px;
+}
+
+.voice-preview-play {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.2s var(--ease-out), background 0.2s var(--ease-out);
+}
+
+.voice-preview-play:hover { transform: scale(1.05); background: var(--primary-hover); }
+.voice-preview-play:active { transform: scale(0.95); }
+
+.voice-preview-waveform {
+    flex: 1;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.voice-preview-waveform .bar {
+    width: 3px;
+    border-radius: 2px;
+    background: rgba(0, 122, 204, 0.35);
+    min-height: 4px;
+    transition: background 0.15s ease;
+}
+
+.voice-preview-waveform .bar.played {
+    background: var(--primary);
+}
+
+.voice-preview-duration {
+    font-size: 0.85rem;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: right;
+}
+
+.voice-preview-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.voice-preview-actions button {
+    flex: 1;
+    min-height: 46px;
+    border-radius: 12px;
+    font-size: 0.94rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: inherit;
+    transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+
+.voice-preview-actions .btn-secondary {
+    background: #f8f9fa;
+    color: #202124;
+    border-color: #e8eaed;
+}
+
+.voice-preview-actions .btn-secondary:hover { background: #f1f3f4; }
+
+.voice-preview-actions .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.25);
+}
+
+.voice-preview-actions .btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 6px 16px rgba(0, 122, 204, 0.35);
+}
+
+.voice-preview-actions .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
 /* ============================================================ */
 /* COLOR PICKER                                                  */
@@ -2008,3 +2417,32 @@ img { display: block; max-width: 100%; }
 }
 
 body { overscroll-behavior-y: contain; }
+
+/* ============================================================ */
+/* RESPONSIVE — VOICE UI                                         */
+/* ============================================================ */
+
+@media (max-width: 480px) {
+    .voice-rec-panel,
+    .voice-preview-panel {
+        width: 94%;
+        padding: 18px 18px 16px;
+        border-radius: 20px;
+    }
+
+    .voice-rec-timer { font-size: 1.25rem; }
+    .voice-rec-waveform { height: 50px; }
+    .voice-rec-btn { width: 48px; height: 48px; font-size: 0.92rem; }
+
+    .mic-btn { width: 42px; height: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-rec-dot,
+    .mic-btn.recording { animation: none; }
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
