@@ -189,7 +189,7 @@ a { color: var(--primary); }
 
 .about-tabs {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 4px;
     padding: 4px;
     background: var(--bg-sub);
@@ -374,78 +374,6 @@ a { color: var(--primary); }
 }
 
 .feature-tile .card-title { display: block; margin-bottom: 4px; }
-
-/* ============================================================ */
-/* CLAIMS                                                        */
-/* ============================================================ */
-
-.claim {
-    border-radius: var(--radius-lg);
-    padding: 18px 20px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-soft);
-    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
-                transform 0.2s var(--ease);
-}
-
-.claim:hover {
-    box-shadow: var(--shadow-2);
-    transform: translateY(-1px);
-}
-
-.claim-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.claim-head i {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-}
-
-.claim-head h3 {
-    font-size: 0.98rem;
-    font-weight: 500;
-    color: var(--text);
-    letter-spacing: -0.01em;
-}
-
-.claim p {
-    color: var(--text-2);
-    font-size: 0.9rem;
-    line-height: 1.6;
-}
-
-.claim strong { color: var(--text); font-weight: 600; }
-.claim em { font-style: italic; color: inherit; }
-
-.claim-secure {
-    background: var(--success-soft);
-    border-color: rgba(30, 142, 62, 0.22);
-}
-
-.claim-secure .claim-head i {
-    background: rgba(30, 142, 62, 0.14);
-    color: var(--success);
-}
-
-.claim-caution {
-    background: var(--warning-soft);
-    border-color: rgba(176, 96, 0, 0.25);
-}
-
-.claim-caution .claim-head i {
-    background: rgba(176, 96, 0, 0.14);
-    color: var(--warning);
-}
 
 /* ============================================================ */
 /* FAQ                                                           */
@@ -652,9 +580,6 @@ a { color: var(--primary); }
     .card { padding: 16px 16px; }
     .card-title { font-size: 0.94rem; }
     .section-title { font-size: 1.15rem; }
-
-    .claim { padding: 16px; }
-    .claim-head h3 { font-size: 0.94rem; }
 
     .faq-item summary { padding: 13px 15px; font-size: 0.88rem; }
     .faq-item p { padding: 0 15px 14px; font-size: 0.85rem; }
