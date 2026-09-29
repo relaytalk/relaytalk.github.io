@@ -77,8 +77,56 @@ const PICKER_EMOJIS = [
     '✨', '🙌', '👏', '🥰', '😅', '🤗'
 ];
 
-// Online freshness window (matches callHub.js)
 const ONLINE_FRESH_WINDOW_MS = 60000;
+
+// ============================================================
+// INLINE SVG ICONS (24x24 viewBox, stroke-based)
+// ============================================================
+const ICONS = {
+    copy: `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+    `,
+    edit: `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+    `,
+    trash: `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/>
+            <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+            <path d="M19 6l-.9 13.1A2 2 0 0 1 16.1 21H7.9a2 2 0 0 1-2-1.9L5 6"/>
+            <path d="M10 11v6"/>
+            <path d="M14 11v6"/>
+        </svg>
+    `,
+    close: `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+    `,
+    play: `
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+    `,
+    pause: `
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none">
+            <rect x="6" y="4" width="4" height="16" rx="1"/>
+            <rect x="14" y="4" width="4" height="16" rx="1"/>
+        </svg>
+    `,
+    phone: `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+    `
+};
 
 // ============================================================
 // ONLINE / OFFLINE HELPER
@@ -201,14 +249,8 @@ function setupKeyboardPreservation() {
     const inputBar = document.querySelector('.message-input-wrapper');
     if (!inputBar) return;
 
-    // Prevent focus-steal on attach, mic, send buttons.
-    // tabindex="-1" in HTML makes them non-focusable, but we
-    // add mousedown preventDefault for extra safety on browsers
-    // that still grab focus.
     inputBar.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('mousedown', (e) => e.preventDefault());
-        // Do NOT preventDefault on touchstart — some browsers need
-        // the touchstart to register a click. Instead rely on tabindex.
     });
 }
 
@@ -495,13 +537,13 @@ function showVoicePreview() {
     voicePreviewAudioEl.preload = 'auto';
 
     voicePreviewAudioEl.addEventListener('play', () => {
-        if (playBtn) playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        if (playBtn) playBtn.innerHTML = ICONS.pause;
     });
     voicePreviewAudioEl.addEventListener('pause', () => {
-        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        if (playBtn) playBtn.innerHTML = ICONS.play;
     });
     voicePreviewAudioEl.addEventListener('ended', () => {
-        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        if (playBtn) playBtn.innerHTML = ICONS.play;
         voicePreviewBars.forEach(b => b.classList.remove('played'));
     });
 
@@ -719,10 +761,6 @@ async function sendMessage() {
         playSentSound();
         input.value = '';
         autoResize(input);
-
-        // Re-focus the input to keep the keyboard open.
-        // The input already has focus on mobile during typing,
-        // but tapping the button can steal it — re-focus restores it.
         input.focus({ preventScroll: true });
 
         isTyping = false;
@@ -818,8 +856,6 @@ function isCallMessage(msg) {
 }
 
 function isAudioMessage(msg) {
-    // Deleted audio messages no longer count as audio — they render
-    // as the deleted placeholder instead of a broken player.
     if (isDeletedMessage(msg)) return false;
     return msg && (msg.message_type === 'audio' || !!msg.audio_url);
 }
@@ -868,8 +904,6 @@ function renderSingleMessage(msg, isSent, time) {
         return renderCallMessage(msg, isSent, time);
     }
 
-    // Deleted check MUST come before audio check — so deleted audio
-    // renders as the placeholder instead of a broken player.
     if (isDeletedMessage(msg)) {
         return `
             <div class="message ${isSent ? 'sent' : 'received'} deleted-message" data-message-id="${msg.id}">
@@ -917,11 +951,7 @@ function renderCallMessage(msg, isSent, time) {
     return `
         <div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}">
             <div class="call-message-body">
-                <span class="call-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                    </svg>
-                </span>
+                <span class="call-icon" aria-hidden="true">${ICONS.phone}</span>
                 <div class="call-info">
                     <span class="call-label">Phone Call</span>
                     <span class="call-sub">${time}</span>
@@ -951,7 +981,7 @@ function renderAudioMessage(msg, isSent, time) {
         <div class="message ${isSent ? 'sent' : 'received'} audio-message" data-message-id="${msg.id}" ${colorAttr}>
             <div class="audio-bubble" data-audio-url="${url}" data-audio-duration="${durationMs}">
                 <button class="audio-play-btn" data-action="audio-toggle" aria-label="Play voice message">
-                    <i class="fas fa-play"></i>
+                    ${ICONS.play}
                 </button>
                 <div class="audio-body">
                     <div class="audio-waveform">${waveformHtml}</div>
@@ -1222,14 +1252,14 @@ function handlePressCancel() {
 }
 
 // ============================================================
-// AUDIO PLAYBACK — with real buffering spinner
+// AUDIO PLAYBACK
 // ============================================================
 let currentlyPlayingAudio = null;
 let currentlyPlayingBtn = null;
 
-function setBtnIcon(btn, icon) {
+function setBtnIcon(btn, svg) {
     if (!btn) return;
-    btn.innerHTML = `<i class="fas ${icon}"></i>`;
+    btn.innerHTML = svg;
 }
 
 function setBtnSpinner(btn) {
@@ -1244,20 +1274,18 @@ function handleAudioToggle(btn) {
     const audioEl = bubble.querySelector('audio');
     if (!audioEl) return;
 
-    // Stop other audio
     if (currentlyPlayingAudio && currentlyPlayingAudio !== audioEl) {
         try {
             currentlyPlayingAudio.pause();
             currentlyPlayingAudio.currentTime = 0;
         } catch (e) {}
-        if (currentlyPlayingBtn) setBtnIcon(currentlyPlayingBtn, 'fa-play');
+        if (currentlyPlayingBtn) setBtnIcon(currentlyPlayingBtn, ICONS.play);
         clearPlayingWaveform(currentlyPlayingAudio);
     }
 
-    // If already playing this one → pause
     if (!audioEl.paused && !audioEl.ended) {
         audioEl.pause();
-        setBtnIcon(btn, 'fa-play');
+        setBtnIcon(btn, ICONS.play);
         if (currentlyPlayingAudio === audioEl) {
             currentlyPlayingAudio = null;
             currentlyPlayingBtn = null;
@@ -1265,34 +1293,30 @@ function handleAudioToggle(btn) {
         return;
     }
 
-    // Otherwise → attempt to play
     currentlyPlayingAudio = audioEl;
     currentlyPlayingBtn = btn;
 
-    // Show spinner immediately (real buffering state)
     const readyState = audioEl.readyState;
-    // 0 = HAVE_NOTHING, 1 = HAVE_METADATA, 2 = HAVE_CURRENT_DATA
     if (readyState < 3) {
         setBtnSpinner(btn);
         btn.classList.add('loading');
     } else {
-        setBtnIcon(btn, 'fa-pause');
+        setBtnIcon(btn, ICONS.pause);
     }
 
     const onPlaying = () => {
         btn.classList.remove('loading');
-        setBtnIcon(btn, 'fa-pause');
+        setBtnIcon(btn, ICONS.pause);
     };
 
     const onWaiting = () => {
-        // Buffering mid-playback
         setBtnSpinner(btn);
         btn.classList.add('loading');
     };
 
     const onEnded = () => {
         btn.classList.remove('loading');
-        setBtnIcon(btn, 'fa-play');
+        setBtnIcon(btn, ICONS.play);
         clearPlayingWaveform(audioEl);
         if (currentlyPlayingAudio === audioEl) {
             currentlyPlayingAudio = null;
@@ -1303,7 +1327,7 @@ function handleAudioToggle(btn) {
 
     const onError = () => {
         btn.classList.remove('loading');
-        setBtnIcon(btn, 'fa-play');
+        setBtnIcon(btn, ICONS.play);
         clearPlayingWaveform(audioEl);
         showToast('Could not play audio', '❌', 1500);
         if (currentlyPlayingAudio === audioEl) {
@@ -1352,7 +1376,7 @@ function clearPlayingWaveform(audioEl) {
 }
 
 // ============================================================
-// ACTION BAR
+// ACTION BAR — uses inline SVGs for all icons
 // ============================================================
 function openActionBar(wrap) {
     const messageId = parseInt(wrap.dataset.wrapId);
@@ -1395,31 +1419,19 @@ function buildQuickBar(wrap) {
 
     const editBtnHTML = (isMine && isText) ? `
         <button class="action-btn-icon" data-action="edit" title="Edit">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+            ${ICONS.edit}
         </button>
     ` : '';
 
     const deleteBtnHTML = isMine ? `
         <button class="action-btn-icon action-btn-danger" data-action="delete" title="Delete">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 6h18"/>
-                <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
-                <path d="M19 6l-.9 13.1A2 2 0 0 1 16.1 21H7.9a2 2 0 0 1-2-1.9L5 6"/>
-                <path d="M10 11v6"/>
-                <path d="M14 11v6"/>
-            </svg>
+            ${ICONS.trash}
         </button>
     ` : '';
 
     const copyBtnHTML = (isImage || isAudio) ? '' : `
         <button class="action-btn-icon" data-action="copy" title="Copy">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
+            ${ICONS.copy}
         </button>
     `;
 
@@ -1442,10 +1454,7 @@ function buildQuickBar(wrap) {
             ${deleteBtnHTML}
             <div class="action-bar-spacer"></div>
             <button class="action-btn-icon action-btn-close" data-action="close" title="Close">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+                ${ICONS.close}
             </button>
         </div>
         ${reactHTML}
@@ -1933,19 +1942,9 @@ function updateInputListener() {
     input.addEventListener('keydown', handleKeyPress);
 }
 
-// ============================================================
-// KEY HANDLING — Enter inserts a newline, only the send button sends
-// ============================================================
 function handleKeyPress(e) {
     if (e.key === 'Enter') {
-        // Shift+Enter = newline (default textarea behavior)
-        // Plain Enter = ALSO newline (no send)
-        // On mobile, the "enter" key on some keyboards may still trigger
-        // a form submit — but since we don't have a form, and we prevent
-        // default, nothing should happen.
         e.preventDefault();
-
-        // Optional: manually insert a newline
         const input = document.getElementById('messageInput');
         if (input) {
             const start = input.selectionStart;
@@ -2273,9 +2272,6 @@ function showToast(message, icon = '✅', duration = 1500) {
     setTimeout(() => toast.style.display = 'none', duration);
 }
 
-// ============================================================
-// FRIEND STATUS
-// ============================================================
 function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
