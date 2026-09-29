@@ -1,11 +1,13 @@
 // utils/native-init.js
-// FCM registration + notification tap navigation + media permissions.
-// Presence is now managed by callHub.js on every page.
+// FCM registration + notification tap navigation.
+// Presence is managed by callHub.js on every page.
+// Media permissions (mic/camera) are NO LONGER requested here —
+// they are requested by the call app and the voice recorder
+// only when the user actually needs them.
 
 (function () {
   'use strict';
 
-  // Guard against double-loading
   if (window.__relayNativeInitInstalled) {
     return;
   }
@@ -65,28 +67,6 @@
   }
 
   // ============================================================
-  // MEDIA PERMISSIONS
-  // ============================================================
-  let mediaPermissionsRequested = false;
-
-  async function requestMediaPermissions(reason) {
-    if (mediaPermissionsRequested) return;
-    mediaPermissionsRequested = true;
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: { facingMode: 'user' },
-      });
-      stream.getTracks().forEach(t => t.stop());
-    } catch (e) {
-      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        mediaPermissionsRequested = false;
-      }
-    }
-  }
-
-  // ============================================================
   // SUPABASE (for saving token)
   // ============================================================
   let supabasePromise = null;
@@ -137,6 +117,7 @@
 
   // ============================================================
   // PUSH REGISTRATION
+  // Only called when we're on the home page AND user is logged in.
   // ============================================================
   async function registerDevice() {
     if (!PushNotifications) return false;
@@ -235,7 +216,6 @@
     PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       const data = notification.data || {};
 
-      // Remove any OS banner that managed to appear (defensive)
       try {
         if (LocalNotifications && LocalNotifications.removeAllDeliveredNotifications) {
           await LocalNotifications.removeAllDeliveredNotifications();
@@ -290,9 +270,6 @@
 
   checkColdStart();
 
-  // ============================================================
-  // APP STATE — only cold-start recovery now (presence in callHub)
-  // ============================================================
   if (App && App.addListener) {
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) checkColdStart();
@@ -301,26 +278,33 @@
 
   // ============================================================
   // BOOT
+  // Channels are safe to register immediately (no prompt).
+  // Push permission is only requested when on the home page.
   // ============================================================
   async function boot() {
     await registerChannels();
-    await registerDevice();
 
-    setTimeout(() => {
-      requestMediaPermissions('after-push-prompt');
-    }, 400);
+    // Only request push permission when user is on the home page.
+    const path = window.location.pathname;
+    const isHomePage = path === '/pages/home/' ||
+                       path === '/pages/home/index.html' ||
+                       path.endsWith('/pages/home/') ||
+                       path.endsWith('/pages/home/index.html');
+
+    if (isHomePage) {
+      // Small delay so the page has time to render and the user
+      // sees the app before the OS prompt appears.
+      setTimeout(async () => {
+        await registerDevice();
+      }, 1200);
+    }
   }
 
   boot();
 
-  const firstTap = () => {
-    requestMediaPermissions('first-user-tap');
-    document.removeEventListener('click', firstTap);
-    document.removeEventListener('touchstart', firstTap);
-  };
-  document.addEventListener('click', firstTap, { once: true });
-  document.addEventListener('touchstart', firstTap, { once: true });
-
+  // ============================================================
+  // RETRY PENDING FCM TOKEN SAVE
+  // ============================================================
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
     const pending = sessionStorage.getItem('pending_fcm_token');
