@@ -201,12 +201,14 @@ function setupKeyboardPreservation() {
     const inputBar = document.querySelector('.message-input-wrapper');
     if (!inputBar) return;
 
+    // Prevent focus-steal on attach, mic, send buttons.
+    // tabindex="-1" in HTML makes them non-focusable, but we
+    // add mousedown preventDefault for extra safety on browsers
+    // that still grab focus.
     inputBar.querySelectorAll('button').forEach(btn => {
-        if (btn.id === 'sendBtn' || btn.classList.contains('send-btn')) return;
-        if (btn.id === 'micBtn' || btn.classList.contains('mic-btn')) return;
-
         btn.addEventListener('mousedown', (e) => e.preventDefault());
-        btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        // Do NOT preventDefault on touchstart — some browsers need
+        // the touchstart to register a click. Instead rely on tabindex.
     });
 }
 
@@ -717,6 +719,10 @@ async function sendMessage() {
         playSentSound();
         input.value = '';
         autoResize(input);
+
+        // Re-focus the input to keep the keyboard open.
+        // The input already has focus on mobile during typing,
+        // but tapping the button can steal it — re-focus restores it.
         input.focus({ preventScroll: true });
 
         isTyping = false;
@@ -812,6 +818,9 @@ function isCallMessage(msg) {
 }
 
 function isAudioMessage(msg) {
+    // Deleted audio messages no longer count as audio — they render
+    // as the deleted placeholder instead of a broken player.
+    if (isDeletedMessage(msg)) return false;
     return msg && (msg.message_type === 'audio' || !!msg.audio_url);
 }
 
@@ -859,16 +868,9 @@ function renderSingleMessage(msg, isSent, time) {
         return renderCallMessage(msg, isSent, time);
     }
 
-    if (isAudioMessage(msg)) {
-        return renderAudioMessage(msg, isSent, time);
-    }
-
-    const color = msg.color || null;
-    const colorAttr = color ? `data-color="${color}"` : '';
-    const editedMark = msg.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
-    const deleted = isDeletedMessage(msg);
-
-    if (deleted) {
+    // Deleted check MUST come before audio check — so deleted audio
+    // renders as the placeholder instead of a broken player.
+    if (isDeletedMessage(msg)) {
         return `
             <div class="message ${isSent ? 'sent' : 'received'} deleted-message" data-message-id="${msg.id}">
                 <div class="message-content deleted-content">
@@ -882,6 +884,14 @@ function renderSingleMessage(msg, isSent, time) {
             </div>
         `;
     }
+
+    if (isAudioMessage(msg)) {
+        return renderAudioMessage(msg, isSent, time);
+    }
+
+    const color = msg.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+    const editedMark = msg.edited_at ? '<span class="edited-mark"> (edited)</span>' : '';
 
     if (msg.image_url) {
         if (typeof window.createImageMessageHTML === 'function') {
@@ -1212,10 +1222,20 @@ function handlePressCancel() {
 }
 
 // ============================================================
-// AUDIO PLAYBACK
+// AUDIO PLAYBACK — with real buffering spinner
 // ============================================================
 let currentlyPlayingAudio = null;
 let currentlyPlayingBtn = null;
+
+function setBtnIcon(btn, icon) {
+    if (!btn) return;
+    btn.innerHTML = `<i class="fas ${icon}"></i>`;
+}
+
+function setBtnSpinner(btn) {
+    if (!btn) return;
+    btn.innerHTML = '<span class="audio-spinner"></span>';
+}
 
 function handleAudioToggle(btn) {
     const bubble = btn.closest('.audio-bubble');
@@ -1224,43 +1244,93 @@ function handleAudioToggle(btn) {
     const audioEl = bubble.querySelector('audio');
     if (!audioEl) return;
 
+    // Stop other audio
     if (currentlyPlayingAudio && currentlyPlayingAudio !== audioEl) {
         try {
             currentlyPlayingAudio.pause();
             currentlyPlayingAudio.currentTime = 0;
         } catch (e) {}
-        if (currentlyPlayingBtn) {
-            currentlyPlayingBtn.innerHTML = '<i class="fas fa-play"></i>';
-        }
+        if (currentlyPlayingBtn) setBtnIcon(currentlyPlayingBtn, 'fa-play');
         clearPlayingWaveform(currentlyPlayingAudio);
     }
 
-    if (audioEl.paused) {
-        audioEl.play().catch((err) => {
-            console.warn('Audio playback failed:', err);
-            showToast('Could not play audio', '❌', 1500);
-        });
-        btn.innerHTML = '<i class="fas fa-pause"></i>';
-        currentlyPlayingAudio = audioEl;
-        currentlyPlayingBtn = btn;
-
-        audioEl.onended = () => {
-            btn.innerHTML = '<i class="fas fa-play"></i>';
-            clearPlayingWaveform(audioEl);
-            if (currentlyPlayingAudio === audioEl) {
-                currentlyPlayingAudio = null;
-                currentlyPlayingBtn = null;
-            }
-        };
-        audioEl.ontimeupdate = () => updatePlayingWaveform(audioEl, bubble);
-    } else {
+    // If already playing this one → pause
+    if (!audioEl.paused && !audioEl.ended) {
         audioEl.pause();
-        btn.innerHTML = '<i class="fas fa-play"></i>';
+        setBtnIcon(btn, 'fa-play');
         if (currentlyPlayingAudio === audioEl) {
             currentlyPlayingAudio = null;
             currentlyPlayingBtn = null;
         }
+        return;
     }
+
+    // Otherwise → attempt to play
+    currentlyPlayingAudio = audioEl;
+    currentlyPlayingBtn = btn;
+
+    // Show spinner immediately (real buffering state)
+    const readyState = audioEl.readyState;
+    // 0 = HAVE_NOTHING, 1 = HAVE_METADATA, 2 = HAVE_CURRENT_DATA
+    if (readyState < 3) {
+        setBtnSpinner(btn);
+        btn.classList.add('loading');
+    } else {
+        setBtnIcon(btn, 'fa-pause');
+    }
+
+    const onPlaying = () => {
+        btn.classList.remove('loading');
+        setBtnIcon(btn, 'fa-pause');
+    };
+
+    const onWaiting = () => {
+        // Buffering mid-playback
+        setBtnSpinner(btn);
+        btn.classList.add('loading');
+    };
+
+    const onEnded = () => {
+        btn.classList.remove('loading');
+        setBtnIcon(btn, 'fa-play');
+        clearPlayingWaveform(audioEl);
+        if (currentlyPlayingAudio === audioEl) {
+            currentlyPlayingAudio = null;
+            currentlyPlayingBtn = null;
+        }
+        cleanup();
+    };
+
+    const onError = () => {
+        btn.classList.remove('loading');
+        setBtnIcon(btn, 'fa-play');
+        clearPlayingWaveform(audioEl);
+        showToast('Could not play audio', '❌', 1500);
+        if (currentlyPlayingAudio === audioEl) {
+            currentlyPlayingAudio = null;
+            currentlyPlayingBtn = null;
+        }
+        cleanup();
+    };
+
+    const cleanup = () => {
+        audioEl.removeEventListener('playing', onPlaying);
+        audioEl.removeEventListener('waiting', onWaiting);
+        audioEl.removeEventListener('ended', onEnded);
+        audioEl.removeEventListener('error', onError);
+    };
+
+    audioEl.addEventListener('playing', onPlaying);
+    audioEl.addEventListener('waiting', onWaiting);
+    audioEl.addEventListener('ended', onEnded);
+    audioEl.addEventListener('error', onError);
+
+    audioEl.ontimeupdate = () => updatePlayingWaveform(audioEl, bubble);
+
+    audioEl.play().catch((err) => {
+        console.warn('Audio playback failed:', err);
+        onError();
+    });
 }
 
 function updatePlayingWaveform(audioEl, bubble) {
@@ -1863,20 +1933,28 @@ function updateInputListener() {
     input.addEventListener('keydown', handleKeyPress);
 }
 
+// ============================================================
+// KEY HANDLING — Enter inserts a newline, only the send button sends
+// ============================================================
 function handleKeyPress(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
+        // Shift+Enter = newline (default textarea behavior)
+        // Plain Enter = ALSO newline (no send)
+        // On mobile, the "enter" key on some keyboards may still trigger
+        // a form submit — but since we don't have a form, and we prevent
+        // default, nothing should happen.
         e.preventDefault();
-        if (window.colorPickerVisible === true) {
-            const input = document.getElementById('messageInput');
-            if (input && input.value === '/') {
-                input.value = '';
-                autoResize(input);
-            }
-            return;
-        }
+
+        // Optional: manually insert a newline
         const input = document.getElementById('messageInput');
-        if (input && input.value === '/') return;
-        if (input && input.value.trim()) sendMessage();
+        if (input) {
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const value = input.value;
+            input.value = value.slice(0, start) + '\n' + value.slice(end);
+            input.selectionStart = input.selectionEnd = start + 1;
+            autoResize(input);
+        }
     }
 }
 
@@ -1992,14 +2070,14 @@ function openGuide() {
                 <div class="guide-icon">💬</div>
                 <div>
                     <strong>Send a message</strong>
-                    <p>Type in the box at the bottom and tap the send button.</p>
+                    <p>Type in the box and tap the send button. Press Enter for a new line.</p>
                 </div>
             </div>
             <div class="guide-item">
                 <div class="guide-icon">🎙️</div>
                 <div>
                     <strong>Send a voice message</strong>
-                    <p>Tap the mic button, speak, then tap stop to preview. Slide the preview to cancel or tap send.</p>
+                    <p>Tap the mic button, speak, then tap stop to preview. Send or cancel from the preview.</p>
                 </div>
             </div>
             <div class="guide-item">
@@ -2196,7 +2274,7 @@ function showToast(message, icon = '✅', duration = 1500) {
 }
 
 // ============================================================
-// FRIEND STATUS — online if status==='online' AND last_seen is fresh
+// FRIEND STATUS
 // ============================================================
 function updateFriendStatus(status, lastSeen) {
     const dot = document.getElementById('statusDot');
