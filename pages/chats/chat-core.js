@@ -462,20 +462,20 @@ function setupVoicePreviewModal() {
         playBtn.addEventListener('click', () => {
             if (!voicePreviewAudioEl) return;
             if (voicePreviewAudioEl.paused) {
-                voicePreviewAudioEl.play();
+                voicePreviewAudioEl.play().catch(() => {});
             } else {
                 voicePreviewAudioEl.pause();
             }
         });
     }
 
-    if (closeBtn) closeBtn.addEventListener('click', () => closeVoicePreview());
-    if (cancelBtn) cancelBtn.addEventListener('click', () => closeVoicePreview());
+    if (closeBtn) closeBtn.addEventListener('click', () => closeVoicePreview(false));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => closeVoicePreview(false));
 
     if (sendBtn) {
         sendBtn.addEventListener('click', async () => {
             if (!voiceRecorder || !voiceRecorder.recordedBlob) {
-                closeVoicePreview();
+                closeVoicePreview(false);
                 return;
             }
 
@@ -498,13 +498,21 @@ function setupVoicePreviewModal() {
 
     if (overlay) {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeVoicePreview();
+            if (e.target === overlay) closeVoicePreview(false);
         });
     }
 }
 
 function showVoicePreview() {
-    if (!voiceRecorder || !voiceRecorder.recordedBlob) return;
+    if (!voiceRecorder || !voiceRecorder.recordedBlob) {
+        showToast('No recording available', '⚠️', 2000);
+        return;
+    }
+
+    if (!voiceRecorder.recordedUrl) {
+        showToast('Recording is not ready yet', '⚠️', 2000);
+        return;
+    }
 
     const overlay = document.getElementById('voicePreviewOverlay');
     const durationEl = document.getElementById('voicePreviewDuration');
@@ -518,6 +526,7 @@ function showVoicePreview() {
         try { voicePreviewAudioEl.pause(); } catch (e) {}
         voicePreviewAudioEl = null;
     }
+
     voicePreviewAudioEl = new Audio(voiceRecorder.recordedUrl);
     voicePreviewAudioEl.preload = 'auto';
 
@@ -555,11 +564,20 @@ function closeVoicePreview(afterSend = false) {
 
     voicePreviewBars.forEach(b => b.classList.remove('played'));
 
+    const sendBtn = document.getElementById('voicePreviewSend');
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = 'Send';
+    }
+
     if (voiceRecorder) voiceRecorder.discard();
 }
 
 async function sendVoiceMessage(audioUrl, durationMs) {
-    if (!chatFriend || !currentUser) return;
+    if (!chatFriend || !currentUser) {
+        showToast('Chat not ready', '⚠️', 2000);
+        throw new Error('Missing chat context');
+    }
 
     const messageData = {
         sender_id: currentUser.id,
