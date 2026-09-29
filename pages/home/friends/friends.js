@@ -30,7 +30,6 @@ let locallyReadCallIds = new Set();
 const SEEN_STORAGE_KEY = 'relaytalk_seen_notifications';
 const SEEN_CALLS_KEY = 'relaytalk_seen_calls';
 
-// Online if status === 'online' AND last_seen within this window
 const ONLINE_FRESH_WINDOW_MS = 60000;
 
 function isUserOnline(profile) {
@@ -235,13 +234,42 @@ async function loadFriends() {
             .in('id', friendIds)
             .order('username');
 
-        allFriends = (profiles || []).map(p => ({ ...p }));
+        const unreadMap = await fetchUnreadCounts(friendIds);
+
+        allFriends = (profiles || []).map(p => ({
+            ...p,
+            unreadCount: unreadMap[p.id] || 0
+        }));
 
         filteredFriends = [...allFriends];
         renderFriendsList();
     } catch (error) {
         showEmptyState();
     }
+}
+
+async function fetchUnreadCounts(friendIds) {
+    const result = {};
+    if (!friendIds || friendIds.length === 0) return result;
+
+    try {
+        const { data, error } = await mainSupabase
+            .from('direct_messages')
+            .select('sender_id, message_type')
+            .eq('receiver_id', authUser.id)
+            .eq('read', false)
+            .neq('message_type', 'call')
+            .in('sender_id', friendIds);
+
+        if (error || !data) return result;
+
+        data.forEach(row => {
+            const id = row.sender_id;
+            result[id] = (result[id] || 0) + 1;
+        });
+    } catch (e) {}
+
+    return result;
 }
 
 function renderFriendsList() {
@@ -260,6 +288,10 @@ function renderFriendsList() {
         const online = isUserOnline(friend);
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
         const avatarSrc = friend.avatar_url || '';
+        const unread = friend.unreadCount || 0;
+        const badgeHTML = unread > 0
+            ? `<span class="friend-unread-badge">${unread > 99 ? '99+' : unread}</span>`
+            : '';
 
         html += `
             <div class="friend-item" data-friend-id="${friend.id}">
@@ -269,6 +301,7 @@ function renderFriendsList() {
                         : `<span>${escapeHtml(initial)}</span>`
                     }
                     <span class="status-indicator-clean ${online ? 'online' : 'offline'}"></span>
+                    ${badgeHTML}
                 </div>
                 <div class="friend-info-clean" onclick="openProfile('${friend.id}')">
                     <div class="friend-name-status">
