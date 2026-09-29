@@ -1,6 +1,11 @@
 // utils/pushClient.js
 // Client-side Web Push subscription manager.
 // Registers the service worker itself (no separate sw-manager required).
+//
+// IMPORTANT: This module NO LONGER auto-initializes on page load.
+// The SW registration and permission prompt only happen when
+// `window.relaytalkPush.init()` or `.request()` is called explicitly.
+// This means notifications are only requested on the /pages/home page.
 
 import { initializeSupabase } from './supabase.js'
 
@@ -26,16 +31,7 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray
 }
 
-// Figure out the correct path to /service-worker.js based on current page depth
 function resolveServiceWorkerPath() {
-    // We want the SW to be at the site root so it can control the whole app.
-    // Files:
-    //   /service-worker.js
-    // Pages can be at:
-    //   /                          → 'service-worker.js'
-    //   /pages/home/               → '/service-worker.js'
-    //   /pages/home/profiles/      → '/service-worker.js'
-    // Using an absolute path '/' is cleanest on Vercel + GH Pages.
     return '/service-worker.js'
 }
 
@@ -50,18 +46,14 @@ async function ensureServiceWorker() {
     swRegisterPromise = (async () => {
         try {
             const swPath = resolveServiceWorkerPath()
-            console.log('📬 [push] Registering service worker at:', swPath)
 
-            // Check if already registered
             const existing = await navigator.serviceWorker.getRegistration(swPath)
             if (existing) {
-                console.log('📬 [push] SW already registered')
                 swRegistration = existing
                 return existing
             }
 
             const reg = await navigator.serviceWorker.register(swPath, { scope: '/' })
-            console.log('📬 [push] SW registered, scope:', reg.scope)
             swRegistration = reg
             return reg
         } catch (err) {
@@ -73,11 +65,8 @@ async function ensureServiceWorker() {
     return swRegisterPromise
 }
 
-// Wait until the SW is fully active (Chrome needs this before subscribing)
 async function waitForActiveWorker(reg) {
     if (reg.active) return reg.active
-
-    console.log('📬 [push] Waiting for SW to activate...')
 
     return new Promise((resolve) => {
         const worker = reg.installing || reg.waiting
@@ -117,6 +106,7 @@ async function getReadyRegistration() {
 
 // ============================================================
 // INIT
+// Called manually from the home page only.
 // ============================================================
 export async function initPushClient() {
     console.log('📬 [push] Initializing...')
@@ -126,7 +116,6 @@ export async function initPushClient() {
         return { success: false, reason: 'unsupported' }
     }
 
-    // Register the SW as early as possible, regardless of auth
     await ensureServiceWorker()
 
     try {
@@ -140,10 +129,8 @@ export async function initPushClient() {
         }
 
         currentUser = session.user
-        console.log('📬 [push] User:', currentUser.email)
 
         if (Notification.permission === 'granted') {
-            console.log('📬 [push] Permission already granted, ensuring subscription...')
             await subscribeCurrentDevice()
         }
 
@@ -156,16 +143,15 @@ export async function initPushClient() {
 
 // ============================================================
 // PERMISSION + SUBSCRIBE
+// Call this from a user-gesture handler (button click).
 // ============================================================
 export async function requestPushPermission() {
     console.log('📬 [push] Requesting permission...')
 
     if (!('Notification' in window)) {
-        alert('Notifications are not supported in this browser')
         return { success: false, reason: 'unsupported' }
     }
 
-    // Make sure SW is up before we ask for permission
     await ensureServiceWorker()
 
     const perm = await Notification.requestPermission()
@@ -186,18 +172,14 @@ async function subscribeCurrentDevice() {
             return { success: false, reason: 'no service worker' }
         }
 
-        console.log('📬 [push] SW state:', reg.active ? 'active' : (reg.installing ? 'installing' : 'waiting'))
-
         let subscription = await reg.pushManager.getSubscription()
 
         if (!subscription) {
-            console.log('📬 [push] Creating new subscription...')
             try {
                 subscription = await reg.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                 })
-                console.log('📬 [push] Subscription created:', subscription.endpoint.slice(0, 55) + '...')
             } catch (subErr) {
                 console.error('📬 [push] pushManager.subscribe failed:', subErr.name, '-', subErr.message)
 
@@ -208,8 +190,6 @@ async function subscribeCurrentDevice() {
 
                 return { success: false, reason }
             }
-        } else {
-            console.log('📬 [push] Reusing existing subscription:', subscription.endpoint.slice(0, 55) + '...')
         }
 
         await saveSubscriptionToDb(subscription)
@@ -244,8 +224,6 @@ async function saveSubscriptionToDb(subscription) {
 
     if (error) {
         console.error('📬 [push] Failed to save subscription:', error.message)
-    } else {
-        console.log('📬 [push] Subscription saved to DB')
     }
 }
 
@@ -263,7 +241,6 @@ export async function unsubscribePush() {
             if (supabase) {
                 await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
             }
-            console.log('📬 [push] Unsubscribed')
         }
     } catch (e) {
         console.warn('📬 [push] Unsubscribe error:', e)
@@ -271,18 +248,12 @@ export async function unsubscribePush() {
 }
 
 // ============================================================
-// AUTO-INIT
+// EXPOSE API — NO AUTO-INIT
 // ============================================================
 if (typeof window !== 'undefined') {
     window.relaytalkPush = {
         init: initPushClient,
         request: requestPushPermission,
         unsubscribe: unsubscribePush
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => initPushClient())
-    } else {
-        initPushClient()
     }
 }
