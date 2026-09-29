@@ -4,9 +4,6 @@ import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
-// ============================================
-// IMMEDIATE REDIRECT CHECK
-// ============================================
 (function() {
     try {
         let hasSession = false;
@@ -32,9 +29,6 @@ console.log("✨ Relay Home Page Loaded");
     }
 })();
 
-// ============================================
-// ONLINE HELPER
-// ============================================
 const ONLINE_FRESH_WINDOW_MS = 60000;
 
 function isUserOnline(profile) {
@@ -487,9 +481,10 @@ async function fetchUnreadCounts(friendIds) {
     try {
         const { data, error } = await window.supabase
             .from('direct_messages')
-            .select('sender_id')
+            .select('sender_id, message_type')
             .eq('receiver_id', currentUser.id)
             .eq('read', false)
+            .neq('message_type', 'call')
             .in('sender_id', friendIds);
 
         if (error || !data) return result;
