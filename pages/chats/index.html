@@ -162,10 +162,10 @@
         <!-- Message Input -->
         <div class="message-input-wrapper">
             <div class="message-input-container">
-                <button class="attach-btn" id="attachBtn" onclick="showImagePicker()" aria-label="Attach">
+                <button class="attach-btn" id="attachBtn" onclick="showImagePicker()" aria-label="Attach" tabindex="-1">
                     <i class="fas fa-paperclip"></i>
                 </button>
-                <button class="mic-btn" id="micBtn" type="button" aria-label="Record voice message">
+                <button class="mic-btn" id="micBtn" type="button" aria-label="Record voice message" tabindex="-1">
                     <i class="fas fa-microphone"></i>
                 </button>
                 <textarea
@@ -177,7 +177,7 @@
                     oninput="autoResize(this)"
                     style="min-height: 50px;"
                 ></textarea>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled aria-label="Send">
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled aria-label="Send" tabindex="-1">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
