@@ -1,9 +1,8 @@
 // pages/chats/voice-recorder.js
 // Voice message recorder + Cloudinary uploader.
-// Loaded by chat-core.js on demand.
 
-const CLOUDINARY_CLOUD_NAME = 'rsbivvqy';   // ← replace
-const CLOUDINARY_UPLOAD_PRESET = 'relaytalk_voice'; // ← from step 2
+const CLOUDINARY_CLOUD_NAME = 'rsbivvqy';
+const CLOUDINARY_UPLOAD_PRESET = 'relaytalk_voice';
 
 class VoiceRecorder {
     constructor() {
@@ -17,22 +16,16 @@ class VoiceRecorder {
         this.dataArray = null;
         this.rafId = null;
 
-        // UI elements (set by attachUI)
         this.ui = null;
 
-        // Public state
         this.isRecording = false;
         this.recordingMs = 0;
         this.recordedBlob = null;
         this.recordedUrl = null;
 
-        // Callbacks
         this.onStateChange = null;
     }
 
-    // --------------------------------------------------------
-    // Check support
-    // --------------------------------------------------------
     static isSupported() {
         return !!(
             navigator.mediaDevices &&
@@ -55,12 +48,9 @@ class VoiceRecorder {
                 if (window.MediaRecorder.isTypeSupported(c)) return c;
             } catch (e) {}
         }
-        return ''; // let the browser decide
+        return '';
     }
 
-    // --------------------------------------------------------
-    // Start recording
-    // --------------------------------------------------------
     async start() {
         if (this.isRecording) return true;
 
@@ -103,23 +93,21 @@ class VoiceRecorder {
                 console.warn('[voice] recorder error', e);
             });
 
-            this.mediaRecorder.start(100); // chunk every 100ms
+            this.mediaRecorder.start(100);
 
             this.isRecording = true;
             this.recordingMs = 0;
             this.startTime = Date.now();
 
-            // Live timer
             this.recordTimer = setInterval(() => {
+                if (!this.isRecording) return;
                 this.recordingMs = Date.now() - this.startTime;
                 if (this.ui && this.ui.onTimer) this.ui.onTimer(this.recordingMs);
                 if (this.recordingMs >= 60_000 * 5) {
-                    // Hard cap: 5 minutes
                     this.stop();
                 }
             }, 100);
 
-            // Analyser for waveform
             this.setupAnalyser();
 
             if (this.onStateChange) this.onStateChange('recording');
@@ -132,23 +120,41 @@ class VoiceRecorder {
         }
     }
 
-    // --------------------------------------------------------
-    // Stop recording → returns a Blob
-    // --------------------------------------------------------
     async stop() {
         if (!this.isRecording || !this.mediaRecorder) return null;
 
+        const finalDurationMs = Math.max(0, Date.now() - this.startTime);
+
         return new Promise((resolve) => {
             const mr = this.mediaRecorder;
+            let resolved = false;
 
             const finalize = () => {
+                if (resolved) return;
+                resolved = true;
+
                 try { mr.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
                 this.cleanupStream();
 
-                if (this.audioChunks.length === 0) {
-                    this.isRecording = false;
+                if (this.recordTimer) {
+                    clearInterval(this.recordTimer);
+                    this.recordTimer = null;
+                }
+                this.stopAnalyser();
+
+                this.isRecording = false;
+
+                if (!this.audioChunks || this.audioChunks.length === 0) {
                     this.recordingMs = 0;
+                    this.recordedBlob = null;
+                    if (this.recordedUrl) {
+                        try { URL.revokeObjectURL(this.recordedUrl); } catch (e) {}
+                        this.recordedUrl = null;
+                    }
                     if (this.onStateChange) this.onStateChange('idle');
+                    if (window.showToast) {
+                        window.showToast('No audio captured — try again', '⚠️', 2000);
+                    }
                     resolve(null);
                     return;
                 }
@@ -161,28 +167,27 @@ class VoiceRecorder {
                     try { URL.revokeObjectURL(this.recordedUrl); } catch (e) {}
                 }
                 this.recordedUrl = URL.createObjectURL(blob);
+                this.recordingMs = finalDurationMs;
 
-                this.isRecording = false;
-                if (this.recordTimer) { clearInterval(this.recordTimer); this.recordTimer = null; }
-                this.stopAnalyser();
                 if (this.onStateChange) this.onStateChange('recorded');
-
                 resolve(blob);
             };
 
-            mr.addEventListener('stop', finalize, { once: true });
+            mr.addEventListener('stop', () => {
+                setTimeout(finalize, 60);
+            }, { once: true });
+
+            const safety = setTimeout(finalize, 1500);
 
             try {
                 mr.stop();
             } catch (e) {
+                clearTimeout(safety);
                 finalize();
             }
         });
     }
 
-    // --------------------------------------------------------
-    // Cancel recording (discard)
-    // --------------------------------------------------------
     async cancel() {
         if (this.mediaRecorder && this.isRecording) {
             try { this.mediaRecorder.stop(); } catch (e) {}
@@ -204,9 +209,6 @@ class VoiceRecorder {
         if (this.onStateChange) this.onStateChange('idle');
     }
 
-    // --------------------------------------------------------
-    // Discard the recorded blob (preview cancel)
-    // --------------------------------------------------------
     discard() {
         this.audioChunks = [];
         if (this.recordedUrl) {
@@ -218,9 +220,6 @@ class VoiceRecorder {
         if (this.onStateChange) this.onStateChange('idle');
     }
 
-    // --------------------------------------------------------
-    // Cleanup stream
-    // --------------------------------------------------------
     cleanupStream() {
         try {
             if (this.stream) this.stream.getTracks().forEach(t => t.stop());
@@ -229,9 +228,6 @@ class VoiceRecorder {
         this.mediaRecorder = null;
     }
 
-    // --------------------------------------------------------
-    // Waveform analyser
-    // --------------------------------------------------------
     setupAnalyser() {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -269,9 +265,6 @@ class VoiceRecorder {
         this.dataArray = null;
     }
 
-    // --------------------------------------------------------
-    // Upload the recorded blob to Cloudinary
-    // --------------------------------------------------------
     async upload() {
         if (!this.recordedBlob) throw new Error('No recording to upload');
 
@@ -279,7 +272,6 @@ class VoiceRecorder {
             throw new Error('Cloudinary not configured');
         }
 
-        // Convert blob to a File so Cloudinary sees a filename
         const ext = this.recordedBlob.type.includes('ogg') ? 'ogg'
                   : this.recordedBlob.type.includes('mp4') ? 'm4a'
                   : this.recordedBlob.type.includes('aac') ? 'aac'
@@ -290,7 +282,6 @@ class VoiceRecorder {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-        // Cloudinary treats audio as "video" resource type
         const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
 
         const controller = new AbortController();
@@ -324,5 +315,4 @@ class VoiceRecorder {
     }
 }
 
-// Expose globally for chat-core.js
 window.VoiceRecorder = VoiceRecorder;
