@@ -79,9 +79,6 @@ const PICKER_EMOJIS = [
 
 const ONLINE_FRESH_WINDOW_MS = 60000;
 
-// ============================================================
-// INLINE SVG ICONS (24x24 viewBox, stroke-based)
-// ============================================================
 const ICONS = {
     copy: `
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -128,9 +125,6 @@ const ICONS = {
     `
 };
 
-// ============================================================
-// ONLINE / OFFLINE HELPER
-// ============================================================
 function isUserOnline(profile) {
     if (!profile) return false;
     if (profile.status !== 'online') return false;
@@ -143,16 +137,10 @@ function isUserOnline(profile) {
     }
 }
 
-// ============================================================
-// VOICE RECORDER STATE
-// ============================================================
 let voiceRecorder = null;
 let voicePreviewAudioEl = null;
 let voicePreviewBars = [];
 
-// ============================================================
-// INIT
-// ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { success, user } = await auth.getCurrentUser();
@@ -354,9 +342,6 @@ function showTypingIndicator(show) {
     }
 }
 
-// ============================================================
-// VOICE RECORDER
-// ============================================================
 function setupVoiceRecorder() {
     const micBtn = document.getElementById('micBtn');
     if (!micBtn) return;
@@ -611,9 +596,6 @@ async function sendVoiceMessage(audioUrl, durationMs) {
     sendTypingStatus(false);
 }
 
-// ============================================================
-// CALL EVENTS
-// ============================================================
 function setupCallsListener(friendId) {
     if (callsChannel) {
         supabase.removeChannel(callsChannel);
@@ -685,6 +667,7 @@ async function insertCallEventMessage(call) {
         chat_id: chatFriend.id,
         created_at: call.created_at || new Date().toISOString(),
         message_type: 'call',
+        read: true,
         metadata: { call_id: call.id }
     };
 
@@ -700,9 +683,6 @@ async function insertCallEventMessage(call) {
     }
 }
 
-// ============================================================
-// SEND MESSAGE (text)
-// ============================================================
 async function sendMessage() {
     if (isSending) return;
 
@@ -777,9 +757,6 @@ async function sendMessage() {
     }
 }
 
-// ============================================================
-// LOAD MESSAGES
-// ============================================================
 async function loadOldMessages(friendId) {
     if (isLoadingMessages) return;
     isLoadingMessages = true;
@@ -841,9 +818,6 @@ async function loadReactionsForMessages(messageIds) {
     } catch (e) {}
 }
 
-// ============================================================
-// RENDER
-// ============================================================
 function isDeletedMessage(msg) {
     if (!msg) return false;
     if (msg.deleted === true || msg.deleted_at) return true;
@@ -1096,9 +1070,6 @@ function formatDuration(ms) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// ============================================================
-// REACTIONS
-// ============================================================
 function renderReactionPills(messageId) {
     const msg = currentMessages.find(m => m.id === messageId);
     if (msg && (isDeletedMessage(msg) || isCallMessage(msg) || isAudioMessage(msg))) return '';
@@ -1183,9 +1154,6 @@ async function toggleReaction(messageId, emoji) {
     }
 }
 
-// ============================================================
-// LONG PRESS
-// ============================================================
 function setupLongPressHandlers() {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -1251,9 +1219,6 @@ function handlePressCancel() {
     longPressTarget = null;
 }
 
-// ============================================================
-// AUDIO PLAYBACK
-// ============================================================
 let currentlyPlayingAudio = null;
 let currentlyPlayingBtn = null;
 
@@ -1375,9 +1340,6 @@ function clearPlayingWaveform(audioEl) {
     bars.forEach(b => b.classList.remove('played'));
 }
 
-// ============================================================
-// ACTION BAR — uses inline SVGs for all icons
-// ============================================================
 function openActionBar(wrap) {
     const messageId = parseInt(wrap.dataset.wrapId);
     const msg = currentMessages.find(m => m.id === messageId);
@@ -1518,9 +1480,6 @@ function setupGlobalDismiss() {
     });
 }
 
-// ============================================================
-// COPY / EDIT / DELETE
-// ============================================================
 async function handleCopy() {
     if (!selectedMessageId) return;
     const msg = currentMessages.find(m => m.id === selectedMessageId);
@@ -1746,9 +1705,6 @@ function openEmojiGridForSelected() {
     });
 }
 
-// ============================================================
-// REALTIME
-// ============================================================
 function setupRealtime(friendId) {
     const userIds = [currentUser.id, friendId].sort();
     const channelName = `chat:${userIds[0]}:${userIds[1]}`;
@@ -1869,9 +1825,6 @@ function handleReactionDelete(row) {
     updateReactionPills(messageId);
 }
 
-// ============================================================
-// TYPING
-// ============================================================
 function setupTypingListener() {
     const input = document.getElementById('messageInput');
     if (!input) return;
