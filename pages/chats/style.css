@@ -2418,6 +2418,37 @@ img { display: block; max-width: 100%; }
 
 body { overscroll-behavior-y: contain; }
 
+
+/* ============================================================ */
+/* AUDIO PLAY BUTTON — spinner state                             */
+/* ============================================================ */
+
+.audio-play-btn.loading {
+    pointer-events: none;
+}
+
+.audio-play-btn .audio-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: audioSpin 0.7s linear infinite;
+    display: block;
+}
+
+@keyframes audioSpin {
+    to { transform: rotate(360deg); }
+}
+
+.audio-play-btn i {
+    pointer-events: none;
+}
+
+
+
+
+
 /* ============================================================ */
 /* RESPONSIVE — VOICE UI                                         */
 /* ============================================================ */
