@@ -253,8 +253,35 @@
     </div>
 
     <script type="module" src="script.js"></script>
-    <script src="/utils/sw-manager.js"></script>
+    <script type="module" src="/utils/pushClient.js"></script>
     <script src="/utils/native-init.js" defer></script>
     <script type="module" src="/utils/callHub.js"></script>
+
+    <script>
+        // ============================================================
+        // PUSH SETUP — runs only on the home page.
+        // Waits for the app to be ready, then triggers the web push
+        // permission prompt (browser) and FCM registration (APK).
+        // ============================================================
+        (function () {
+            function scheduleInit() {
+                setTimeout(async () => {
+                    try {
+                        if (window.relaytalkPush && typeof window.relaytalkPush.init === 'function') {
+                            await window.relaytalkPush.init();
+                        }
+                    } catch (e) {
+                        console.warn('[home] push init failed:', e);
+                    }
+                }, 1500);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', scheduleInit);
+            } else {
+                scheduleInit();
+            }
+        })();
+    </script>
 </body>
 </html>
