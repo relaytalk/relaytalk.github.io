@@ -13,9 +13,6 @@ let currentBio = '';
 let notificationsEnabled = false;
 let currentNotifTab = 'main';
 
-// Local memory of IDs the user just dismissed (accept/decline)
-// These are filtered out of the list immediately, even before realtime updates.
-// ===== CHANGED =====
 let locallyDismissedRequestIds = new Set();
 let locallyReadCallIds = new Set();
 
@@ -25,6 +22,20 @@ function isNativeShell() {
         window.Capacitor.isNativePlatform &&
         window.Capacitor.isNativePlatform()
     );
+}
+
+// === FIX: Persist "seen" flag to DB so state survives refresh / other devices ===
+async function persistSeenCalls(ids) {
+    if (!ids || ids.length === 0 || !supabase || !currentUser) return;
+    try {
+        await supabase
+            .from('calls')
+            .update({ seen: true })
+            .in('id', ids)
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`);
+    } catch (e) {
+        console.warn('[profile] persistSeenCalls failed:', e);
+    }
 }
 
 // ============================================================
@@ -811,7 +822,6 @@ window.openNotifications = function(event) {
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('visible'));
         switchNotifTab('main');
-        // Mark whatever's currently visible as seen once user opens the tab
         markVisibleItemsSeen();
     }
 };
@@ -848,6 +858,7 @@ window.switchNotifTab = function(tab) {
     }
 };
 
+// === FIX: also persist "seen" flag to DB when marking items seen ===
 async function markVisibleItemsSeen() {
     try {
         if (!currentUser || !supabase) return;
@@ -862,11 +873,21 @@ async function markVisibleItemsSeen() {
 
         const { data: calls } = await supabase
             .from('calls')
-            .select('id')
+            .select('id, seen')
             .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
             .in('status', ['missed', 'rejected']);
 
-        if (calls) calls.forEach(c => locallyReadCallIds.add(String(c.id)));
+        if (calls) {
+            const unseenIds = [];
+            calls.forEach(c => {
+                locallyReadCallIds.add(String(c.id));
+                if (c.seen !== true) unseenIds.push(c.id);
+            });
+
+            if (unseenIds.length > 0) {
+                await persistSeenCalls(unseenIds);
+            }
+        }
 
         await updateNavBadge();
     } catch (e) {
@@ -891,7 +912,6 @@ async function loadNotifications() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        // ===== CHANGED: filter out locally-dismissed IDs immediately =====
         const visible = (notifications || []).filter(n => !locallyDismissedRequestIds.has(String(n.id)));
 
         if (error || visible.length === 0) {
@@ -1049,7 +1069,6 @@ async function loadCallHistory() {
             const initial = otherUser.username ? otherUser.username.charAt(0).toUpperCase() : '?';
             const avatarSrc = otherUser.avatar_url || '';
 
-            // ===== CHANGED: add tags for missed/unseen calls =====
             let tagHTML = '';
             const callIdStr = String(call.id);
             const isUnseenCall = !isOutgoing && (isMissed) && !locallyReadCallIds.has(callIdStr) && call.seen !== true;
@@ -1086,8 +1105,17 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // Mark all as locally-read now that user has viewed the tab
+        // === FIX: persist "seen" flag to DB so it survives refresh ===
+        const unseenCallIds = calls
+            .filter(c => c.caller_id !== currentUser.id && c.seen !== true)
+            .map(c => c.id);
+
         calls.forEach(c => locallyReadCallIds.add(String(c.id)));
+
+        if (unseenCallIds.length > 0) {
+            await persistSeenCalls(unseenCallIds);
+            await updateNavBadge();
+        }
     } catch (error) {
         console.error('Error loading call history:', error);
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
@@ -1095,7 +1123,7 @@ async function loadCallHistory() {
 }
 
 // ============================================================
-// ACCEPT / DECLINE FRIEND REQUEST — now removes from tab immediately
+// ACCEPT / DECLINE FRIEND REQUEST
 // ============================================================
 window.acceptFriendRequest = async function(requestId, senderId, senderName, button) {
     if (button) {
@@ -1103,7 +1131,6 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
         button.disabled = true;
     }
 
-    // ===== CHANGED: mark as dismissed and remove from DOM immediately =====
     locallyDismissedRequestIds.add(String(requestId));
     const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
     if (itemEl) {
@@ -1131,7 +1158,6 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
 
         showToast('success', `You are now friends with ${senderName}!`);
 
-        // Reload after a moment so list is clean
         setTimeout(() => {
             loadNotifications();
             loadUserStats();
@@ -1140,7 +1166,6 @@ window.acceptFriendRequest = async function(requestId, senderId, senderName, but
     } catch (error) {
         console.error('Accept error:', error);
         showToast('error', 'Could not accept request');
-        // rollback local dismissal on failure
         locallyDismissedRequestIds.delete(String(requestId));
         loadNotifications();
     }
@@ -1152,7 +1177,6 @@ window.declineFriendRequest = async function(requestId, button) {
         button.disabled = true;
     }
 
-    // ===== CHANGED: mark as dismissed and remove from DOM immediately =====
     locallyDismissedRequestIds.add(String(requestId));
     const itemEl = document.querySelector(`.notification-item[data-request-id="${requestId}"]`);
     if (itemEl) {
@@ -1195,14 +1219,20 @@ async function updateNavBadge() {
         const pendingCount = (friendReqs || [])
             .filter(r => !locallyDismissedRequestIds.has(String(r.id))).length;
 
-        const { count: missedCount } = await supabase
+        const { data: calls } = await supabase
             .from('calls')
-            .select('*', { count: 'exact', head: true })
-            .eq('callee_id', currentUser.id)
-            .eq('seen', false)
-            .in('status', ['missed', 'rejected']);
+            .select('id, seen, status')
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+            .in('status', ['missed', 'rejected'])
+            .order('created_at', { ascending: false })
+            .limit(50);
 
-        const total = pendingCount + (missedCount || 0);
+        const unseenCount = (calls || []).filter(c => {
+            if (c.seen === true) return false;
+            return !locallyReadCallIds.has(String(c.id));
+        }).length;
+
+        const total = pendingCount + unseenCount;
 
         const navBadge = document.getElementById('notificationBadge');
         if (navBadge) {
@@ -1226,16 +1256,14 @@ async function updateNavBadge() {
 
         const callsTabBadge = document.getElementById('callsTabBadge');
         if (callsTabBadge) {
-            if (missedCount && missedCount > 0) {
-                callsTabBadge.textContent = missedCount > 9 ? '9+' : missedCount;
+            if (unseenCount > 0) {
+                callsTabBadge.textContent = unseenCount > 9 ? '9+' : unseenCount;
                 callsTabBadge.style.display = 'inline-flex';
             } else {
                 callsTabBadge.style.display = 'none';
             }
         }
-    } catch (e) {
-        // silent
-    }
+    } catch (e) {}
 }
 
 // ============================================================
@@ -1484,7 +1512,6 @@ async function disableAllNotifications() {
 
 // ============================================================
 // LOG OUT — the "Log Out" action on the profile page
-// ===== CHANGED: wording is now "Logout", confirm text updated =====
 // ============================================================
 window.logoutFromDevice = async function() {
     const ok = confirm(
