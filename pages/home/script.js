@@ -140,6 +140,20 @@ function addSeenIds(key, ids) {
     } catch (e) {}
 }
 
+// === FIX: Persist "seen" flag to DB so the state survives refresh / other devices ===
+async function persistSeenCalls(ids) {
+    if (!ids || ids.length === 0 || !window.supabase || !currentUser) return;
+    try {
+        await window.supabase
+            .from('calls')
+            .update({ seen: true })
+            .in('id', ids)
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`);
+    } catch (e) {
+        console.warn('[home] persistSeenCalls failed:', e);
+    }
+}
+
 (function hydrateLocalSeen() {
     try {
         getSeenIds(SEEN_STORAGE_KEY).forEach(id => locallyDismissedRequestIds.add(String(id)));
@@ -246,18 +260,22 @@ async function initHomePage() {
 }
 
 function setupVisibilityRefresh() {
-    // When the user comes back to this tab (e.g. after reading a chat
-    // in another tab), refresh the unread counts.
+    // === FIX: refresh badges too when the tab becomes visible again ===
+    const refreshAll = () => {
+        loadFriends();
+        updateNotificationsBadge();
+        updateCallsTabBadge();
+    };
+
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            loadFriends();
+            refreshAll();
         }
     });
 
-    // Also refresh when the page is restored from bfcache (Safari)
     window.addEventListener('pageshow', (e) => {
         if (e.persisted) {
-            loadFriends();
+            refreshAll();
         }
     });
 }
@@ -350,8 +368,6 @@ function setupUnreadMessageRealtime() {
             table: 'direct_messages',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
-            // Small delay so the DB write has time to fully commit
-            // before we re-fetch the unread counts.
             setTimeout(() => {
                 loadFriends();
             }, 250);
@@ -893,13 +909,25 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
+        // === FIX: figure out which incoming calls need to be marked seen in the DB ===
+        const unseenCallIds = calls
+            .filter(c => c.caller_id !== currentUser.id && c.seen !== true)
+            .map(c => c.id);
+
         calls.forEach(c => locallyReadCallIds.add(String(c.id)));
 
         const seenIds = calls.map(c => String(c.id)).filter(Boolean);
         if (seenIds.length > 0) {
             addSeenIds(SEEN_CALLS_KEY, seenIds);
         }
+
+        // === FIX: write the seen flag to the DB so it persists ===
+        if (unseenCallIds.length > 0) {
+            await persistSeenCalls(unseenCallIds);
+        }
+
         await updateCallsTabBadge();
+        await updateNotificationsBadge();
     } catch (error) {
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
     }
