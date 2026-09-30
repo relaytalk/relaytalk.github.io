@@ -809,24 +809,16 @@ async function markMessagesAsRead(friendId) {
     if (!friendId || !currentUser) return;
 
     try {
-        // Only mark text/image/audio messages as read. Calls are already
-        // inserted with read=true by the call flow.
         const { data, error } = await supabase
-            .from('direct_messages')
-            .update({ read: true })
-            .eq('receiver_id', currentUser.id)
-            .eq('sender_id', friendId)
-            .eq('read', false)
-            .neq('message_type', 'call')
-            .select('id');
+            .rpc('mark_messages_as_read', { p_sender_id: friendId });
 
         if (error) {
-            console.warn('markMessagesAsRead failed:', error.message);
+            console.warn('markMessagesAsRead RPC failed:', error.message);
             return;
         }
 
-        if (data && data.length > 0) {
-            console.log(`✅ Marked ${data.length} messages as read`);
+        if (typeof data === 'number' && data > 0) {
+            console.log(`✅ Marked ${data} messages as read`);
         }
     } catch (e) {
         console.warn('markMessagesAsRead exception:', e);
@@ -1045,12 +1037,9 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     setTimeout(() => forceScrollToBottom(), 10);
 
-    // Mark incoming live messages as read immediately
-    if (!isSent && !isCallMessage(message)) {
+    if (!isSent && !isCallMessage(message) && message.sender_id === chatFriend.id) {
         supabase
-            .from('direct_messages')
-            .update({ read: true })
-            .eq('id', message.id)
+            .rpc('mark_messages_as_read', { p_sender_id: chatFriend.id })
             .then(() => {}).catch(() => {});
     }
 
@@ -1768,9 +1757,7 @@ function setupRealtime(friendId) {
 
             if (newMsg.receiver_id === currentUser.id && newMsg.message_type !== 'call') {
                 supabase
-                    .from('direct_messages')
-                    .update({ read: true })
-                    .eq('id', newMsg.id)
+                    .rpc('mark_messages_as_read', { p_sender_id: newMsg.sender_id })
                     .then(() => {}).catch(() => {});
             }
         })
