@@ -807,14 +807,30 @@ async function loadOldMessages(friendId) {
 
 async function markMessagesAsRead(friendId) {
     if (!friendId || !currentUser) return;
+
     try {
-        await supabase
+        // Only mark text/image/audio messages as read. Calls are already
+        // inserted with read=true by the call flow.
+        const { data, error } = await supabase
             .from('direct_messages')
             .update({ read: true })
             .eq('receiver_id', currentUser.id)
             .eq('sender_id', friendId)
-            .eq('read', false);
-    } catch (e) {}
+            .eq('read', false)
+            .neq('message_type', 'call')
+            .select('id');
+
+        if (error) {
+            console.warn('markMessagesAsRead failed:', error.message);
+            return;
+        }
+
+        if (data && data.length > 0) {
+            console.log(`✅ Marked ${data.length} messages as read`);
+        }
+    } catch (e) {
+        console.warn('markMessagesAsRead exception:', e);
+    }
 }
 
 async function loadReactionsForMessages(messageIds) {
@@ -1029,6 +1045,7 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     setTimeout(() => forceScrollToBottom(), 10);
 
+    // Mark incoming live messages as read immediately
     if (!isSent && !isCallMessage(message)) {
         supabase
             .from('direct_messages')
