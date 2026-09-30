@@ -235,6 +235,7 @@ async function initHomePage() {
         setupEventListeners();
         setupFriendsRealtime();
         setupUnreadMessageRealtime();
+        setupVisibilityRefresh();
     } catch (error) {
         if (loadingIndicator) {
             loadingIndicator.classList.add('hidden');
@@ -242,6 +243,23 @@ async function initHomePage() {
         }
         toast.error("Initialization Error", "Failed to load page.");
     }
+}
+
+function setupVisibilityRefresh() {
+    // When the user comes back to this tab (e.g. after reading a chat
+    // in another tab), refresh the unread counts.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            loadFriends();
+        }
+    });
+
+    // Also refresh when the page is restored from bfcache (Safari)
+    window.addEventListener('pageshow', (e) => {
+        if (e.persisted) {
+            loadFriends();
+        }
+    });
 }
 
 function setupFriendsRealtime() {
@@ -332,9 +350,13 @@ function setupUnreadMessageRealtime() {
             table: 'direct_messages',
             filter: `receiver_id=eq.${currentUser.id}`
         }, () => {
-            loadFriends();
+            // Small delay so the DB write has time to fully commit
+            // before we re-fetch the unread counts.
+            setTimeout(() => {
+                loadFriends();
+            }, 250);
         })
-        .subscribe()
+        .subscribe();
 }
 
 async function loadUserProfile() {
