@@ -62,6 +62,20 @@ function addSeenIds(key, ids) {
     } catch (e) {}
 }
 
+// === FIX: Persist "seen" flag to DB so state survives refresh / other devices ===
+async function persistSeenCalls(ids) {
+    if (!ids || ids.length === 0 || !mainSupabase || !currentUser) return;
+    try {
+        await mainSupabase
+            .from('calls')
+            .update({ seen: true })
+            .in('id', ids)
+            .or(`receiver_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`);
+    } catch (e) {
+        console.warn('[friends] persistSeenCalls failed:', e);
+    }
+}
+
 (function hydrateLocalSeen() {
     try {
         getSeenIds(SEEN_STORAGE_KEY).forEach(id => locallyDismissedRequestIds.add(String(id)));
@@ -130,6 +144,19 @@ async function initFriendsPage() {
 
         setInterval(() => checkMissedCalls(), 10000);
         startStatusUpdates();
+
+        // === FIX: refresh badges when tab becomes visible again ===
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                checkMissedCalls();
+                loadFriends();
+                updateBadges();
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            checkMissedCalls();
+        });
 
         hideLoader();
     } catch (error) {
@@ -664,8 +691,18 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
+        // === FIX: persist "seen" flag to DB so state survives refresh ===
+        const unseenCallIds = calls
+            .filter(c => c.caller_id !== currentUser.id && c.seen !== true)
+            .map(c => c.id);
+
         calls.forEach(c => locallyReadCallIds.add(String(c.id)));
         addSeenIds(SEEN_CALLS_KEY, calls.map(c => String(c.id)));
+
+        if (unseenCallIds.length > 0) {
+            await persistSeenCalls(unseenCallIds);
+        }
+
         await updateBadges();
     } catch (error) {
         container.innerHTML = `<div class="empty-state"><p>Could not load call history</p></div>`;
