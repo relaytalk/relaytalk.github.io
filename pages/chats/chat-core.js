@@ -939,9 +939,12 @@ function renderSingleMessage(msg, isSent, time) {
         `;
     }
 
+    // Preserve newlines: escape HTML first, then convert \n to <br>
+    const safeContent = escapeHtml(msg.content || '').replace(/\n/g, '<br>');
+
     return `
         <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-content">${escapeHtml(msg.content || '')}</div>
+            <div class="message-content">${safeContent}</div>
             <div class="message-time">${time}${editedMark}</div>
         </div>
     `;
