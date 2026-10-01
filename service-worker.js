@@ -1,5 +1,5 @@
 // RelayTalk Service Worker - v6.1.2
-// Push notifications + offline.html cache only.
+// Push notifications + offline.html  cache only.
 // Everything else passes through to the network (no caching).
 
 const OFFLINE_CACHE = 'relaytalk-offline-v3';
