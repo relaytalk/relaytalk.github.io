@@ -305,6 +305,8 @@ img { display: block; max-width: 100%; }
     padding: 10px 14px;
     border-radius: 18px;
     word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
     line-height: 1.45;
     transition: box-shadow 0.25s var(--ease-out), transform 0.2s var(--ease-out);
     font-size: 0.95rem;
@@ -665,6 +667,8 @@ img { display: block; max-width: 100%; }
     color: var(--text);
     line-height: 1.4;
     padding: 0 4px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 /* ============================================================ */
