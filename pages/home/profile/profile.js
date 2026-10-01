@@ -327,28 +327,166 @@ window.uploadFromGallery = function() {
     closeModal();
 };
 
+// ============================================================
+// IMAGE COMPRESSION — mirrors chat's compressImage()
+// ============================================================
+async function compressProfileImage(file, maxSize = 1024 * 1024) {
+    return new Promise((resolve) => {
+        if (!file || file.size <= maxSize) return resolve(file);
+
+        const isMobile = /Android/i.test(navigator.userAgent) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                let w = img.width, h = img.height;
+                const MAX = isMobile ? 1200 : 1600;
+
+                if (w > h && w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                else if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+
+                canvas.width = w;
+                canvas.height = h;
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, w, h);
+
+                let quality = isMobile ? 0.8 : 0.88;
+                const tryCompress = () => {
+                    canvas.toBlob((blob) => {
+                        if (!blob) return resolve(file);
+                        if (blob.size <= maxSize || quality <= 0.4) {
+                            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            }));
+                        } else {
+                            quality -= 0.1;
+                            tryCompress();
+                        }
+                    }, 'image/jpeg', quality);
+                };
+                tryCompress();
+            };
+            img.onerror = () => resolve(file);
+            img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+}
+
+// ============================================================
+// IMAGE UPLOAD — mirrors chat's upload path
+// ============================================================
 window.handleImageSelect = async function(event) {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
+    const originalFile = event.target.files && event.target.files[0];
+
+    // Reset input immediately so re-selecting the same file re-triggers change
+    const inputEl = event.target;
+    setTimeout(() => { inputEl.value = ''; }, 100);
+
+    if (!originalFile) return;
+
+    console.log('[profile] File selected:', {
+        name: originalFile.name,
+        type: originalFile.type,
+        size: originalFile.size,
+        sizeMB: (originalFile.size / 1024 / 1024).toFixed(2)
+    });
+
+    // Basic validation
+    if (!originalFile.type.startsWith('image/')) {
+        showToast('error', 'Please select an image file');
+        return;
+    }
+
+    if (originalFile.size > 25 * 1024 * 1024) {
+        showToast('error', 'Image is too large (max 25 MB)');
+        return;
+    }
 
     const uploadLoading = document.getElementById('uploadLoading');
     if (uploadLoading) uploadLoading.style.display = 'flex';
 
     try {
+        // 1. Compress the image
+        let processedFile;
+        try {
+            processedFile = await compressProfileImage(originalFile);
+            console.log('[profile] Compressed:', {
+                originalSize: originalFile.size,
+                compressedSize: processedFile.size,
+                compressedMB: (processedFile.size / 1024 / 1024).toFixed(2),
+                compressedType: processedFile.type
+            });
+        } catch (e) {
+            console.warn('[profile] Compression failed, using original:', e);
+            processedFile = originalFile;
+        }
+
+        // 2. Rebuild as File to be safe across WebView implementations
+        const fileToUpload = new File(
+            [processedFile],
+            (processedFile.name || 'avatar.jpg').replace(/\s+/g, '_'),
+            { type: processedFile.type || 'image/jpeg', lastModified: Date.now() }
+        );
+
+        // 3. Build FormData
         const formData = new FormData();
         formData.append('key', IMGBB_API_KEY);
-        formData.append('image', file);
+        formData.append('image', fileToUpload);
+        formData.append('name', `relaytalk_avatar_${currentUser.id.slice(0, 8)}_${Date.now()}`);
 
-        const response = await fetch('https://api.imgbb.com/1/upload', {
-            method: 'POST',
-            body: formData
-        });
+        // 4. Fetch with same options as chat
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+
+        let response;
+        try {
+            response = await fetch('https://api.imgbb.com/1/upload', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' },
+                mode: 'cors',
+                credentials: 'omit'
+            });
+        } catch (fetchErr) {
+            clearTimeout(timeout);
+            console.error('[profile] Fetch failed:', fetchErr);
+            if (fetchErr.name === 'AbortError') {
+                throw new Error('Upload timed out. Please check your connection and try again.');
+            }
+            throw new Error('Network error. Please check your connection.');
+        }
+        clearTimeout(timeout);
+
+        console.log('[profile] Response status:', response.status);
+
+        if (!response.ok) {
+            let errMsg = `Server error (${response.status})`;
+            try {
+                const errJson = await response.json();
+                errMsg = errJson?.error?.message || errJson?.error || errMsg;
+            } catch (e) {}
+            throw new Error(errMsg);
+        }
 
         const data = await response.json();
-        if (!data.success) throw new Error('Upload failed');
+        console.log('[profile] ImgBB response:', data);
+
+        if (!data.success || !data.data?.url) {
+            throw new Error(data.error?.message || 'Upload failed — no URL returned');
+        }
 
         const imageUrl = data.data.url;
+        console.log('[profile] Uploaded:', imageUrl);
 
+        // 5. Save to profile
         const { error } = await supabase
             .from('profiles')
             .update({ avatar_url: imageUrl, updated_at: new Date().toISOString() })
@@ -362,11 +500,10 @@ window.handleImageSelect = async function(event) {
 
         showToast('success', 'Profile photo updated!');
     } catch (error) {
-        console.error('Upload error:', error);
-        showToast('error', 'Failed to upload image');
+        console.error('[profile] Upload error:', error);
+        showToast('error', error.message || 'Failed to upload image');
     } finally {
         if (uploadLoading) uploadLoading.style.display = 'none';
-        event.target.value = '';
     }
 };
 
