@@ -27,6 +27,8 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://i.ibb.co" crossorigin>
+  <link rel="dns-prefetch" href="https://i.ibb.co">
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
@@ -299,7 +301,7 @@
       border-radius: var(--radius-lg);
       overflow: hidden;
       border: 1px solid var(--border-soft);
-      background: var(--bg-sub);
+      background: #eef3f8;
       cursor: pointer;
       transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease),
                   border-color 0.22s var(--ease);
@@ -335,8 +337,7 @@
       object-fit: cover;
       object-position: center;
       display: block;
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
+      background: #eef3f8;
     }
 
     /* ===== LIGHTBOX ===== */
@@ -370,7 +371,6 @@
       user-select: none;
       -webkit-user-drag: none;
       background: transparent;
-      image-rendering: auto;
     }
 
     @keyframes zoomIn {
@@ -473,7 +473,7 @@
     /* ===== SECONDARY BUTTONS ===== */
     .secondary-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
       margin-bottom: 22px;
       animation: fadeUp 0.55s var(--ease-out) 0.12s both;
@@ -723,32 +723,32 @@
       <div class="screenshots-title">Screenshots</div>
 
       <div class="screenshot-track" id="screenshotTrack">
-        <div class="screenshot-item landscape" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png">
-          <img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="RelayTalk screenshot 1" loading="lazy">
+        <div class="screenshot-item landscape" data-full="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" role="img" aria-label="RelayTalk screenshot 1">
+          <img src="https://i.ibb.co/gLNtsdVk/file-00000000303881fb903c157e02aabbc8.png" alt="" loading="eager" fetchpriority="high" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg">
-          <img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="RelayTalk screenshot 2" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" role="img" aria-label="RelayTalk screenshot 2">
+          <img src="https://i.ibb.co/7Jnd8vGt/file-000000007a3881fd893c35cc71eced6a-3.jpg" alt="" loading="eager" fetchpriority="high" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg">
-          <img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="RelayTalk screenshot 3" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" role="img" aria-label="RelayTalk screenshot 3">
+          <img src="https://i.ibb.co/j9g4m7yZ/file-000000007a3881fd893c35cc71eced6a-2.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg">
-          <img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="RelayTalk screenshot 4" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" role="img" aria-label="RelayTalk screenshot 4">
+          <img src="https://i.ibb.co/1GX50MC3/file-0000000015a081fda4c0de3a07d90bc8-2.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg">
-          <img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="RelayTalk screenshot 5" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" role="img" aria-label="RelayTalk screenshot 5">
+          <img src="https://i.ibb.co/KzqrHyP7/file-0000000001188230978da958578f2e44-3.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg">
-          <img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="RelayTalk screenshot 6" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" role="img" aria-label="RelayTalk screenshot 6">
+          <img src="https://i.ibb.co/tpJQrYDq/file-0000000001188230978da958578f2e44-2.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg">
-          <img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="RelayTalk screenshot 7" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" role="img" aria-label="RelayTalk screenshot 7">
+          <img src="https://i.ibb.co/BVsxS1wj/file-000000001c5c81fda6ffc7718b129448-2.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg">
-          <img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="RelayTalk screenshot 8" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" role="img" aria-label="RelayTalk screenshot 8">
+          <img src="https://i.ibb.co/1JtQj1v6/file-0000000069d881fd8b0b0e14e6c00f4c-3.jpg" alt="" loading="lazy" decoding="async">
         </div>
-        <div class="screenshot-item portrait" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg">
-          <img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="RelayTalk screenshot 9" loading="lazy">
+        <div class="screenshot-item portrait" data-full="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" role="img" aria-label="RelayTalk screenshot 9">
+          <img src="https://i.ibb.co/b5GfJ37R/file-0000000069d881fd8b0b0e14e6c00f4c-2.jpg" alt="" loading="lazy" decoding="async">
         </div>
       </div>
     </section>
@@ -761,12 +761,6 @@
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
         About App
-      </a>
-      <a class="btn btn-secondary" href="https://github.com/relaytalk/relaytalk.github.io/releases" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-        </svg>
-        GitHub Releases
       </a>
       <a class="btn btn-secondary" href="https://relaytalk.vercel.app/" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -909,7 +903,7 @@
       const items = Array.from(track.querySelectorAll('.screenshot-item'));
       const images = items.map(el => ({
         full: el.dataset.full || el.querySelector('img').src,
-        alt: el.querySelector('img').alt || ''
+        alt: el.getAttribute('aria-label') || ''
       }));
 
       let current = 0;
