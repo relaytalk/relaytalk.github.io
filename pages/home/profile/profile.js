@@ -405,7 +405,7 @@ window.handleImageSelect = async function(event) {
     }
 
     if (originalFile.size > 25 * 1024 * 1024) {
-        showToast('error', 'Image is too large (max 25 MB)');
+        showToast('error', 'Image is too large');
         return;
     }
 
