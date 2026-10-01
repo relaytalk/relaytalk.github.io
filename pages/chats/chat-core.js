@@ -905,18 +905,7 @@ function renderSingleMessage(msg, isSent, time) {
     }
 
     if (isDeletedMessage(msg)) {
-        return `
-            <div class="message ${isSent ? 'sent' : 'received'} deleted-message" data-message-id="${msg.id}">
-                <div class="message-content deleted-content">
-                    <svg class="deleted-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                    </svg>
-                    <span>This message was deleted</span>
-                </div>
-                <div class="message-time">${time}</div>
-            </div>
-        `;
+        return `<div class="message ${isSent ? 'sent' : 'received'} deleted-message" data-message-id="${msg.id}"><div class="message-content deleted-content"><svg class="deleted-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>This message was deleted</span></div><div class="message-time">${time}</div></div>`;
     }
 
     if (isAudioMessage(msg)) {
@@ -931,37 +920,17 @@ function renderSingleMessage(msg, isSent, time) {
         if (typeof window.createImageMessageHTML === 'function') {
             return window.createImageMessageHTML(msg, isSent, colorAttr, time);
         }
-        return `
-            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-                <div class="message-content">📸 Image shared</div>
-                <div class="message-time">${time}${editedMark}</div>
-            </div>
-        `;
+        return `<div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}><div class="message-content">📸 Image shared</div><div class="message-time">${time}${editedMark}</div></div>`;
     }
 
-    // Preserve newlines: escape HTML first, then convert \n to <br>
-    const safeContent = escapeHtml(msg.content || '').replace(/\n/g, '<br>');
+    // Newlines are preserved by CSS `white-space: pre-wrap` on .message
+    const safeContent = escapeHtml(msg.content || '');
 
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-content">${safeContent}</div>
-            <div class="message-time">${time}${editedMark}</div>
-        </div>
-    `;
+    return `<div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}><div class="message-content">${safeContent}</div><div class="message-time">${time}${editedMark}</div></div>`;
 }
 
 function renderCallMessage(msg, isSent, time) {
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}">
-            <div class="call-message-body">
-                <span class="call-icon" aria-hidden="true">${ICONS.phone}</span>
-                <div class="call-info">
-                    <span class="call-label">Phone Call</span>
-                    <span class="call-sub">${time}</span>
-                </div>
-            </div>
-        </div>
-    `;
+    return `<div class="message ${isSent ? 'sent' : 'received'} call-message" data-message-id="${msg.id}"><div class="call-message-body"><span class="call-icon" aria-hidden="true">${ICONS.phone}</span><div class="call-info"><span class="call-label">Phone Call</span><span class="call-sub">${time}</span></div></div></div>`;
 }
 
 function renderAudioMessage(msg, isSent, time) {
@@ -980,23 +949,7 @@ function renderAudioMessage(msg, isSent, time) {
     }
     const waveformHtml = bars.join('');
 
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'} audio-message" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="audio-bubble" data-audio-url="${url}" data-audio-duration="${durationMs}">
-                <button class="audio-play-btn" data-action="audio-toggle" aria-label="Play voice message">
-                    ${ICONS.play}
-                </button>
-                <div class="audio-body">
-                    <div class="audio-waveform">${waveformHtml}</div>
-                    <div class="audio-meta">
-                        <span class="audio-duration">${durationLabel}</span>
-                        <span class="audio-time">${time}</span>
-                    </div>
-                </div>
-                <audio preload="none" src="${url}"></audio>
-            </div>
-        </div>
-    `;
+    return `<div class="message ${isSent ? 'sent' : 'received'} audio-message" data-message-id="${msg.id}" ${colorAttr}><div class="audio-bubble" data-audio-url="${url}" data-audio-duration="${durationMs}"><button class="audio-play-btn" data-action="audio-toggle" aria-label="Play voice message">${ICONS.play}</button><div class="audio-body"><div class="audio-waveform">${waveformHtml}</div><div class="audio-meta"><span class="audio-duration">${durationLabel}</span><span class="audio-time">${time}</span></div></div><audio preload="none" src="${url}"></audio></div></div>`;
 }
 
 function addMessageToUI(message, isFromRealtime = false) {
