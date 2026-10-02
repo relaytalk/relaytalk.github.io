@@ -260,7 +260,6 @@ async function initHomePage() {
 }
 
 function setupVisibilityRefresh() {
-    // === FIX: refresh badges too when the tab becomes visible again ===
     const refreshAll = () => {
         loadFriends();
         updateNotificationsBadge();
@@ -577,6 +576,14 @@ async function openChat(friendId, friendUsername = 'Friend') {
     window.location.href = `../chats/index.html?friendId=${friendId}`;
 }
 
+// ============================================================
+// OPEN FRIEND PROFILE VIEW — called from search results
+// ============================================================
+function openUserProfile(userId) {
+    if (!userId) return;
+    window.location.href = `profile/view.html?userId=${encodeURIComponent(userId)}`;
+}
+
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     const searchInput = document.getElementById('searchInput');
@@ -650,22 +657,23 @@ async function displaySearchResults(users) {
         users.forEach(user => {
             const isFriend = friendIds.includes(user.id);
             const requestSent = pendingIds.includes(user.id);
+            const safeName = escapeAttr(user.username || 'User');
 
             html += `
                 <div class="search-result">
-                    <div class="search-avatar">
+                    <div class="search-avatar" role="button" tabindex="0" aria-label="View ${escapeAttr(user.username || 'user')} profile" onclick="openUserProfile('${user.id}')">
                         ${buildAvatarHTML(user)}
                     </div>
-                    <div class="search-info">
+                    <div class="search-info" role="button" tabindex="0" onclick="openUserProfile('${user.id}')">
                         <div class="search-name">${escapeHtml(user.username || 'Unknown')}</div>
                         <div class="search-username">${escapeHtml(user.full_name || '')}</div>
                     </div>
                     ${isFriend ? `
-                        <button class="send-request-btn sent" disabled>Friend</button>
+                        <button class="send-request-btn sent" disabled onclick="event.stopPropagation()">Friend</button>
                     ` : requestSent ? `
-                        <button class="send-request-btn sent" disabled>Sent</button>
+                        <button class="send-request-btn sent" disabled onclick="event.stopPropagation()">Sent</button>
                     ` : `
-                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${escapeAttr(user.username || 'User')}', this)">Add</button>
+                        <button class="send-request-btn" onclick="event.stopPropagation(); sendFriendRequest('${user.id}', '${safeName}', this)">Add</button>
                     `}
                 </div>
             `;
@@ -909,7 +917,6 @@ async function loadCallHistory() {
 
         container.innerHTML = html;
 
-        // === FIX: figure out which incoming calls need to be marked seen in the DB ===
         const unseenCallIds = calls
             .filter(c => c.caller_id !== currentUser.id && c.seen !== true)
             .map(c => c.id);
@@ -921,7 +928,6 @@ async function loadCallHistory() {
             addSeenIds(SEEN_CALLS_KEY, seenIds);
         }
 
-        // === FIX: write the seen flag to the DB so it persists ===
         if (unseenCallIds.length > 0) {
             await persistSeenCalls(unseenCallIds);
         }
@@ -1216,6 +1222,7 @@ window.closeModal = function() {
 };
 
 window.openChat = openChat;
+window.openUserProfile = openUserProfile;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptFriendRequest = acceptFriendRequest;
 window.declineFriendRequest = declineFriendRequest;
