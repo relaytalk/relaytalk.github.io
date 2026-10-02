@@ -1,5 +1,6 @@
 // pages/home/profile/view.js
 // Friend profile viewer — shows bio, status, actions, calls.
+// Now supports "not friends" state: hides Message/Call, shows a notice.
 
 import { initializeSupabase } from '../../../utils/supabase.js';
 
@@ -7,6 +8,7 @@ let supabase = null;
 let currentUser = null;
 let viewedUser = null;
 let friendSinceDate = null;
+let isFriend = false;
 let statusChannel = null;
 
 // Online freshness window — matches callHub.js / friends.js / chat-core.js
@@ -70,6 +72,9 @@ async function initViewPage() {
 
         viewedUser = profile;
 
+        // Check friendship BEFORE rendering, so the actions area is correct
+        // on the very first paint (no flicker).
+        await checkFriendship();
         await loadFriendshipDate();
 
         renderPage();
@@ -83,9 +88,32 @@ async function initViewPage() {
 }
 
 // ============================================================
+// FRIENDSHIP CHECK
+// ============================================================
+async function checkFriendship() {
+    isFriend = false;
+    try {
+        const { data } = await supabase
+            .from('friends')
+            .select('friend_id')
+            .eq('user_id', currentUser.id)
+            .eq('friend_id', viewedUser.id)
+            .maybeSingle();
+
+        isFriend = !!data;
+    } catch (e) {
+        console.warn('Friendship check failed:', e);
+        isFriend = false;
+    }
+}
+
+// ============================================================
 // LOAD WHEN WE BECAME FRIENDS
 // ============================================================
 async function loadFriendshipDate() {
+    friendSinceDate = null;
+    if (!isFriend) return;
+
     try {
         const { data } = await supabase
             .from('friends')
@@ -144,15 +172,80 @@ function renderPage() {
         bioBox.classList.add('empty');
     }
 
+    renderActionsAndFooter();
+}
+
+// ============================================================
+// ACTIONS + FOOTER (depends on friendship)
+// ============================================================
+function renderActionsAndFooter() {
+    const actionsEl = document.querySelector('.view-actions');
     const sinceEl = document.getElementById('viewFriendsSince');
-    if (friendSinceDate) {
-        const dt = new Date(friendSinceDate);
-        const formatted = dt.toLocaleDateString(undefined, {
-            year: 'numeric', month: 'short', day: 'numeric'
-        });
-        sinceEl.textContent = `You both have been friends since ${formatted}`;
+
+    if (isFriend) {
+        // Show Message + Call (restore if previously hidden)
+        if (actionsEl) {
+            actionsEl.style.display = '';
+        }
+        // Remove any previously-injected notice
+        const existingNotice = document.getElementById('viewNotFriendsNotice');
+        if (existingNotice) existingNotice.remove();
+
+        // Footer text
+        if (sinceEl) {
+            if (friendSinceDate) {
+                const dt = new Date(friendSinceDate);
+                const formatted = dt.toLocaleDateString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+                sinceEl.textContent = `You both have been friends since ${formatted}`;
+            } else {
+                sinceEl.textContent = '';
+            }
+            sinceEl.style.display = '';
+        }
     } else {
-        sinceEl.textContent = '';
+        // Hide Message + Call
+        if (actionsEl) {
+            actionsEl.style.display = 'none';
+        }
+
+        // Hide "friends since" line
+        if (sinceEl) {
+            sinceEl.textContent = '';
+            sinceEl.style.display = 'none';
+        }
+
+        // Inject a friendly "not friends yet" notice where the buttons used to be
+        const existingNotice = document.getElementById('viewNotFriendsNotice');
+        if (existingNotice) existingNotice.remove();
+
+        const notice = document.createElement('div');
+        notice.id = 'viewNotFriendsNotice';
+        notice.className = 'view-not-friends';
+        notice.innerHTML = `
+            <div class="view-not-friends-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <line x1="20" y1="8" x2="20" y2="14"/>
+                    <line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
+            </div>
+            <div class="view-not-friends-text">
+                <div class="view-not-friends-title">You're not friends yet</div>
+                <div class="view-not-friends-desc">Send a friend request from the search page to start chatting and calling.</div>
+            </div>
+        `;
+
+        // Insert right before the bio section, so it sits where the buttons were
+        const bioSection = document.querySelector('.view-bio-section');
+        if (bioSection && bioSection.parentNode) {
+            bioSection.parentNode.insertBefore(notice, bioSection);
+        } else {
+            const main = document.getElementById('viewMain');
+            if (main) main.appendChild(notice);
+        }
     }
 }
 
@@ -286,11 +379,20 @@ window.closeView = function() {
 
 window.openChat = function() {
     if (!viewedUser) return;
+    if (!isFriend) {
+        showToast('You are not friends yet', '⚠️');
+        return;
+    }
     window.location.href = `../../chats/index.html?friendId=${viewedUser.id}`;
 };
 
 window.startCallFromView = function() {
     if (!viewedUser) return;
+
+    if (!isFriend) {
+        showToast('You are not friends yet', '⚠️');
+        return;
+    }
 
     if (typeof window.startCall !== 'function') {
         showToast('Calling not ready yet', '⚠️');
