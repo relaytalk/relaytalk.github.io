@@ -11,6 +11,12 @@ const DEFAULT_RETURN = '/pages/home/friends/index.html'
 const PRESENCE_HEARTBEAT_MS = 20000
 const WARMUP_INTERVAL_MS = 60000
 
+// ===== PRESENCE GRACE PERIOD =====
+// When a user hides the tab / switches away, we DON'T write "offline" immediately.
+// We wait this many ms. If they come back before then, we cancel and never write.
+// This prevents the dot from flickering on every tab switch.
+const PRESENCE_OFFLINE_GRACE_MS = 15000
+
 const CALL_BANNER_TIMEOUT_MS = 30000
 const MESSAGE_BANNER_TIMEOUT_MS = 5000
 const REACTION_BANNER_TIMEOUT_MS = 5000
@@ -18,7 +24,7 @@ const REACTION_BANNER_TIMEOUT_MS = 5000
 const SWIPE_DISMISS_PX = 80
 
 // Online if status === 'online' AND last_seen within this many ms.
-// With a 20s heartbeat, this allows 3 missed beats before marking offline.
+// With a 20s heartbeat + 15s grace, this allows 3 missed beats before marking offline.
 const ONLINE_FRESH_WINDOW_MS = 60000
 
 const IS_NATIVE = !!(
@@ -49,6 +55,10 @@ let bannerVisible = false
 let reconnectAttempts = 0
 let presenceStarted = false
 const MAX_RECONNECT_ATTEMPTS = 6
+
+// Presence grace timer + last known intent
+let presenceOfflineTimer = null
+let lastPresenceIntent = 'online'   // 'online' | 'offline'
 
 window.callHubReady = false
 
@@ -97,7 +107,7 @@ let lastPresenceValue = null
 let lastPresenceWrite = 0
 const MIN_WRITE_GAP_MS = 3000
 
-async function setPresenceStatus(status, force) {
+async function writePresence(status, force) {
     if (!supabase || !currentUser) return
 
     const now = Date.now()
@@ -123,45 +133,104 @@ async function setPresenceStatus(status, force) {
     } catch (e) {}
 }
 
+// Set presence to online (immediate, and cancel any pending offline write)
+async function markOnline() {
+    lastPresenceIntent = 'online'
+
+    if (presenceOfflineTimer) {
+        clearTimeout(presenceOfflineTimer)
+        presenceOfflineTimer = null
+    }
+
+    await writePresence('online', true)
+}
+
+// Schedule an offline write after the grace period. If the user becomes
+// visible again before the timer fires, the write is cancelled.
+function scheduleOffline() {
+    lastPresenceIntent = 'offline'
+
+    if (presenceOfflineTimer) clearTimeout(presenceOfflineTimer)
+
+    presenceOfflineTimer = setTimeout(async () => {
+        presenceOfflineTimer = null
+        // Only write offline if user hasn't come back
+        if (lastPresenceIntent === 'offline') {
+            await writePresence('offline', true)
+        }
+    }, PRESENCE_OFFLINE_GRACE_MS)
+}
+
+function cancelScheduledOffline() {
+    if (presenceOfflineTimer) {
+        clearTimeout(presenceOfflineTimer)
+        presenceOfflineTimer = null
+    }
+}
+
 function startPresence() {
     if (presenceStarted || !currentUser) return
     presenceStarted = true
 
-    setPresenceStatus('online', true)
+    // Initial: user is on the page, mark online immediately
+    markOnline()
 
+    // Heartbeat every 20s while visible
     presenceTimer = setInterval(() => {
         if (document.visibilityState === 'visible') {
-            setPresenceStatus('online', true)
+            writePresence('online', true)
         }
     }, PRESENCE_HEARTBEAT_MS)
 
+    // On visibility change: schedule offline with grace period, or cancel
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            setPresenceStatus('online', true)
+            markOnline()
         } else {
-            setPresenceStatus('offline', true)
+            scheduleOffline()
         }
     })
 
+    // pagehide fires on navigation / tab close / bfcache.
+    // We DON'T write offline here because it fires during normal in-app
+    // navigation too. Instead, schedule with grace — if it's a real close,
+    // beforeunload below handles it.
     window.addEventListener('pagehide', () => {
-        setPresenceStatus('offline', true)
+        scheduleOffline()
     })
 
+    // pageshow fires when page is restored (bfcache or navigation back)
     window.addEventListener('pageshow', () => {
-        setPresenceStatus('online', true)
+        markOnline()
     })
 
+    // Real close: write offline immediately
     window.addEventListener('beforeunload', () => {
         if (presenceTimer) clearInterval(presenceTimer)
+        if (presenceOfflineTimer) clearTimeout(presenceOfflineTimer)
+
+        // Fire-and-forget — browser will not wait for the promise
+        if (supabase && currentUser) {
+            try {
+                supabase
+                    .from('profiles')
+                    .update({
+                        status: 'offline',
+                        last_seen: new Date().toISOString()
+                    })
+                    .eq('id', currentUser.id)
+            } catch (e) {}
+        }
     })
 
+    // Native shell: use App.addListener instead of visibilitychange
     if (IS_NATIVE && window.Capacitor?.Plugins?.App) {
         try {
             window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
                 if (isActive) {
-                    setPresenceStatus('online', true)
+                    markOnline()
                 } else {
-                    setPresenceStatus('offline', true)
+                    scheduleOffline()
                 }
             })
         } catch (e) {}
@@ -580,7 +649,7 @@ async function handleIncomingCall(callRow) {
     if (!callRow || !callRow.caller_id) return
     if (callRow.callee_id !== currentUser.id) return
     if (callRow.status !== 'ringing') return
-    if (window.location.pathname.includes('/call-app/call/')) return
+    if (window.location.pathname.includes('/pages/call-app/call/')) return
 
     const existingBanner = document.getElementById('callHubBanner')
     if (existingBanner && existingBanner.dataset.callId === String(callRow.id)) return
@@ -1190,6 +1259,7 @@ window.addEventListener('beforeunload', () => {
     if (missedCallPollTimer) clearInterval(missedCallPollTimer)
     if (presenceTimer) clearInterval(presenceTimer)
     if (warmupTimer) clearInterval(warmupTimer)
+    if (presenceOfflineTimer) clearTimeout(presenceOfflineTimer)
 })
 
 if (document.readyState === 'loading') {
