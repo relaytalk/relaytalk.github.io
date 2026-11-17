@@ -1,0 +1,56 @@
+@media (max-width: 800px) {
+    html, body {
+        width: 100%;
+        min-width: 320px;
+        overflow-x: hidden;
+    }
+
+    #app, #spaOutlet, .spa-view {
+        width: 100%;
+        min-height: 100dvh;
+    }
+
+    body[data-route="chat"] {
+        overflow: hidden;
+        height: 100dvh;
+    }
+
+    body[data-route="chat"] .spa-view {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    body[data-route="home"] .spa-view,
+    body[data-route="friends"] .spa-view,
+    body[data-route="profile"] .spa-view {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    body[data-route="login"] .spa-view,
+    body[data-route="signup"] .spa-view {
+        min-height: 100dvh;
+        padding:
+            max(14px, env(safe-area-inset-top))
+            14px
+            max(18px, env(safe-area-inset-bottom));
+    }
+
+    input, textarea, select {
+        font-size: 16px;
+    }
+
+    button, a {
+        touch-action: manipulation;
+    }
+}
+
+@media (max-width: 380px) {
+    .nav-signup {
+        padding: 9px 10px;
+        font-size: 10px;
+    }
+
+    .landing-page {
+        width: calc(100% - 26px);
+    }
+}
