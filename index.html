@@ -2,329 +2,277 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-
-    <title>RelayTalk — Connect with friends instantly</title>
-
-    <meta name="description" content="RelayTalk — Connect with friends instantly. Fast, private, and simple messaging.">
-    <meta name="keywords" content="RelayTalk, messaging, chat, friends, secure messaging">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#080d18">
+    <meta name="description" content="RelayTalk — private, simple messaging made for real conversations.">
     <meta name="robots" content="index, follow">
-
     <link rel="canonical" href="https://relaytalk.vercel.app/">
 
-    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk — Connect with friends instantly">
-    <meta property="og:description" content="Fast, private, and simple messaging — made for real conversations.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
+    <meta property="og:title" content="RelayTalk — Conversations, connected.">
+    <meta property="og:description" content="Fast, private, and simple messaging.">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
 
-    <!-- ===== Twitter / X ===== -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk — Connect with friends instantly">
-    <meta name="twitter:description" content="Fast, private, and simple messaging — made for real conversations.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/favicon.ico">
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#007acc">
 
-    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
-
-    <script>
-        (function() {
-            try {
-                let hasSession = false;
-                const localToken = localStorage.getItem('supabase.auth.token');
-                const sessionToken = sessionStorage.getItem('supabase.auth.token');
-                hasSession = !!(localToken || sessionToken);
-
-                if (!hasSession) {
-                    try {
-                        const persistedSession = localStorage.getItem('supabase.auth.token');
-                        if (persistedSession && persistedSession.includes('access_token')) {
-                            hasSession = true;
-                        }
-                    } catch (e) {}
-                }
-
-                if (hasSession) {
-                    console.log('✅ User has session - redirecting to home');
-                    window.location.replace('/pages/home/index.html?v=' + Date.now());
-                }
-            } catch (e) {
-                console.log('Session check error:', e);
-            }
-        })();
-    </script>
+    <title>RelayTalk — Conversations, connected.</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/opening.css">
-
-    <!-- ===== Footer styles (scoped to this page) ===== -->
-    <style>
-        .site-footer {
-            margin-top: 30px;
-            padding-top: 22px;
-            border-top: 1px solid var(--border-soft);
-            width: 100%;
-            max-width: 380px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            animation: featuresIn 0.7s var(--ease-out) 2s backwards;
-            text-align: center;
-        }
-
-        .footer-hint {
-            color: var(--text-3);
-            font-size: 0.72rem;
-            line-height: 1.5;
-            letter-spacing: 0.01em;
-            font-weight: 400;
-            max-width: 320px;
-            opacity: 0.85;
-        }
-
-        .footer-hint a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .footer-cta {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--primary);
-            font-size: 0.9rem;
-            font-weight: 500;
-            letter-spacing: -0.005em;
-            text-decoration: none;
-            padding: 6px 10px 6px 12px;
-            border-radius: 999px;
-            transition: background 0.22s var(--ease), gap 0.22s var(--ease),
-                        transform 0.22s var(--ease);
-            position: relative;
-        }
-
-        .footer-cta:hover {
-            background: var(--primary-soft);
-            gap: 11px;
-        }
-
-        .footer-cta:active {
-            transform: scale(0.98);
-        }
-
-        .footer-cta-label {
-            position: relative;
-            padding-bottom: 1px;
-        }
-
-        .footer-cta-label::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 1px;
-            background: currentColor;
-            opacity: 0.35;
-            transform: scaleX(0.85);
-            transform-origin: left center;
-            transition: transform 0.25s var(--ease), opacity 0.25s var(--ease);
-        }
-
-        .footer-cta:hover .footer-cta-label::after {
-            transform: scaleX(1);
-            opacity: 0.75;
-        }
-
-        .footer-cta svg {
-            width: 15px;
-            height: 15px;
-            flex-shrink: 0;
-            transition: transform 0.25s var(--ease);
-        }
-
-        .footer-cta:hover svg {
-            transform: translateX(3px);
-        }
-
-        .site-footer .footer-note {
-            margin-top: 4px;
-            animation: none;
-            font-size: 0.78rem;
-            max-width: 320px;
-            line-height: 1.5;
-        }
-
-        @media (max-width: 480px) {
-            .site-footer {
-                max-width: 320px;
-                gap: 10px;
-                margin-top: 26px;
-                padding-top: 20px;
-            }
-            .footer-hint { font-size: 0.68rem; max-width: 280px; }
-            .footer-cta { font-size: 0.86rem; gap: 7px; padding: 5px 8px 5px 10px; }
-            .footer-cta svg { width: 14px; height: 14px; }
-            .site-footer .footer-note { font-size: 0.74rem; }
-        }
-    </style>
+    <link rel="stylesheet" href="/spa/desktop.css">
+    <link rel="stylesheet" href="/spa/mobile.css">
 </head>
+
 <body>
-    <!-- Opening screen — logo only -->
-    <div class="opening-screen" id="openingScreen">
-        <img src="/relay.png" alt="RelayTalk" class="opening-logo">
+    <div class="opening-screen" id="openingScreen" aria-hidden="true">
+        <img src="/relay.png" alt="" class="opening-logo">
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content" id="mainContent">
-        <div class="welcome-container">
+    <div id="app">
+        <main id="spaOutlet">
+            <div class="landing-page" id="landingPage">
 
-            <header class="hero">
-                <img src="/relay.png" alt="RelayTalk" class="hero-logo">
-                <h1 class="title">RelayTalk</h1>
-                <p class="subtitle">Connect with friends instantly</p>
-            </header>
+                <nav class="landing-nav">
+                    <a href="/" class="brand-lockup" aria-label="RelayTalk home">
+                        <img src="/relay.png" alt="" class="brand-logo">
+                        <span>RelayTalk</span>
+                    </a>
 
-            <ul class="features" role="list">
-                <li class="feature-card">
-                    <span class="feature-icon">
-                        <i class="fas fa-search"></i>
-                    </span>
-                    <div class="feature-text">
-                        <h3>Search Friends</h3>
-                        <p>Find and connect with friends</p>
+                    <div class="nav-links">
+                        <a href="#features">Features</a>
+                        <a href="#how-it-works">How it works</a>
+                        <a href="#faq">FAQs</a>
                     </div>
-                </li>
 
-                <li class="feature-card">
-                    <span class="feature-icon">
-                        <i class="fas fa-bell"></i>
-                    </span>
-                    <div class="feature-text">
-                        <h3>Notifications</h3>
-                        <p>Stay updated with messages</p>
+                    <div class="nav-actions">
+                        <a class="nav-login" href="/pages/login/index.html">Log in</a>
+                        <a class="nav-signup" href="/pages/auth/index.html">Get started <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-                </li>
+                </nav>
 
-                <li class="feature-card">
-                    <span class="feature-icon">
-                        <i class="fas fa-comment-dots"></i>
-                    </span>
-                    <div class="feature-text">
-                        <h3>Instant Chat</h3>
-                        <p>Real-time messaging</p>
+                <section class="landing-hero">
+                    <div class="hero-copy">
+                        <div class="eyebrow">
+                            <span class="eyebrow-dot"></span>
+                            A better way to stay connected
+                        </div>
+
+                        <h1>Good conversations.<br><span>Closer connections.</span></h1>
+
+                        <p class="hero-description">
+                            Your people, your conversations, all in one place.
+                            RelayTalk makes staying connected feel simple again.
+                        </p>
+
+                        <div class="hero-actions">
+                            <a href="/pages/auth/index.html" class="primary-cta">
+                                Create your account
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                            <a href="/pages/login/index.html" class="secondary-cta">I already have an account</a>
+                        </div>
+
+                        <div class="hero-trust">
+                            <span><i class="fa-solid fa-shield-halved"></i> Private conversations</span>
+                            <span><i class="fa-solid fa-bolt"></i> Real-time messaging</span>
+                        </div>
                     </div>
-                </li>
-            </ul>
 
-            <div class="action-buttons">
-                <button class="btn-primary" onclick="goToSignup()">Create Account</button>
-                <button class="btn-secondary" onclick="goToLogin()">Login</button>
+                    <div class="hero-visual" aria-label="RelayTalk messaging preview">
+                        <div class="visual-glow"></div>
+                        <div class="preview-window">
+                            <div class="preview-topbar">
+                                <div class="preview-brand">
+                                    <img src="/relay.png" alt="">
+                                    <span>RelayTalk</span>
+                                </div>
+                                <div class="preview-status"><span></span> Connected</div>
+                            </div>
+
+                            <div class="preview-content">
+                                <div class="preview-sidebar">
+                                    <div class="preview-side-title">Messages</div>
+                                    <div class="preview-search"><i class="fa-solid fa-search"></i> Search chats</div>
+                                    <div class="preview-contact active">
+                                        <div class="preview-avatar avatar-one">A</div>
+                                        <div><b>Alex Morgan</b><small>That sounds great!</small></div>
+                                        <span class="preview-time">2m</span>
+                                    </div>
+                                    <div class="preview-contact">
+                                        <div class="preview-avatar avatar-two">J</div>
+                                        <div><b>Jamie Lee</b><small>See you soon</small></div>
+                                    </div>
+                                    <div class="preview-contact">
+                                        <div class="preview-avatar avatar-three">S</div>
+                                        <div><b>Sam Wilson</b><small>Sent a photo</small></div>
+                                    </div>
+                                </div>
+
+                                <div class="preview-chat">
+                                    <div class="preview-chat-head">
+                                        <div class="preview-avatar avatar-one">A</div>
+                                        <div><b>Alex Morgan</b><small>Online</small></div>
+                                    </div>
+                                    <div class="preview-messages">
+                                        <div class="preview-message received">Hey! How's your day going?</div>
+                                        <div class="preview-message sent">Pretty good. Finally got some time to relax.</div>
+                                        <div class="preview-message received">That sounds great!</div>
+                                    </div>
+                                    <div class="preview-input">Write a message... <i class="fa-solid fa-paper-plane"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="floating-note note-top"><i class="fa-solid fa-circle-check"></i> Always in sync</div>
+                        <div class="floating-note note-bottom"><i class="fa-solid fa-lock"></i> Your space, your people</div>
+                    </div>
+                </section>
+
+                <section class="landing-section feature-section" id="features">
+                    <div class="section-heading">
+                        <span class="section-kicker">MADE FOR EVERYDAY CONNECTIONS</span>
+                        <h2>Everything you need.<br><span>Nothing you don't.</span></h2>
+                        <p>A focused messaging experience built around the things that matter.</p>
+                    </div>
+
+                    <div class="feature-grid">
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-regular fa-comments"></i></div>
+                            <h3>Real-time chats</h3>
+                            <p>Keep conversations moving with live messaging and message updates.</p>
+                        </article>
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-user-group"></i></div>
+                            <h3>Your people</h3>
+                            <p>Find friends, send requests, and build your own connected circle.</p>
+                        </article>
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-phone"></i></div>
+                            <h3>Voice and video</h3>
+                            <p>Move beyond text and connect through calls when words aren't enough.</p>
+                        </article>
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-regular fa-bell"></i></div>
+                            <h3>Stay updated</h3>
+                            <p>Keep up with messages, requests, and activity through notifications.</p>
+                        </article>
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-user-shield"></i></div>
+                            <h3>Personal space</h3>
+                            <p>Manage your profile and control how you present yourself.</p>
+                        </article>
+                        <article class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <h3>Wherever you are</h3>
+                            <p>A responsive experience designed to work across desktop and mobile.</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="landing-section how-section" id="how-it-works">
+                    <div class="section-heading">
+                        <span class="section-kicker">GETTING STARTED</span>
+                        <h2>Three steps.<br><span>Then just talk.</span></h2>
+                    </div>
+
+                    <div class="steps-grid">
+                        <article class="step-card">
+                            <span class="step-number">01</span>
+                            <h3>Create your account</h3>
+                            <p>Sign up and set up your RelayTalk profile.</p>
+                        </article>
+                        <article class="step-card">
+                            <span class="step-number">02</span>
+                            <h3>Find your friends</h3>
+                            <p>Search for people and connect with them.</p>
+                        </article>
+                        <article class="step-card">
+                            <span class="step-number">03</span>
+                            <h3>Start talking</h3>
+                            <p>Send messages and stay connected in real time.</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="landing-section faq-section" id="faq">
+                    <div class="section-heading">
+                        <span class="section-kicker">GOT QUESTIONS?</span>
+                        <h2>Frequently asked <span>questions.</span></h2>
+                    </div>
+
+                    <div class="faq-list">
+                        <details class="faq-item">
+                            <summary>What is RelayTalk?</summary>
+                            <p>RelayTalk is a messaging platform where you can connect with friends, exchange messages, manage your contacts, and use supported calling features.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>Is creating an account free?</summary>
+                            <p>You can create a RelayTalk account through the signup page. Any future paid features will be clearly identified before use.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>Can I use RelayTalk on my phone?</summary>
+                            <p>Yes. RelayTalk is designed with responsive layouts for both mobile and desktop screens.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>How do I find my friends?</summary>
+                            <p>After signing in, open the friends area and use the available search and friend-request features.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>Can I make calls?</summary>
+                            <p>RelayTalk includes calling features. Availability depends on the supported call setup and device permissions.</p>
+                        </details>
+                    </div>
+                </section>
+
+                <section class="final-cta">
+                    <div>
+                        <span class="section-kicker">YOUR CONVERSATIONS START HERE</span>
+                        <h2>Make room for better conversations.</h2>
+                        <p>Join RelayTalk and bring your people a little closer.</p>
+                    </div>
+                    <a href="/pages/auth/index.html" class="primary-cta">Get started <i class="fa-solid fa-arrow-right"></i></a>
+                </section>
+
+                <footer class="landing-footer">
+                    <a href="/" class="brand-lockup">
+                        <img src="/relay.png" alt="">
+                        <span>RelayTalk</span>
+                    </a>
+                    <p>Simple conversations. Real connections.</p>
+                    <div class="footer-links">
+                        <a href="/about/">About</a>
+                        <a href="/pages/login/index.html">Log in</a>
+                        <a href="/pages/auth/index.html">Create account</a>
+                    </div>
+                    <small>© <span id="copyrightYear"></span> RelayTalk. All rights reserved.</small>
+                </footer>
+
             </div>
+        </main>
+    </div>
 
-            <!-- ===== FOOTER ===== -->
-            <footer class="site-footer">
-                <p class="footer-hint">
-                    For Details, Features, And Help click below link
-                </p>
+    <div id="spaLoading" class="spa-loading" aria-hidden="true">
+        <div class="spa-spinner"></div>
+    </div>
 
-                <a href="/about/" class="footer-cta" aria-label="Open full details about RelayTalk">
-                    <span class="footer-cta-label">Full Details About Relaytalk</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                         aria-hidden="true">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </a>
-
-                <p class="footer-note">
-                    RelayTalk is a fast, private way to stay close to the people who matter — simple, secure, and made for real conversations.
-                </p>
-            </footer>
-            <!-- ===== /FOOTER ===== -->
+    <div id="spaError" class="spa-error" hidden>
+        <div class="spa-error-card">
+            <h2>We couldn't open that page.</h2>
+            <p>Please check your connection and try again.</p>
+            <button type="button" onclick="window.location.reload()">Try again</button>
         </div>
     </div>
 
-    <script>
-        window.goToLogin = function() {
-            window.location.href = '/pages/login/index.html';
-        };
-
-        window.goToSignup = function() {
-            window.location.href = '/pages/auth/index.html';
-        };
-
-        document.addEventListener('DOMContentLoaded', async function() {
-            const openingScreen = document.getElementById('openingScreen');
-            const mainContent = document.getElementById('mainContent');
-
-            if (openingScreen) {
-                openingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    openingScreen.style.display = 'none';
-                }, 400);
-            }
-
-            if (mainContent) {
-                mainContent.style.opacity = '1';
-            }
-
-            try {
-                let hasSession = false;
-                const localToken = localStorage.getItem('supabase.auth.token');
-                const sessionToken = sessionStorage.getItem('supabase.auth.token');
-                hasSession = !!(localToken || sessionToken);
-
-                if (!hasSession) {
-                    console.log('No session detected - staying on main page');
-                    return;
-                }
-
-                try {
-                    const module = await import('/utils/auth.js');
-                    const { success } = await module.auth.getCurrentUser();
-
-                    if (success) {
-                        console.log('✅ User authenticated - redirecting to home');
-                        window.location.replace('/pages/home/index.html');
-                    }
-                } catch (e) {
-                    console.log('Auth import error:', e);
-                    if (hasSession) {
-                        window.location.replace('/pages/home/index.html');
-                    }
-                }
-            } catch (e) {
-                console.log('Auth check error:', e);
-            }
-        });
-    </script>
-
-    <script src="/utils/sw-manager.js"></script>
+    <script type="module" src="/script.js"></script>
+    <script type="module" src="/spa.js"></script>
     <script src="/utils/native-init.js" defer></script>
-<script src="/utils/offline-detector.js" defer></script>
+    <script src="/utils/offline-detector.js" defer></script>
 </body>
 </html>
