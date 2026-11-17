@@ -1,79 +1,112 @@
 import { routes, resolveRoute } from './routes.js';
 import { loadRoute } from './loader.js';
-import { rememberCurrentView, restoreView } from './lifecycle.js';
+import {
+  rememberCurrentView,
+  activateView,
+  getActivePath
+} from './lifecycle.js';
 
-let currentPath = null;
-let navigationSequence = 0;
+let navigationId = 0;
 
-function setLoading(active) {
+function showLoading(value) {
   const element = document.getElementById('spa-loading');
-  if (element) element.hidden = !active;
+  if (element) element.hidden = !value;
 }
 
-function showError(show) {
+function showError(value) {
   const element = document.getElementById('spa-error');
-  if (element) element.hidden = !show;
+  if (element) element.hidden = !value;
 }
 
-function scrollToTop() {
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+function scrollToHash(hash) {
+  if (!hash) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 export async function navigate(target, options = {}) {
-  const url = new URL(target, window.location.origin);
-  if (url.origin !== window.location.origin) {
-    window.location.assign(url.href);
+  const url = new URL(target, location.origin);
+
+  if (url.origin !== location.origin) {
+    location.assign(url.href);
     return;
   }
 
   const route = resolveRoute(url.pathname);
+
   if (!route) {
-    window.location.assign(url.href);
+    location.assign(url.href);
     return;
   }
 
-  const sequence = ++navigationSequence;
+  const id = ++navigationId;
+  const oldPath = getActivePath();
+
   showError(false);
 
-  if (currentPath && currentPath !== route.path) {
-    rememberCurrentView(currentPath);
+  if (oldPath && oldPath !== route.path) {
+    rememberCurrentView(oldPath);
   }
 
-  if (!options.popstate) {
+  if (!options.popstate && !options.replace) {
     history.pushState({ relayTalk: true }, '', url.pathname + url.search + url.hash);
+  } else if (options.replace) {
+    history.replaceState({ relayTalk: true }, '', url.pathname + url.search + url.hash);
   }
 
-  if (currentPath === route.path && !options.force) {
-    restoreView(route.path);
+  if (oldPath === route.path) {
+    activateView(route.path);
+    scrollToHash(url.hash);
     return;
   }
 
-  setLoading(true);
+  showLoading(true);
 
   try {
     await loadRoute(route, url);
-    if (sequence !== navigationSequence) return;
+    if (id !== navigationId) return;
 
-    currentPath = route.path;
-    document.title = route.title || 'RelayTalk';
+    document.title = route.title;
     document.body.dataset.route = route.name;
-    scrollToTop();
 
-    if (route.onEnter) await route.onEnter(url);
+    if (route.path === '/') {
+      document.body.dataset.route = 'landing';
+    }
+
+    scrollToHash(url.hash);
+
+    window.dispatchEvent(new CustomEvent('relay:route-changed', {
+      detail: { route: route.name, path: route.path, url }
+    }));
   } catch (error) {
-    console.error('[RelayTalk SPA] Route failed:', error);
+    console.error('[RelayTalk SPA] Navigation failed:', error);
     showError(true);
   } finally {
-    if (sequence === navigationSequence) setLoading(false);
+    if (id === navigationId) showLoading(false);
   }
 }
 
 export function startRouter() {
   document.addEventListener('click', event => {
     const link = event.target.closest('a[href]');
-    if (!link || event.defaultPrevented || event.button !== 0) return;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (link.target === '_blank' || link.hasAttribute('download')) return;
+    if (!link) return;
+
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      link.target === '_blank' ||
+      link.hasAttribute('download')
+    ) return;
 
     const url = new URL(link.href, location.origin);
     if (url.origin !== location.origin) return;
@@ -84,26 +117,26 @@ export function startRouter() {
   });
 
   window.addEventListener('popstate', () => {
-    navigate(location.href, { popstate: true, force: true });
+    navigate(location.href, { popstate: true });
   });
 
   const retry = document.getElementById('spa-retry');
-  if (retry) retry.addEventListener('click', () => navigate(location.href, { force: true }));
+  if (retry) {
+    retry.addEventListener('click', () => navigate(location.href, { replace: true }));
+  }
 
-  const initial = resolveRoute(location.pathname);
-  if (initial && initial.name !== 'landing') {
-    const outlet = document.getElementById('spa-outlet');
-    const app = document.getElementById('app');
-    if (app) app.hidden = true;
-    if (outlet) outlet.hidden = false;
-    navigate(location.href, { popstate: true, force: true });
+  const initialRoute = resolveRoute(location.pathname);
+  if (initialRoute && initialRoute.path !== '/') {
+    navigate(location.href, { replace: true });
   } else {
-    currentPath = '/';
+    activateView('/');
   }
 
   window.RelayRouter = {
     navigate,
-    get currentPath() { return currentPath; },
-    routes
+    routes,
+    get currentPath() {
+      return getActivePath();
+    }
   };
 }
