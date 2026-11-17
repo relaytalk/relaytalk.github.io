@@ -1,43 +1,64 @@
-const viewCache = new Map();
+const views = new Map();
 let activePath = null;
 
 export function cacheView(path, element) {
-  viewCache.set(path, element);
+  if (!path || !element) return;
+  views.set(path, element);
 }
 
 export function getCachedView(path) {
-  return viewCache.get(path) || null;
-}
-
-export function rememberCurrentView(path) {
-  const element = viewCache.get(path);
-  if (!element) return;
-
-  element.dataset.lastActiveAt = String(Date.now());
-  element.dispatchEvent(new CustomEvent('relay:page-hidden', { bubbles: true }));
-}
-
-export function activateView(path) {
-  const outlet = document.getElementById('spa-outlet');
-  if (!outlet) return;
-
-  for (const [cachedPath, element] of viewCache.entries()) {
-    const active = cachedPath === path;
-    element.hidden = !active;
-    element.setAttribute('aria-hidden', String(!active));
-
-    if (active) {
-      element.dispatchEvent(new CustomEvent('relay:page-visible', { bubbles: true }));
-    }
-  }
-
-  activePath = path;
-  outlet.hidden = false;
-
-  const app = document.getElementById('app');
-  if (app) app.hidden = true;
+  return views.get(path) || null;
 }
 
 export function getActivePath() {
   return activePath;
+}
+
+export function rememberCurrentView(path = activePath) {
+  if (!path) return;
+
+  const element = views.get(path);
+  if (!element) return;
+
+  element.dispatchEvent(new CustomEvent('relay:page-hidden', {
+    bubbles: true,
+    detail: { path }
+  }));
+}
+
+export function activateView(path) {
+  const outlet = document.getElementById('spa-outlet');
+  const app = document.getElementById('app');
+
+  if (path === '/') {
+    for (const element of views.values()) {
+      element.hidden = true;
+      element.setAttribute('aria-hidden', 'true');
+    }
+
+    if (outlet) outlet.hidden = true;
+    if (app) app.hidden = false;
+
+    activePath = '/';
+    return;
+  }
+
+  const target = views.get(path);
+  if (!target) throw new Error(`SPA view not mounted: ${path}`);
+
+  for (const [viewPath, element] of views.entries()) {
+    const isActive = viewPath === path;
+    element.hidden = !isActive;
+    element.setAttribute('aria-hidden', String(!isActive));
+  }
+
+  if (outlet) outlet.hidden = false;
+  if (app) app.hidden = true;
+
+  activePath = path;
+
+  target.dispatchEvent(new CustomEvent('relay:page-visible', {
+    bubbles: true,
+    detail: { path }
+  }));
 }
