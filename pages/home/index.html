@@ -2,17 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
 
     <title>RelayTalk</title>
-    <meta name="title" content="RelayTalk">
     <meta name="description" content="Connect with friends instantly using RelayTalk.">
     <meta name="robots" content="index, follow">
-
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/home/">
 
     <meta property="og:type" content="website">
@@ -21,28 +18,16 @@
     <meta property="og:description" content="Fast, private, and simple messaging — made for real conversations.">
     <meta property="og:url" content="https://relaytalk.vercel.app/pages/home/">
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk — Connect with friends instantly">
-    <meta name="twitter:description" content="Fast, private, and simple messaging — made for real conversations.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
 
     <link rel="icon" href="/favicon.ico">
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#f7f9fc">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 
@@ -136,17 +121,17 @@
 
     <header class="app-bar">
         <div class="app-bar-inner">
-            <div class="app-bar-brand">
+            <a class="app-bar-brand" href="#" onclick="goToHome(); return false;">
                 <img src="/relay.png" alt="RelayTalk" class="brand-logo-img">
                 <span class="brand-name">RelayTalk</span>
-            </div>
+            </a>
             <div class="app-bar-actions">
                 <button class="icon-btn" onclick="openSearch()" aria-label="Search">
                     <i class="fas fa-search"></i>
                 </button>
                 <button class="icon-btn" onclick="openNotifications()" aria-label="Notifications">
                     <i class="fas fa-bell"></i>
-                    <span class="app-bar-badge" id="notificationBadge" style="display: none;">0</span>
+                    <span class="app-bar-badge" id="notificationBadge" style="display:none;">0</span>
                 </button>
             </div>
         </div>
@@ -156,26 +141,25 @@
         <section class="greeting">
             <p class="greeting-small" id="greetingSmall">Hello</p>
             <h1 class="greeting-title" id="welcomeTitle">Friend</h1>
-            <p class="greeting-sub">Welcome back to RelayTalk</p>
+            <p class="greeting-sub">Good conversations start here.</p>
         </section>
 
         <button class="primary-action" onclick="openSearch()">
-            <span class="primary-action-icon">
-                <i class="fas fa-user-plus"></i>
-            </span>
+            <span class="primary-action-icon"><i class="fas fa-user-plus"></i></span>
             <span class="primary-action-text">
-                <span class="primary-action-title">Find friends</span>
-                <span class="primary-action-desc">Search by username</span>
+                <span class="primary-action-title">Find people on RelayTalk</span>
+                <span class="primary-action-desc">Search for someone by their username.</span>
             </span>
-            <span class="primary-action-chevron">
-                <i class="fas fa-chevron-right"></i>
-            </span>
+            <span class="primary-action-chevron"><i class="fas fa-arrow-right"></i></span>
         </button>
 
         <section class="section">
             <div class="section-head">
-                <h2 class="section-title">Friends</h2>
-                <button class="text-btn" onclick="viewFriendsPage()">View all</button>
+                <div>
+                    <span class="section-kicker">YOUR CIRCLE</span>
+                    <h2 class="section-title">Friends</h2>
+                </div>
+                <button class="text-btn" onclick="viewFriendsPage()">View all <i class="fas fa-arrow-right"></i></button>
             </div>
             <div class="list" id="friendsList"></div>
         </section>
@@ -183,31 +167,28 @@
 
     <nav class="bottom-nav">
         <a href="#" class="nav-item active" onclick="goToHome(); return false;">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
+            <i class="fas fa-house"></i><span>Home</span>
         </a>
         <a href="#" class="nav-item" onclick="openNotifications(); return false;">
-            <i class="fas fa-bell"></i>
-            <span>Alerts</span>
-            <span class="nav-badge" id="navNotificationBadge" style="display: none;">0</span>
+            <i class="far fa-bell"></i><span>Alerts</span>
+            <span class="nav-badge" id="navNotificationBadge" style="display:none;">0</span>
         </a>
         <a href="#" class="nav-item" onclick="viewFriendsPage(); return false;">
-            <i class="fas fa-user-friends"></i>
-            <span>Friends</span>
+            <i class="fas fa-user-group"></i><span>Friends</span>
         </a>
         <a href="profile/index.html" class="nav-item">
-            <i class="fas fa-user"></i>
-            <span>You</span>
+            <i class="far fa-user"></i><span>You</span>
         </a>
     </nav>
 
     <div class="modal" id="searchModal">
         <div class="modal-panel">
             <div class="modal-head">
-                <h2 class="modal-title">Find people</h2>
-                <button class="modal-close" onclick="closeModal()" aria-label="Close">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div>
+                    <span class="modal-kicker">GROW YOUR CIRCLE</span>
+                    <h2 class="modal-title">Find people</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="search-wrap">
@@ -222,29 +203,26 @@
     <div class="modal" id="notificationsModal">
         <div class="modal-panel">
             <div class="modal-head">
-                <h2 class="modal-title">Notifications</h2>
-                <button class="modal-close" onclick="closeModal()" aria-label="Close">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div>
+                    <span class="modal-kicker">STAY IN THE LOOP</span>
+                    <h2 class="modal-title">Notifications</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="tabs" role="tablist">
                     <button class="tab active" id="notifTabMain" onclick="switchNotifTab('main')">
-                        <i class="fas fa-user-plus tab-icon"></i>
-                        Requests
-                        <span class="tab-badge" id="mainTabBadge" style="display: none;">0</span>
+                        <i class="fas fa-user-plus tab-icon"></i> Requests
+                        <span class="tab-badge" id="mainTabBadge" style="display:none;">0</span>
                     </button>
                     <button class="tab" id="notifTabCalls" onclick="switchNotifTab('calls')">
-                        <i class="fas fa-comment-dots tab-icon"></i>
-                        Calls
-                        <span class="tab-badge" id="callsTabBadge" style="display: none;">0</span>
+                        <i class="fas fa-phone tab-icon"></i> Calls
+                        <span class="tab-badge" id="callsTabBadge" style="display:none;">0</span>
                     </button>
                 </div>
-
                 <div class="tab-content active" id="notifMainContent">
                     <div id="notificationsList"></div>
                 </div>
-
                 <div class="tab-content" id="notifCallsContent">
                     <div id="callHistoryList"></div>
                 </div>
@@ -258,11 +236,6 @@
     <script type="module" src="/utils/callHub.js"></script>
 
     <script>
-        // ============================================================
-        // PUSH SETUP — runs only on the home page.
-        // Waits for the app to be ready, then triggers the web push
-        // permission prompt (browser) and FCM registration (APK).
-        // ============================================================
         (function () {
             function scheduleInit() {
                 setTimeout(async () => {
@@ -275,7 +248,6 @@
                     }
                 }, 1500);
             }
-
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', scheduleInit);
             } else {
