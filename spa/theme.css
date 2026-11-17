@@ -1,0 +1,205 @@
+
+:root {
+    color-scheme: light;
+
+    --rt-bg: #f7f9fc;
+    --rt-surface: #ffffff;
+    --rt-surface-soft: #f1f4f9;
+    --rt-border: #e6eaf0;
+
+    --rt-text: #172033;
+    --rt-muted: #6b778c;
+    --rt-subtle: #929daf;
+
+    --rt-primary: #3478f6;
+    --rt-primary-hover: #2564d9;
+    --rt-primary-soft: #eaf1ff;
+
+    --rt-success: #16a879;
+    --rt-danger: #e05252;
+
+    --rt-radius: 14px;
+    --rt-shadow: 0 10px 35px rgba(23, 32, 51, .07);
+
+    font-family: "Google Sans", Arial, sans-serif;
+}
+
+html {
+    background: var(--rt-bg);
+    color: var(--rt-text);
+}
+
+body {
+    background: var(--rt-bg);
+    color: var(--rt-text);
+    min-height: 100vh;
+}
+
+#spaApp {
+    min-height: 100vh;
+    background: var(--rt-bg);
+}
+
+#spaOutlet {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.spa-page {
+    width: 100%;
+    min-height: 100vh;
+    background: var(--rt-bg);
+    animation: relayPageEnter .28s ease both;
+}
+
+#spaTransition {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: #fff;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity .17s ease,
+        visibility .17s ease;
+}
+
+#spaTransition.fade-out {
+    opacity: .92;
+    visibility: visible;
+}
+
+#spaTransition.fade-in {
+    opacity: 0;
+    visibility: visible;
+}
+
+@keyframes relayPageEnter {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#spaLoading {
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,.58);
+    opacity: 0;
+    visibility: hidden;
+    transition: .2s ease;
+}
+
+#spaLoading.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.spa-loader-spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid #e3eaf5;
+    border-top-color: var(--rt-primary);
+    border-radius: 50%;
+    animation: relaySpin .7s linear infinite;
+}
+
+@keyframes relaySpin {
+    to { transform: rotate(360deg); }
+}
+
+.spa-failure {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--rt-bg);
+    text-align: center;
+}
+
+.spa-failure > div {
+    width: min(100%, 420px);
+    padding: 32px;
+    border: 1px solid var(--rt-border);
+    border-radius: 20px;
+    background: var(--rt-surface);
+    box-shadow: var(--rt-shadow);
+}
+
+.spa-failure h2 {
+    margin: 0 0 10px;
+    color: var(--rt-text);
+}
+
+.spa-failure p {
+    color: var(--rt-muted);
+    line-height: 1.6;
+}
+
+.spa-failure button {
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 20px;
+    background: var(--rt-primary);
+    color: #fff;
+    font-weight: 700;
+}
+
+/* Global light-theme defaults for existing pages.
+   Page-specific layouts and component dimensions remain in their
+   original stylesheets. */
+
+.spa-page {
+    color: var(--rt-text);
+}
+
+.spa-page input,
+.spa-page textarea,
+.spa-page select {
+    color: var(--rt-text);
+}
+
+.spa-page a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.spa-page button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 800px) {
+    #spaOutlet,
+    .spa-page {
+        min-height: 100dvh;
+    }
+
+    .spa-page {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    input,
+    textarea,
+    select {
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
