@@ -2,68 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Create Account | RelayTalk</title>
-
-    <meta name="description" content="Create your free RelayTalk account. Join our secure messaging platform and start connecting with friends instantly. Simple sign up, no email required.">
-    <meta name="keywords" content="RelayTalk, Create Account, Sign Up, Register, RelayTalk App, Instant Chat, Secure Messaging, Private Chat, Free Account, Chat App Signup, Messenger Account">
-
-    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="Create Account | RelayTalk">
-    <meta property="og:description" content="Join RelayTalk — create your free account for fast, private messaging.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/pages/auth/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <!-- ===== Twitter / X ===== -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@relaytalk">
-    <meta name="twitter:title" content="Create Account | RelayTalk">
-    <meta name="twitter:description" content="Join RelayTalk — create your free account for fast, private messaging.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <link rel="canonical" href="https://relaytalk.vercel.app/pages/auth/">
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": "Create Account | RelayTalk",
-      "description": "Create your free RelayTalk messaging account",
-      "url": "https://relaytalk.vercel.app/pages/auth/"
-    }
-    </script>
+    <meta name="description" content="Create your free RelayTalk account and connect with friends.">
+    <meta name="theme-color" content="#f6f8fc">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
-
-    <link rel="icon" href="/favicon.ico">
-    <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
-    <link rel="apple-touch-icon" href="/relay.png">
-    <meta name="theme-color" content="#007acc">
+    <link rel="icon" href="/relay.png" type="image/png">
 </head>
-<body>
-
+<body class="auth-page">
     <header class="simple-header">
         <a href="/" class="simple-logo">
             <img src="/relay.png" alt="RelayTalk" class="simple-logo-img">
             <span>RelayTalk</span>
         </a>
+        <a class="auth-header-link" href="../login/index.html">Already a member? <strong>Sign in</strong></a>
     </header>
 
-    <div class="auth-container">
+    <main class="auth-container">
         <div class="auth-header">
             <div class="auth-logo">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -73,170 +34,125 @@
                     <line x1="22" y1="11" x2="16" y2="11"/>
                 </svg>
             </div>
-            <h1 class="auth-title">Join RelayTalk</h1>
-            <p class="auth-subtitle">Create your account to connect with friends</p>
+            <span class="auth-eyebrow">A BETTER WAY TO STAY CLOSE</span>
+            <h1 class="auth-title">Create your account.</h1>
+            <p class="auth-subtitle">A few details, then you're ready to connect.</p>
         </div>
 
         <form class="auth-form" id="signupForm" novalidate>
             <div class="form-group">
                 <label class="form-label" for="username">
-                    <span class="form-label-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                    </span>
+                    <span class="form-label-icon"><i class="far fa-user"></i></span>
                     Username
                 </label>
                 <input type="text" id="username" class="form-input"
-                       placeholder="e.g., alex_john" required
+                       placeholder="Choose a username" required
                        minlength="3" maxlength="20" autocomplete="username">
+                <div class="field-hint">Use 3–20 characters.</div>
                 <div class="error-message" id="usernameError"></div>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="password">
-                    <span class="form-label-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                    </span>
+                    <span class="form-label-icon"><i class="fas fa-lock"></i></span>
                     Password
                 </label>
                 <div class="password-input">
                     <input type="password" id="password" class="form-input"
-                           placeholder="Create a strong password" required minlength="6" autocomplete="new-password">
+                           placeholder="Create a password" required minlength="6" autocomplete="new-password">
                     <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Show password">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
+                        <i class="far fa-eye"></i>
                     </button>
                 </div>
+                <div class="field-hint">Use at least 6 characters.</div>
                 <div class="error-message" id="passwordError"></div>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="confirmPassword">
-                    <span class="form-label-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                    </span>
-                    Confirm Password
+                    <span class="form-label-icon"><i class="fas fa-check-double"></i></span>
+                    Confirm password
                 </label>
                 <input type="password" id="confirmPassword" class="form-input"
-                       placeholder="Re-enter your password" required autocomplete="new-password">
+                       placeholder="Enter your password again" required autocomplete="new-password">
                 <div class="error-message" id="confirmError"></div>
             </div>
 
             <div class="terms-container">
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms" required>
-                    <label for="terms">
-                        I agree to the Terms &amp; Conditions and Privacy Policy
-                    </label>
+                    <label for="terms">I agree to the Terms &amp; Conditions and Privacy Policy.</label>
                 </div>
                 <div class="error-message" id="termsError"></div>
-
                 <div class="terms-buttons">
                     <button type="button" class="terms-btn" onclick="showTerms()">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                        </svg>
-                        Terms &amp; Conditions
+                        <i class="far fa-file-lines"></i> Terms
                     </button>
                     <button type="button" class="terms-btn" onclick="showPrivacy()">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <polyline points="9 12 11 14 15 10"/>
-                        </svg>
-                        Privacy Policy
+                        <i class="fas fa-shield-halved"></i> Privacy
                     </button>
                 </div>
             </div>
 
             <button type="submit" class="btn-primary auth-btn" id="submitBtn">
-                Create Account
+                <span>Create my account</span>
+                <i class="fas fa-arrow-right"></i>
             </button>
         </form>
 
         <div class="success-container" id="successContainer" style="display:none;"></div>
-    </div>
 
-    <!-- Terms Modal -->
+        <p class="auth-footer">By joining RelayTalk, you're making space for better conversations.</p>
+    </main>
+
     <div class="modal-overlay" id="termsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">
-                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    Terms &amp; Conditions
-                </h2>
+                <h2 class="modal-title"><i class="far fa-file-lines"></i> Terms &amp; Conditions</h2>
                 <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <h3>Welcome to RelayTalk</h3>
                 <p>By creating an account, you agree to these simple terms:</p>
-
                 <h3>Your Account</h3>
                 <ul>
-                    <li>You must be at least 13 years old to use RelayTalk</li>
-                    <li>Your username must be unique and appropriate</li>
-                    <li>You are responsible for keeping your password secure</li>
+                    <li>You must be at least 13 years old to use RelayTalk.</li>
+                    <li>Your username must be unique and appropriate.</li>
+                    <li>You are responsible for keeping your password secure.</li>
                 </ul>
-
                 <h3>Messaging Rules</h3>
                 <ul>
-                    <li>Be respectful to all users</li>
-                    <li>No harassment, bullying, or hate speech</li>
-                    <li>No spam or unsolicited messages</li>
-                    <li>Respect others' privacy</li>
+                    <li>Be respectful to all users.</li>
+                    <li>No harassment, bullying, or hate speech.</li>
+                    <li>No spam or unsolicited messages.</li>
+                    <li>Respect others' privacy.</li>
                 </ul>
-
                 <div class="security-note">
-                    <strong>Important Security Notice:</strong>
-                    <p>Your password cannot be recovered if forgotten. We don't store passwords in a way that allows recovery. Please write it down securely.</p>
+                    <strong>Important Security Notice</strong>
+                    <p>Your password cannot be recovered if forgotten. Please keep it securely.</p>
                 </div>
-
                 <h3>RelayTalk's Promise</h3>
-                <p>We provide a secure, simple messaging platform for everyone to connect safely.</p>
-
+                <p>We provide a secure, simple messaging platform for people to connect.</p>
                 <p><em>Last updated: December 2024 | App Version: 1.0</em></p>
             </div>
         </div>
     </div>
 
-    <!-- Privacy Modal -->
     <div class="modal-overlay" id="privacyModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">
-                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                    Privacy Policy
-                </h2>
+                <h2 class="modal-title"><i class="fas fa-shield-halved"></i> Privacy Policy</h2>
                 <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <h3>Your Privacy Matters</h3>
                 <p>At RelayTalk, we believe in simple, transparent privacy.</p>
-
                 <h3>What We Store</h3>
                 <ul>
-                    <li><strong>Username:</strong> Your chosen display name</li>
-                    <li><strong>Profile Information:</strong> Basic account details</li>
-                    <li><strong>Messages:</strong> Only between you and recipients</li>
+                    <li><strong>Username:</strong> Your chosen display name.</li>
+                    <li><strong>Profile Information:</strong> Basic account details.</li>
+                    <li><strong>Messages:</strong> Messages associated with your conversations.</li>
                 </ul>
-
                 <h3>What We Don't Store</h3>
                 <ul>
                     <li>Email addresses</li>
@@ -244,29 +160,23 @@
                     <li>Location data</li>
                     <li>Contact lists</li>
                 </ul>
-
                 <h3>Your Data is Yours</h3>
                 <ul>
-                    <li>Messages are stored only as long as needed</li>
-                    <li>We don't sell your data to anyone</li>
-                    <li>We don't show ads</li>
-                    <li>All data is encrypted and secured in the cloud</li>
+                    <li>We don't sell your data.</li>
+                    <li>We don't show ads.</li>
+                    <li>All data is handled by the platform's configured services.</li>
                 </ul>
-
                 <div class="security-note">
-                    <strong>Security First:</strong>
-                    <p>RelayTalk is built with security in mind. Created by RelayChat to provide safe, private messaging for everyone.</p>
+                    <strong>Security First</strong>
+                    <p>RelayTalk is built with security in mind.</p>
                 </div>
-
                 <h3>Contact</h3>
                 <p>Questions? We're here to help make RelayTalk safe for you.</p>
-
                 <p><em>Privacy is not a feature — it's our foundation.</em></p>
             </div>
         </div>
     </div>
 
     <script type="module" src="/pages/auth/script.js"></script>
-    <script src="/utils/sw-manager.js"></script>
 </body>
 </html>
