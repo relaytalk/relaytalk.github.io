@@ -1,0 +1,34 @@
+@media (min-width: 721px) {
+  #spa-outlet {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  .spa-page {
+    width: 100%;
+    min-height: 100vh;
+    isolation: isolate;
+  }
+
+  .spa-page[hidden] {
+    display: none !important;
+  }
+
+  body[data-route="home"] .spa-page-home,
+  body[data-route="friends"] .spa-page-friends,
+  body[data-route="chat"] .spa-page-chat,
+  body[data-route="profile"] .spa-page-profile {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  body[data-route="chat"] {
+    overflow: hidden;
+  }
+
+  body[data-route="chat"] .spa-page-chat {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+}
