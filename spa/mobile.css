@@ -1,0 +1,29 @@
+@media (max-width: 720px) {
+  #spa-outlet,
+  .spa-page {
+    width: 100%;
+    min-height: 100dvh;
+  }
+
+  .spa-page[hidden] {
+    display: none !important;
+  }
+
+  body[data-route="chat"] {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body[data-route="chat"] .spa-page-chat {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  body[data-route="home"] .spa-page-home,
+  body[data-route="friends"] .spa-page-friends,
+  body[data-route="profile"] .spa-page-profile {
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
