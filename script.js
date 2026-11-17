@@ -1,302 +1,36 @@
-// login/script.js - FIXED FOR GITHUB PAGES
-console.log('✨ Login Page Loaded - GitHub Pages Version');
+import { navigate } from "./spa/navigation.js";
 
-// Initialize Supabase directly (no import needed)
-async function ensureSupabase() {
-    console.log('⏳ Checking Supabase...');
-    
-    if (window.supabase) {
-        console.log('✅ Supabase already loaded');
-        return true;
+const $ = (selector, root = document) => root.querySelector(selector);
+
+function initialiseLandingPage() {
+    const year = $("#copyrightYear");
+    if (year) year.textContent = new Date().getFullYear();
+
+    const opening = $("#openingScreen");
+    if (opening && !opening.dataset.finished) {
+        opening.dataset.finished = "true";
+        window.setTimeout(() => opening.classList.add("is-hidden"), 850);
     }
-    
-    try {
-        // Direct Supabase initialization for GitHub Pages
-        const SUPABASE_URL = 'https://your-project-id.supabase.co'; // REPLACE WITH YOUR URL
-        const SUPABASE_KEY = 'your-anon-key'; // REPLACE WITH YOUR KEY
-        
-        // Create Supabase client
-        window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        console.log('✅ Supabase initialized successfully');
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Supabase initialization error:', error);
-        
-        // Show user-friendly error
-        const passwordError = document.getElementById('passwordError');
-        if (passwordError) {
-            passwordError.textContent = 'Service temporarily unavailable';
-            passwordError.style.display = 'block';
-        }
-        
-        return false;
-    }
-}
 
-// Simple login function
-async function loginUser(username, password) {
-    try {
-        if (!window.supabase?.auth) {
-            throw new Error('Authentication service not ready');
-        }
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+        if (link.dataset.anchorReady) return;
+        link.dataset.anchorReady = "true";
 
-        // Use username directly (assuming it's email)
-        const email = username.includes('@') ? username : `${username}@relaytalk.app`;
-        
-        console.log('Logging in with:', email);
+        link.addEventListener("click", event => {
+            const id = link.getAttribute("href");
+            const target = id && document.querySelector(id);
+            if (!target) return;
 
-        const { data, error } = await window.supabase.auth.signInWithPassword({
-            email: email,
-            password: password
+            event.preventDefault();
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
         });
-
-        if (error) {
-            console.error('Login error:', error.message);
-
-            if (error.message.includes('Invalid login credentials')) {
-                throw new Error('Invalid username or password');
-            }
-
-            throw new Error('Login failed. Please try again.');
-        }
-
-        console.log('✅ Login successful!');
-        return {
-            success: true,
-            user: data.user
-        };
-
-    } catch (error) {
-        console.error('Login failed:', error);
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-// Check if already logged in
-async function checkExistingLogin() {
-    try {
-        if (!window.supabase?.auth) return false;
-
-        const { data } = await window.supabase.auth.getSession();
-        return !!data?.session;
-
-    } catch (error) {
-        console.error('Login check error:', error);
-        return false;
-    }
-}
-
-// DOM Elements
-const loginForm = document.getElementById('loginForm');
-const loginUsername = document.getElementById('loginUsername');
-const loginPassword = document.getElementById('loginPassword');
-const passwordToggle = document.getElementById('passwordToggle');
-const usernameError = document.getElementById('usernameError');
-const passwordError = document.getElementById('passwordError');
-const loadingOverlay = document.getElementById('loadingOverlay');
-
-// Toggle password visibility
-if (passwordToggle) {
-    passwordToggle.addEventListener('click', function() {
-        if (loginPassword.type === 'password') {
-            loginPassword.type = 'text';
-            this.textContent = '🙈';
-        } else {
-            loginPassword.type = 'password';
-            this.textContent = '👁️';
-        }
     });
 }
 
-// Show error
-function showError(element, message) {
-    if (!element) return;
-    element.textContent = message;
-    element.style.display = 'block';
-    element.parentElement.classList.add('shake');
-    setTimeout(() => {
-        element.parentElement.classList.remove('shake');
-    }, 500);
-}
+window.goToLogin = () => navigate("/pages/login/index.html");
+window.goToSignup = () => navigate("/pages/auth/index.html");
 
-// Hide error
-function hideError(element) {
-    if (!element) return;
-    element.style.display = 'none';
-}
+document.addEventListener("DOMContentLoaded", initialiseLandingPage);
+initialiseLandingPage();
 
-// Validate form
-function validateForm() {
-    let isValid = true;
-
-    if (!loginUsername.value.trim()) {
-        showError(usernameError, 'Please enter username');
-        isValid = false;
-    } else if (loginUsername.value.trim().length < 3) {
-        showError(usernameError, 'Username must be at least 3 characters');
-        isValid = false;
-    } else {
-        hideError(usernameError);
-    }
-
-    if (!loginPassword.value) {
-        showError(passwordError, 'Please enter password');
-        isValid = false;
-    } else if (loginPassword.value.length < 6) {
-        showError(passwordError, 'Password must be at least 6 characters');
-        isValid = false;
-    } else {
-        hideError(passwordError);
-    }
-
-    return isValid;
-}
-
-// Handle form submission
-async function handleLogin(event) {
-    event.preventDefault();
-
-    if (!validateForm()) return;
-
-    const username = loginUsername.value.trim();
-    const password = loginPassword.value;
-    const loginBtn = document.getElementById('loginBtn');
-    
-    if (!loginBtn) return;
-
-    // Show loading
-    const originalText = loginBtn.textContent;
-    loginBtn.textContent = 'Logging in...';
-    loginBtn.disabled = true;
-
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'flex';
-    }
-
-    try {
-        // Initialize Supabase
-        const supabaseReady = await ensureSupabase();
-        if (!supabaseReady) {
-            showError(passwordError, 'Cannot connect to server');
-            resetButton(loginBtn, originalText);
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-            return;
-        }
-
-        // Attempt login
-        const result = await loginUser(username, password);
-
-        if (result.success) {
-            console.log('✅ Login successful, redirecting...');
-            
-            // Show success message
-            const successMessage = document.getElementById('successMessage');
-            if (successMessage) {
-                successMessage.style.display = 'block';
-                successMessage.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🎉</div>
-                        <h3 style="color: #28a745; margin-bottom: 10px;">Login Successful!</h3>
-                        <p style="color: #c0c0e0;">Redirecting to home page...</p>
-                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 15px; overflow: hidden;">
-                            <div style="width: 0%; height: 100%; background: #667eea; animation: progress 2s linear forwards;"></div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Redirect to home
-            setTimeout(() => {
-                window.location.href = '../index.html';
-            }, 1500);
-
-        } else {
-            showError(passwordError, result.message || 'Login failed');
-            resetButton(loginBtn, originalText);
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
-        }
-
-    } catch (error) {
-        console.error('Login handler error:', error);
-        showError(passwordError, 'Something went wrong. Please try again.');
-        resetButton(loginBtn, originalText);
-        if (loadingOverlay) loadingOverlay.style.display = 'none';
-    }
-}
-
-// Reset button state
-function resetButton(button, originalText) {
-    button.textContent = originalText;
-    button.disabled = false;
-}
-
-// Initialize login page
-async function initLoginPage() {
-    console.log('Initializing login page...');
-
-    // Initialize Supabase
-    await ensureSupabase();
-
-    // Check if already logged in
-    const isLoggedIn = await checkExistingLogin();
-    if (isLoggedIn) {
-        console.log('✅ User already logged in, redirecting...');
-        
-        // Show redirect message
-        const successMessage = document.getElementById('successMessage');
-        if (successMessage) {
-            successMessage.style.display = 'block';
-            successMessage.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2rem; margin-bottom: 10px;">👋</div>
-                    <h3 style="color: #667eea; margin-bottom: 10px;">Already Logged In!</h3>
-                    <p style="color: #c0c0e0;">Redirecting to home page...</p>
-                </div>
-            `;
-        }
-
-        // Redirect
-        setTimeout(() => {
-            window.location.href = '../index.html';
-        }, 1000);
-        return;
-    }
-
-    console.log('User not logged in, showing login form');
-
-    // Setup event listeners
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
-    }
-
-    // Clear errors on input
-    if (loginUsername) {
-        loginUsername.addEventListener('input', function() {
-            if (this.value.trim()) hideError(usernameError);
-        });
-    }
-
-    if (loginPassword) {
-        loginPassword.addEventListener('input', function() {
-            if (this.value) hideError(passwordError);
-        });
-    }
-
-    // Auto-focus username field
-    if (loginUsername) {
-        setTimeout(() => loginUsername.focus(), 300);
-    }
-
-    // Hide loading overlay if shown
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'none';
-    }
-}
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', initLoginPage);
+window.addEventListener("pageshow", initialiseLandingPage);
