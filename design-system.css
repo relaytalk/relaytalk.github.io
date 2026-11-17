@@ -1,0 +1,258 @@
+/* =========================================================
+   RELAYTALK — SHARED DESIGN SYSTEM
+   UI ONLY. No application logic.
+========================================================= */
+
+:root {
+    --rt-bg: #f5f7fb;
+    --rt-surface: #ffffff;
+    --rt-surface-2: #f8faff;
+    --rt-ink: #17243a;
+    --rt-muted: #68758b;
+    --rt-subtle: #98a3b5;
+    --rt-line: #e6ebf3;
+    --rt-blue: #3567e8;
+    --rt-blue-dark: #2855d0;
+    --rt-blue-soft: #edf2ff;
+    --rt-green: #20a77a;
+    --rt-red: #df5d67;
+    --rt-radius-sm: 10px;
+    --rt-radius-md: 15px;
+    --rt-radius-lg: 21px;
+    --rt-radius-xl: 27px;
+    --rt-shadow-sm: 0 3px 12px rgba(27, 47, 82, .045);
+    --rt-shadow-md: 0 12px 35px rgba(27, 47, 82, .075);
+    --rt-shadow-lg: 0 22px 65px rgba(27, 47, 82, .12);
+    --rt-font: "DM Sans", "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --rt-display: "Manrope", "DM Sans", sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    background: var(--rt-bg);
+    color: var(--rt-ink);
+    font-family: var(--rt-font);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 3px solid rgba(53, 103, 232, .28);
+    outline-offset: 3px;
+}
+
+::selection {
+    color: #183b91;
+    background: #dce7ff;
+}
+
+/* Shared surfaces */
+.card,
+.panel,
+.modal-panel,
+.modal-content,
+.settings-card,
+.download-card,
+.guide-cta-card,
+.feature-card,
+.welcome-card,
+.recent-section,
+.action-card {
+    border-color: var(--rt-line);
+    border-radius: var(--rt-radius-lg);
+    box-shadow: var(--rt-shadow-sm);
+}
+
+/* Shared controls */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+    border: 1px solid var(--rt-line);
+    border-radius: var(--rt-radius-sm);
+    background: #f8faff;
+    color: var(--rt-ink);
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+    border-color: #9bb5ff;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(53, 103, 232, .09);
+    outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #a0aabc;
+}
+
+/* Shared buttons */
+button,
+.button,
+.btn,
+.btn-primary,
+.auth-btn,
+.login-btn {
+    transition:
+        background .18s ease,
+        border-color .18s ease,
+        color .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease;
+}
+
+button:active,
+.button:active,
+.btn:active {
+    transform: scale(.985);
+}
+
+/* Shared application bars */
+.app-bar,
+.login-header,
+.simple-header {
+    background: rgba(255, 255, 255, .88);
+    border-bottom: 1px solid var(--rt-line);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.app-bar-brand,
+.brand-name,
+.login-header-logo,
+.simple-logo {
+    color: var(--rt-ink);
+    font-family: var(--rt-display);
+    font-weight: 800;
+    letter-spacing: -.6px;
+}
+
+.brand-logo-img,
+.login-header-logo-img,
+.simple-logo-img {
+    border-radius: 10px;
+}
+
+/* Shared navigation */
+.bottom-nav {
+    border-top: 1px solid var(--rt-line);
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 -8px 30px rgba(28, 48, 83, .045);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.nav-item {
+    color: #8995a8;
+    transition: color .18s ease, background .18s ease;
+}
+
+.nav-item.active {
+    color: var(--rt-blue);
+    font-weight: 700;
+}
+
+.nav-item:active {
+    background: var(--rt-blue-soft);
+}
+
+/* Shared modal */
+.modal,
+.modal-overlay {
+    background: rgba(15, 27, 48, .42);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+}
+
+.modal-panel,
+.modal-content {
+    border: 1px solid rgba(230, 235, 243, .9);
+    border-radius: var(--rt-radius-xl);
+    background: #fff;
+    box-shadow: var(--rt-shadow-lg);
+}
+
+.modal-head,
+.modal-header {
+    border-bottom: 1px solid var(--rt-line);
+}
+
+.modal-title {
+    color: var(--rt-ink);
+    font-family: var(--rt-display);
+    font-weight: 800;
+}
+
+/* Shared feedback */
+.toast-container {
+    z-index: 2000;
+}
+
+.error-message {
+    color: #cf4552;
+}
+
+.success-message {
+    color: #16875f;
+}
+
+/* Shared loading treatment */
+.loading-indicator,
+.loading-overlay {
+    background: rgba(245, 247, 251, .94);
+    backdrop-filter: blur(10px);
+}
+
+.loading-text {
+    color: var(--rt-muted);
+    font-weight: 600;
+}
+
+/* Small-screen safety */
+@media (max-width: 600px) {
+    body {
+        font-size: 14px;
+    }
+
+    .modal-panel,
+    .modal-content {
+        border-radius: 21px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
