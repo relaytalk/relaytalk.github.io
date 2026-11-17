@@ -1,571 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f7f9fc">
-    <meta name="description" content="RelayTalk brings your conversations, friends and calls together in one simple place.">
-    <meta name="robots" content="index, follow">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="RelayTalk — private, simple messaging for real conversations.">
+  <title>RelayTalk — Conversations, connected.</title>
 
-    <title>RelayTalk — Conversations, without the clutter.</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" href="/relay.png" type="image/png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/spa.css">
 
-    <link rel="canonical" href="https://relaytalk.vercel.app/">
-    <link rel="icon" href="/relay.png" type="image/png">
-    <link rel="apple-touch-icon" href="/relay.png">
-    <link rel="manifest" href="/manifest.json">
-
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk — Conversations, without the clutter.">
-    <meta property="og:description" content="Find your people. Start conversations. Stay connected.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="RelayTalk">
-    <meta name="twitter:description" content="A simpler place for your conversations.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/landing.css">
-
-    <script>
-        (function () {
-            try {
-                const localToken = localStorage.getItem('supabase.auth.token');
-                const sessionToken = sessionStorage.getItem('supabase.auth.token');
-
-                if (localToken || sessionToken) {
-                    document.documentElement.classList.add('has-session');
-                }
-            } catch (error) {
-                console.warn('[RelayTalk] Session check unavailable.');
-            }
-        })();
-    </script>
+  <script>
+    (() => {
+      const saved = localStorage.getItem('supabase.auth.token') ||
+                    sessionStorage.getItem('supabase.auth.token');
+      if (saved && location.pathname === '/') {
+        history.replaceState({}, '', '/pages/home/');
+      }
+    })();
+  </script>
 </head>
-
 <body>
-    <div class="site-shell">
+  <div id="app">
+    <header class="site-header">
+      <a class="brand" href="/" data-link aria-label="RelayTalk home">
+        <span class="brand-mark"><i class="fa-solid fa-comment-dots"></i></span>
+        <span>relay<span class="brand-light">talk</span></span>
+      </a>
 
-        <!-- Navigation -->
-        <header class="site-header" id="siteHeader">
-            <div class="header-inner">
-                <a class="brand" href="/" aria-label="RelayTalk home">
-                    <img src="/relay.png" alt="" class="brand-logo">
-                    <span>Relay<span class="brand-accent">Talk</span></span>
-                </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#faq">FAQs</a>
+      </nav>
 
-                <nav class="desktop-nav" aria-label="Main navigation">
-                    <a href="#features">Features</a>
-                    <a href="#how-it-works">How it works</a>
-                    <a href="#faq">FAQs</a>
-                </nav>
+      <div class="header-actions">
+        <a class="header-login" href="/pages/login/" data-link>Log in</a>
+        <a class="button button-small" href="/pages/auth/" data-link>Get started <i class="fa-solid fa-arrow-up-right"></i></a>
+      </div>
+    </header>
 
-                <div class="header-actions">
-                    <a class="header-login" href="/pages/login/index.html">Log in</a>
-                    <a class="button button-small button-dark" href="/pages/auth/index.html">
-                        Get started
-                        <i class="fa-solid fa-arrow-right"></i>
-                    </a>
-                </div>
+    <main id="route-view">
+      <section class="hero-section">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> A better space for conversations</div>
+          <h1>Good conversations.<br><span>Better connections.</span></h1>
+          <p class="hero-description">
+            A simple place to talk, share moments and stay close to the people who matter.
+            No noise. Just conversations.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="/pages/auth/" data-link>
+              Create your account <i class="fa-solid fa-arrow-right"></i>
+            </a>
+            <a class="button button-quiet" href="/pages/login/" data-link>Already have an account?</a>
+          </div>
+          <div class="hero-proof">
+            <span class="proof-icon"><i class="fa-solid fa-lock"></i></span>
+            <span>Built for private, personal conversations.</span>
+          </div>
+        </div>
 
-                <button class="mobile-menu-button" id="mobileMenuButton"
-                        aria-label="Open navigation" aria-expanded="false">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
+        <div class="hero-visual" aria-label="RelayTalk chat preview">
+          <div class="visual-glow"></div>
+          <div class="preview-window">
+            <div class="preview-topbar">
+              <div class="preview-brand">
+                <span class="mini-brand"><i class="fa-solid fa-comment-dots"></i></span>
+                <strong>RelayTalk</strong>
+              </div>
+              <div class="preview-dots"><i></i><i></i><i></i></div>
             </div>
-
-            <div class="mobile-menu" id="mobileMenu">
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How it works</a>
-                <a href="#faq">FAQs</a>
-                <a href="/pages/login/index.html">Log in</a>
-                <a href="/pages/auth/index.html">Create account</a>
+            <div class="preview-content">
+              <div class="preview-sidebar">
+                <div class="preview-side-title">Messages</div>
+                <div class="preview-search"><i class="fa-solid fa-magnifying-glass"></i> Search</div>
+                <div class="preview-person active">
+                  <span class="avatar avatar-blue">A</span>
+                  <span><b>Alex Morgan</b><small>That sounds great!</small></span>
+                  <i class="online-dot"></i>
+                </div>
+                <div class="preview-person">
+                  <span class="avatar avatar-violet">J</span>
+                  <span><b>Jamie Lee</b><small>Sent a photo</small></span>
+                </div>
+                <div class="preview-person">
+                  <span class="avatar avatar-orange">S</span>
+                  <span><b>Sam Wilson</b><small>See you soon</small></span>
+                </div>
+              </div>
+              <div class="preview-chat">
+                <div class="preview-chat-head">
+                  <span class="avatar avatar-blue">A</span>
+                  <span><b>Alex Morgan</b><small><i class="online-dot"></i> Online</small></span>
+                </div>
+                <div class="preview-messages">
+                  <div class="message message-in">Hey! How have you been?</div>
+                  <div class="message message-out">Doing well! It's been a while.</div>
+                  <div class="message message-in">We should catch up sometime.</div>
+                  <div class="message message-out">Absolutely. Let's plan something!</div>
+                  <div class="message-time">Today · 10:42 AM</div>
+                </div>
+                <div class="preview-compose">
+                  <i class="fa-regular fa-face-smile"></i>
+                  <span>Write a message...</span>
+                  <i class="fa-solid fa-paperclip"></i>
+                  <span class="send-icon"><i class="fa-solid fa-arrow-up"></i></span>
+                </div>
+              </div>
             </div>
-        </header>
+          </div>
+          <div class="floating-note note-top"><span><i class="fa-solid fa-bolt"></i></span> Real-time messaging</div>
+          <div class="floating-note note-bottom"><span><i class="fa-solid fa-shield-halved"></i></span> Your space, your people</div>
+        </div>
+      </section>
 
-        <main>
-            <!-- Hero -->
-            <section class="hero section-wrap">
-                <div class="hero-copy">
-                    <div class="eyebrow">
-                        <span class="eyebrow-dot"></span>
-                        A simpler way to stay connected
-                    </div>
+      <section class="feature-section" id="features">
+        <div class="section-heading">
+          <span class="section-kicker">MADE FOR EVERYDAY CONNECTIONS</span>
+          <h2>Everything you need.<br><span>Nothing you don't.</span></h2>
+          <p>The essentials for staying connected, brought together in one clean experience.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-icon blue"><i class="fa-regular fa-message"></i></span>
+            <h3>Simple messaging</h3>
+            <p>Keep conversations moving with a clean, focused chat experience.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon violet"><i class="fa-solid fa-user-group"></i></span>
+            <h3>Your circle</h3>
+            <p>Find people, send friend requests and keep your connections together.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon green"><i class="fa-solid fa-phone"></i></span>
+            <h3>Stay in touch</h3>
+            <p>Connect beyond messages with RelayTalk's calling experience.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon orange"><i class="fa-regular fa-image"></i></span>
+            <h3>Share moments</h3>
+            <p>Share images and the little things that make conversations yours.</p>
+          </article>
+        </div>
+      </section>
 
-                    <h1>
-                        Good conversations
-                        <span>start here.</span>
-                    </h1>
+      <section class="how-section" id="how-it-works">
+        <div class="how-copy">
+          <span class="section-kicker">GETTING STARTED</span>
+          <h2>Start talking<br><span>in three steps.</span></h2>
+          <p>Getting connected should be easy. Create your account and make RelayTalk your own.</p>
+          <a href="/pages/auth/" data-link class="text-link">Create your account <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+        <div class="steps-list">
+          <div class="step-item"><span class="step-number">01</span><div><h3>Create your account</h3><p>Choose your username and set up your account.</p></div></div>
+          <div class="step-item"><span class="step-number">02</span><div><h3>Find your people</h3><p>Search for friends and send a connection request.</p></div></div>
+          <div class="step-item"><span class="step-number">03</span><div><h3>Start a conversation</h3><p>Send a message and stay connected.</p></div></div>
+        </div>
+      </section>
 
-                    <p class="hero-description">
-                        Your friends, messages and calls — all in one place.
-                        RelayTalk keeps staying connected simple, clear and
-                        comfortable.
-                    </p>
+      <section class="faq-section" id="faq">
+        <div class="section-heading">
+          <span class="section-kicker">A FEW QUICK ANSWERS</span>
+          <h2>Questions, <span>answered.</span></h2>
+        </div>
+        <div class="faq-list">
+          <details><summary>What is RelayTalk?<i class="fa-solid fa-plus"></i></summary><p>RelayTalk is a messaging platform where you can connect with friends, chat, share images and use supported calling features.</p></details>
+          <details><summary>How do I get started?<i class="fa-solid fa-plus"></i></summary><p>Create an account using the sign-up page, then find people and send friend requests.</p></details>
+          <details><summary>Can I use RelayTalk on my phone?<i class="fa-solid fa-plus"></i></summary><p>RelayTalk is designed to work across desktop and mobile screens. The project also includes Capacitor support for its Android app.</p></details>
+          <details><summary>Can I change my profile?<i class="fa-solid fa-plus"></i></summary><p>Yes. Once signed in, open your profile to view and manage the profile details supported by your account.</p></details>
+          <details><summary>Is RelayTalk free to use?<i class="fa-solid fa-plus"></i></summary><p>RelayTalk currently provides its messaging experience without a paid subscription requirement.</p></details>
+        </div>
+      </section>
 
-                    <div class="hero-actions">
-                        <a href="/pages/auth/index.html" class="button button-primary">
-                            Create your account
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </a>
+      <section class="final-cta">
+        <div>
+          <span class="section-kicker">YOUR NEXT CONVERSATION STARTS HERE</span>
+          <h2>Come on in.<br><span>Your people are waiting.</span></h2>
+        </div>
+        <a href="/pages/auth/" data-link class="button button-primary">Join RelayTalk <i class="fa-solid fa-arrow-right"></i></a>
+      </section>
+    </main>
 
-                        <a href="/pages/login/index.html" class="button button-light">
-                            I already have an account
-                        </a>
-                    </div>
+    <footer class="site-footer">
+      <a class="brand" href="/" data-link><span class="brand-mark"><i class="fa-solid fa-comment-dots"></i></span><span>relay<span class="brand-light">talk</span></span></a>
+      <span>Conversations, connected.</span>
+      <div><a href="/about/" data-link>About</a><a href="/pages/login/" data-link>Log in</a><a href="/pages/auth/" data-link>Sign up</a></div>
+      <small>© <span id="footer-year"></span> RelayTalk. Made for real conversations.</small>
+    </footer>
+  </div>
 
-                    <div class="hero-note">
-                        <span class="note-icon"><i class="fa-solid fa-circle-check"></i></span>
-                        A straightforward place for your everyday conversations.
-                    </div>
-                </div>
+  <div id="spa-outlet" aria-live="polite"></div>
+  <div id="spa-loading" class="spa-loading" hidden><span class="loader-ring"></span></div>
+  <div id="spa-error" class="spa-error" hidden>
+    <div><i class="fa-solid fa-triangle-exclamation"></i><h2>Couldn't open this page</h2><p>Please check your connection and try again.</p><button type="button" id="spa-retry">Try again</button></div>
+  </div>
 
-                <!-- Decorative product preview -->
-                <div class="hero-visual" aria-label="Illustration of the RelayTalk messaging experience">
-                    <div class="visual-glow"></div>
-
-                    <div class="preview-window">
-                        <div class="preview-topbar">
-                            <div class="preview-brand">
-                                <img src="/relay.png" alt="">
-                                <span>RelayTalk</span>
-                            </div>
-                            <div class="preview-window-actions">
-                                <span></span><span></span><span></span>
-                            </div>
-                        </div>
-
-                        <div class="preview-content">
-                            <aside class="preview-sidebar">
-                                <div class="preview-avatar preview-avatar-main">R</div>
-                                <div class="preview-side-line active"></div>
-                                <div class="preview-side-line"></div>
-                                <div class="preview-side-line"></div>
-                                <div class="preview-side-line"></div>
-                            </aside>
-
-                            <div class="preview-chat">
-                                <div class="preview-chat-heading">
-                                    <div class="preview-person">
-                                        <div class="person-avatar avatar-blue">A</div>
-                                        <div>
-                                            <strong>Your conversations</strong>
-                                            <small>Stay close to your people</small>
-                                        </div>
-                                    </div>
-                                    <span class="preview-online-dot"></span>
-                                </div>
-
-                                <div class="preview-message received">
-                                    Hey! How have you been?
-                                </div>
-
-                                <div class="preview-message sent">
-                                    Doing great. Good to hear from you!
-                                </div>
-
-                                <div class="preview-message received short">
-                                    We should catch up soon.
-                                </div>
-
-                                <div class="preview-message sent short">
-                                    Absolutely :)
-                                </div>
-
-                                <div class="preview-input">
-                                    <span>Write a message...</span>
-                                    <span class="preview-send"><i class="fa-solid fa-arrow-up"></i></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="floating-card floating-card-top">
-                        <span class="floating-icon purple"><i class="fa-solid fa-users"></i></span>
-                        <span><strong>Your people</strong><small>Find and connect</small></span>
-                    </div>
-
-                    <div class="floating-card floating-card-bottom">
-                        <span class="floating-icon green"><i class="fa-solid fa-phone"></i></span>
-                        <span><strong>Stay in touch</strong><small>Voice and video calls</small></span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Simple product statement -->
-            <section class="intro-strip">
-                <div class="section-wrap intro-strip-inner">
-                    <span class="intro-label">THE IDEA</span>
-                    <p>
-                        Less complication. More conversation.
-                        <strong>That's RelayTalk.</strong>
-                    </p>
-                </div>
-            </section>
-
-            <!-- Features -->
-            <section class="content-section section-wrap" id="features">
-                <div class="section-heading">
-                    <span class="section-kicker">MADE FOR CONNECTION</span>
-                    <h2>Everything you need.<br><span>Nothing in the way.</span></h2>
-                    <p>
-                        The everyday tools that help you keep in touch,
-                        brought together in one straightforward experience.
-                    </p>
-                </div>
-
-                <div class="feature-grid">
-                    <article class="feature-card feature-card-large">
-                        <div class="feature-icon icon-blue">
-                            <i class="fa-solid fa-comments"></i>
-                        </div>
-                        <span class="feature-number">01</span>
-                        <h3>Conversations that flow</h3>
-                        <p>
-                            Open a chat and talk naturally. Keep your
-                            conversations in one familiar place.
-                        </p>
-                        <div class="feature-decoration chat-decoration">
-                            <div class="mini-bubble mini-bubble-left">Hey there!</div>
-                            <div class="mini-bubble mini-bubble-right">What's up?</div>
-                            <div class="mini-bubble mini-bubble-left mini-bubble-small">All good.</div>
-                        </div>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon icon-violet">
-                            <i class="fa-solid fa-user-group"></i>
-                        </div>
-                        <span class="feature-number">02</span>
-                        <h3>Your people, closer</h3>
-                        <p>
-                            Find people by username, send requests and
-                            build your circle.
-                        </p>
-                        <div class="feature-decoration people-decoration">
-                            <span>A</span><span>M</span><span>S</span><span class="people-more">+</span>
-                        </div>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon icon-green">
-                            <i class="fa-solid fa-phone-volume"></i>
-                        </div>
-                        <span class="feature-number">03</span>
-                        <h3>Talk beyond text</h3>
-                        <p>
-                            When a message isn't enough, connect through
-                            voice and video calls.
-                        </p>
-                        <div class="feature-decoration call-decoration">
-                            <span><i class="fa-solid fa-phone"></i></span>
-                            <span><i class="fa-solid fa-video"></i></span>
-                        </div>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon icon-orange">
-                            <i class="fa-solid fa-bell"></i>
-                        </div>
-                        <span class="feature-number">04</span>
-                        <h3>Stay in the loop</h3>
-                        <p>
-                            Keep up with friend requests and activity
-                            through notifications.
-                        </p>
-                        <div class="feature-decoration notification-decoration">
-                            <i class="fa-solid fa-bell"></i>
-                            <span class="notification-ping"></span>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
-            <!-- How it works -->
-            <section class="how-section" id="how-it-works">
-                <div class="section-wrap how-inner">
-                    <div class="section-heading">
-                        <span class="section-kicker">GETTING STARTED</span>
-                        <h2>Three steps.<br><span>Then just talk.</span></h2>
-                        <p>
-                            Getting started should feel easy. Here's how
-                            your RelayTalk journey begins.
-                        </p>
-                    </div>
-
-                    <div class="steps-grid">
-                        <article class="step-card">
-                            <div class="step-top">
-                                <span class="step-index">01</span>
-                                <span class="step-icon"><i class="fa-solid fa-user-plus"></i></span>
-                            </div>
-                            <h3>Create an account</h3>
-                            <p>Sign up and set up your RelayTalk account.</p>
-                        </article>
-
-                        <article class="step-card">
-                            <div class="step-top">
-                                <span class="step-index">02</span>
-                                <span class="step-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
-                            </div>
-                            <h3>Find your friends</h3>
-                            <p>Search for people by their username and connect.</p>
-                        </article>
-
-                        <article class="step-card">
-                            <div class="step-top">
-                                <span class="step-index">03</span>
-                                <span class="step-icon"><i class="fa-solid fa-message"></i></span>
-                            </div>
-                            <h3>Start talking</h3>
-                            <p>Send messages and use the features available to you.</p>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Promotional points -->
-            <section class="benefits-section section-wrap">
-                <div class="benefits-copy">
-                    <span class="section-kicker">A BETTER EVERYDAY EXPERIENCE</span>
-                    <h2>Made to feel<br><span>easy from the start.</span></h2>
-                    <p>
-                        RelayTalk is built around a simple idea: connecting
-                        with people shouldn't feel like work.
-                    </p>
-
-                    <div class="benefit-list">
-                        <div class="benefit-item">
-                            <span><i class="fa-solid fa-check"></i></span>
-                            <div>
-                                <strong>A clear, focused experience</strong>
-                                <p>Find the things you need without unnecessary clutter.</p>
-                            </div>
-                        </div>
-
-                        <div class="benefit-item">
-                            <span><i class="fa-solid fa-check"></i></span>
-                            <div>
-                                <strong>Your connections in one place</strong>
-                                <p>Friends, requests, conversations and calls together.</p>
-                            </div>
-                        </div>
-
-                        <div class="benefit-item">
-                            <span><i class="fa-solid fa-check"></i></span>
-                            <div>
-                                <strong>Designed for everyday use</strong>
-                                <p>A simple interface that keeps the focus on people.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="benefits-art">
-                    <div class="benefits-art-card">
-                        <div class="art-orbit orbit-one"></div>
-                        <div class="art-orbit orbit-two"></div>
-                        <div class="art-center">
-                            <img src="/relay.png" alt="RelayTalk">
-                        </div>
-                        <div class="art-node node-one"><i class="fa-solid fa-message"></i></div>
-                        <div class="art-node node-two"><i class="fa-solid fa-users"></i></div>
-                        <div class="art-node node-three"><i class="fa-solid fa-phone"></i></div>
-                        <div class="art-node node-four"><i class="fa-solid fa-bell"></i></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- FAQ -->
-            <section class="faq-section" id="faq">
-                <div class="section-wrap faq-layout">
-                    <div class="section-heading faq-heading">
-                        <span class="section-kicker">GOOD TO KNOW</span>
-                        <h2>Questions?<br><span>We've got answers.</span></h2>
-                        <p>
-                            A few things you might want to know before
-                            getting started with RelayTalk.
-                        </p>
-                        <a href="/pages/auth/index.html" class="text-link">
-                            Ready to join? Create an account
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                    </div>
-
-                    <div class="faq-list">
-                        <details class="faq-item" open>
-                            <summary>
-                                What is RelayTalk?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                RelayTalk is a communication platform where
-                                you can connect with friends, chat and use
-                                available calling features.
-                            </p>
-                        </details>
-
-                        <details class="faq-item">
-                            <summary>
-                                How do I create an account?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                Select "Get started" or "Create your account"
-                                and follow the signup process.
-                            </p>
-                        </details>
-
-                        <details class="faq-item">
-                            <summary>
-                                How can I find my friends?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                Once signed in, use the friend search feature
-                                to look up someone by their username and send
-                                a friend request.
-                            </p>
-                        </details>
-
-                        <details class="faq-item">
-                            <summary>
-                                Can I make voice or video calls?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                RelayTalk includes calling features. Availability
-                                can depend on your device, browser permissions
-                                and connection.
-                            </p>
-                        </details>
-
-                        <details class="faq-item">
-                            <summary>
-                                Is RelayTalk available on mobile?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                RelayTalk is designed to work across modern
-                                screen sizes. The experience may vary depending
-                                on your browser and device.
-                            </p>
-                        </details>
-
-                        <details class="faq-item">
-                            <summary>
-                                I already have an account. Where do I log in?
-                                <span class="faq-toggle"><i class="fa-solid fa-plus"></i></span>
-                            </summary>
-                            <p>
-                                Select "Log in" at the top of this page or
-                                use the button below to access your account.
-                            </p>
-                            <a href="/pages/login/index.html" class="faq-login-link">Go to login <i class="fa-solid fa-arrow-right"></i></a>
-                        </details>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Final CTA -->
-            <section class="final-cta-section section-wrap">
-                <div class="final-cta">
-                    <div class="final-cta-orb"></div>
-                    <span class="final-cta-kicker">YOUR NEXT CONVERSATION STARTS HERE</span>
-                    <h2>Make room for<br>more good conversations.</h2>
-                    <p>Join RelayTalk and bring your people a little closer.</p>
-                    <div class="final-cta-actions">
-                        <a href="/pages/auth/index.html" class="button button-white">
-                            Create your account
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                        <a href="/pages/login/index.html" class="final-login-link">Already a member? Log in</a>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Footer -->
-        <footer class="site-footer">
-            <div class="section-wrap footer-inner">
-                <div class="footer-main">
-                    <a class="brand footer-brand" href="/">
-                        <img src="/relay.png" alt="">
-                        <span>Relay<span class="brand-accent">Talk</span></span>
-                    </a>
-                    <p>A simpler place for your conversations.</p>
-                </div>
-
-                <div class="footer-links">
-                    <a href="#features">Features</a>
-                    <a href="#how-it-works">How it works</a>
-                    <a href="#faq">FAQs</a>
-                    <a href="/about/">About</a>
-                </div>
-
-                <div class="footer-bottom">
-                    <span>© <span id="currentYear"></span> RelayTalk. All rights reserved.</span>
-                    <span>Made for conversations.</span>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <script>
-        (function () {
-            const menuButton = document.getElementById('mobileMenuButton');
-            const mobileMenu = document.getElementById('mobileMenu');
-            const header = document.getElementById('siteHeader');
-
-            if (menuButton && mobileMenu) {
-                menuButton.addEventListener('click', function () {
-                    const isOpen = mobileMenu.classList.toggle('is-open');
-                    menuButton.setAttribute('aria-expanded', String(isOpen));
-                    menuButton.innerHTML = isOpen
-                        ? '<i class="fa-solid fa-xmark"></i>'
-                        : '<i class="fa-solid fa-bars"></i>';
-                });
-
-                mobileMenu.querySelectorAll('a').forEach(function (link) {
-                    link.addEventListener('click', function () {
-                        mobileMenu.classList.remove('is-open');
-                        menuButton.setAttribute('aria-expanded', 'false');
-                        menuButton.innerHTML = '<i class="fa-solid fa-bars"></i>';
-                    });
-                });
-            }
-
-            window.addEventListener('scroll', function () {
-                if (header) header.classList.toggle('is-scrolled', window.scrollY > 12);
-            }, { passive: true });
-
-            document.getElementById('currentYear').textContent = new Date().getFullYear();
-
-            // Keep the existing OG authentication system responsible for
-            // validating a saved session. A token alone is not treated as proof.
-            if (document.documentElement.classList.contains('has-session')) {
-                import('/utils/auth.js')
-                    .then(function (module) {
-                        return module.auth.getCurrentUser();
-                    })
-                    .then(function (result) {
-                        if (result && result.success) {
-                            window.location.replace('/pages/home/index.html');
-                        }
-                    })
-                    .catch(function (error) {
-                        console.warn('[RelayTalk] Could not validate saved session:', error);
-                    });
-            }
-        })();
-    </script>
-
-    <script src="/utils/native-init.js" defer></script>
-    <script src="/utils/offline-detector.js" defer></script>
+  <script type="module" src="/spa.js"></script>
+  <script src="/utils/native-init.js" defer></script>
+  <script src="/utils/offline-detector.js" defer></script>
 </body>
 </html>
