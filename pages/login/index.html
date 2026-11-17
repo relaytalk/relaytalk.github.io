@@ -2,102 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RelayTalk | Login</title>
-    <meta name="google-site-verification" content="y2KUdk5NLGrxUgulLoxvA0a2y3jQlVPObdNtYkIef2U" />
-
-    <meta name="description" content="Login to RelayTalk — your private, secure messaging platform. Sign in to access chats, calls, and instant messaging with friends and family.">
-    <meta name="keywords" content="RelayTalk login, RelayTalk sign in, secure messaging app, private chat login, encrypted messaging, chat app, instant messaging">
-    <meta name="author" content="RelayTalk">
-    <meta name="robots" content="index, follow">
-
-    <meta name="theme-color" content="#007acc">
-
-    <link rel="apple-touch-icon" sizes="180x180" href="https://relaytalk.vercel.app/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="https://relaytalk.vercel.app/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="https://relaytalk.vercel.app/favicon-16x16.png">
-    <link rel="manifest" href="https://relaytalk.vercel.app/site.webmanifest">
-
-    <!-- ===== Open Graph (WhatsApp / Facebook / LinkedIn / Slack / Discord) ===== -->
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk — Sign in">
-    <meta property="og:description" content="Sign in to RelayTalk — fast, private messaging with friends, family, and close circles.">
-    <meta property="og:url" content="https://relaytalk.vercel.app/pages/login/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:secure_url" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <!-- ===== Twitter / X ===== -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@relaytalk">
-    <meta name="twitter:title" content="RelayTalk — Sign in">
-    <meta name="twitter:description" content="Sign in to RelayTalk — fast, private messaging with friends, family, and close circles.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png?v=2">
-    <meta name="twitter:image:alt" content="RelayTalk — Connect with friends instantly">
-
-    <link rel="canonical" href="https://relaytalk.vercel.app/pages/login/">
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": "RelayTalk Login",
-      "description": "Login page for RelayTalk secure messaging application",
-      "url": "https://relaytalk.vercel.app/pages/login/"
-    }
-    </script>
+    <meta name="description" content="Sign in to RelayTalk — fast, private messaging with friends and family.">
+    <meta name="theme-color" content="#f7f9fc">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
-
-    <meta name="application-name" content="RelayTalk">
-    <meta name="apple-mobile-web-app-title" content="RelayTalk">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="mobile-web-app-capable" content="yes">
 </head>
-<body>
-    <!-- Header -->
+<body class="login-page">
     <header class="login-header">
         <a href="../../index.html" class="login-header-logo">
             <img src="/relay.png" alt="RelayTalk" class="login-header-logo-img">
             <span>RelayTalk</span>
         </a>
+        <a class="login-header-home" href="../../index.html">Back to home <i class="fas fa-arrow-up-right-from-square"></i></a>
     </header>
 
-    <!-- Login Container -->
     <main class="login-container">
-        <div class="login-title-section">
+        <section class="login-title-section">
             <div class="login-logo">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
             </div>
-            <h1 class="login-title">Welcome back</h1>
-            <p class="login-subtitle">Sign in to your RelayTalk account</p>
-        </div>
+            <span class="login-eyebrow">YOUR SPACE IS WAITING</span>
+            <h1 class="login-title">Welcome back.</h1>
+            <p class="login-subtitle">Sign in to pick up where your conversations left off.</p>
+        </section>
 
         <form class="login-form" id="loginForm" method="post" action="#">
             <div class="form-group">
                 <label class="form-label" for="loginUsername">
-                    <span class="form-label-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                    </span>
+                    <span class="form-label-icon"><i class="far fa-user"></i></span>
                     Username
                 </label>
                 <input type="text" id="loginUsername" class="form-input"
@@ -109,24 +51,15 @@
 
             <div class="form-group">
                 <label class="form-label" for="loginPassword">
-                    <span class="form-label-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                    </span>
+                    <span class="form-label-icon"><i class="fas fa-lock"></i></span>
                     Password
                 </label>
                 <div class="password-input">
                     <input type="password" id="loginPassword" class="form-input"
-                           placeholder="Enter your password" required
-                           minlength="6"
+                           placeholder="Enter your password" required minlength="6"
                            name="password" autocomplete="current-password">
                     <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
+                        <i class="far fa-eye"></i>
                     </button>
                 </div>
                 <div class="error-message" id="passwordError"></div>
@@ -135,37 +68,29 @@
             <div class="login-options">
                 <div class="remember-me">
                     <input type="checkbox" id="rememberMe" name="remember">
-                    <label for="rememberMe">Remember me</label>
+                    <label for="rememberMe">Keep me signed in</label>
                 </div>
             </div>
 
             <button type="submit" class="login-btn" id="loginBtn">
-                Sign In
+                <span>Sign in to RelayTalk</span>
+                <i class="fas fa-arrow-right"></i>
             </button>
         </form>
 
         <div class="success-message" id="successMessage"></div>
 
-        <div class="divider">or</div>
+        <div class="divider"><span>NEW TO RELAYTALK?</span></div>
 
         <div class="signup-link">
-            Don't have a RelayTalk account?
-            <a href="../auth/index.html">Create Free Account</a>
+            <span>Make room for better conversations.</span>
+            <a href="../auth/index.html">Create your free account <i class="fas fa-arrow-right"></i></a>
         </div>
 
         <div class="security-badges">
-            <div class="badge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Private
-            </div>
-            <div class="badge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Secure
-            </div>
-            <div class="badge">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                Instant
-            </div>
+            <div class="badge"><i class="fas fa-lock"></i> Private</div>
+            <div class="badge"><i class="fas fa-shield-halved"></i> Secure</div>
+            <div class="badge"><i class="fas fa-bolt"></i> Instant</div>
         </div>
     </main>
 
@@ -175,7 +100,6 @@
     </div>
 
     <script type="module" src="script.js"></script>
-<script src="/utils/native-init.js" defer></script>
-    <script src="/utils/sw-manager.js"></script>
+    <script src="/utils/native-init.js" defer></script>
 </body>
 </html>
