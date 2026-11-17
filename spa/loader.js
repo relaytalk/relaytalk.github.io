@@ -1,15 +1,19 @@
-import { getCachedView, cacheView, activateView } from './lifecycle.js';
+import {
+  getCachedView,
+  cacheView,
+  activateView
+} from './lifecycle.js';
 
 const loadedStyles = new Set();
 const loadedModules = new Set();
 const loadedClassicScripts = new Set();
 
-function absoluteUrl(value, baseUrl) {
+function resolveUrl(value, baseUrl) {
   return new URL(value, baseUrl).href;
 }
 
-function addStylesheet(href, baseUrl) {
-  const url = absoluteUrl(href, baseUrl);
+function loadStylesheet(href, baseUrl) {
+  const url = resolveUrl(href, baseUrl);
   if (loadedStyles.has(url)) return Promise.resolve();
 
   loadedStyles.add(url);
@@ -18,129 +22,154 @@ function addStylesheet(href, baseUrl) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = url;
+    link.dataset.relayStyle = 'true';
+
     link.onload = resolve;
     link.onerror = () => {
-      console.warn('[RelayTalk SPA] Stylesheet could not load:', url);
+      console.warn('[RelayTalk SPA] Stylesheet failed:', url);
       resolve();
     };
+
     document.head.appendChild(link);
   });
 }
 
-async function runScript(script, baseUrl) {
-  const source = script.getAttribute('src');
+async function loadExternalScript(script, baseUrl) {
+  const src = script.getAttribute('src');
+  if (!src || src.includes('sw-manager.js')) return;
+
+  const url = resolveUrl(src, baseUrl);
   const type = (script.getAttribute('type') || '').toLowerCase();
 
-  if (source) {
-    if (source.includes('sw-manager.js')) return;
+  if (type === 'module') {
+    if (loadedModules.has(url)) return;
 
-    const url = absoluteUrl(source, baseUrl);
-
-    if (type === 'module') {
-      if (loadedModules.has(url)) return;
-      loadedModules.add(url);
-      await import(url);
-      return;
-    }
-
-    if (loadedClassicScripts.has(url)) return;
-    loadedClassicScripts.add(url);
-
-    await new Promise(resolve => {
-      const element = document.createElement('script');
-      element.src = url;
-      element.async = false;
-      element.onload = resolve;
-      element.onerror = () => {
-        console.warn('[RelayTalk SPA] Script could not load:', url);
-        resolve();
-      };
-      document.body.appendChild(element);
-    });
-
+    // Mark before import to prevent circular/repeated loading.
+    loadedModules.add(url);
+    await import(url);
     return;
   }
 
+  if (loadedClassicScripts.has(url)) return;
+  loadedClassicScripts.add(url);
+
+  await new Promise(resolve => {
+    const element = document.createElement('script');
+    element.src = url;
+    element.async = false;
+
+    element.onload = resolve;
+    element.onerror = () => {
+      console.warn('[RelayTalk SPA] Script failed:', url);
+      resolve();
+    };
+
+    document.body.appendChild(element);
+  });
+}
+
+function runInlineScript(script) {
   const code = script.textContent || '';
   if (!code.trim()) return;
 
   const element = document.createElement('script');
+
   for (const attribute of script.attributes) {
-    if (attribute.name !== 'src') element.setAttribute(attribute.name, attribute.value);
+    if (attribute.name !== 'src') {
+      element.setAttribute(attribute.name, attribute.value);
+    }
   }
+
   element.textContent = code;
   document.body.appendChild(element);
 
   if (element.type !== 'module') element.remove();
 }
 
-function extractBody(documentText) {
-  const parsed = new DOMParser().parseFromString(documentText, 'text/html');
-  return {
-    parsed,
-    body: parsed.body,
-    scripts: [...parsed.body.querySelectorAll('script')]
-  };
+function parsePage(html) {
+  return new DOMParser().parseFromString(html, 'text/html');
 }
 
-export async function loadRoute(route, requestedUrl) {
+function mountBody(parsed, route) {
   const outlet = document.getElementById('spa-outlet');
-  if (!outlet) throw new Error('SPA outlet is missing from index.html');
-
-  const cached = getCachedView(route.path);
-  if (cached) {
-    activateView(route.path);
-    return;
-  }
-
-  const response = await fetch(route.source, {
-    method: 'GET',
-    credentials: 'same-origin',
-    cache: 'no-store',
-    headers: { 'X-RelayTalk-Navigation': '1' }
-  });
-
-  if (!response.ok) throw new Error(`Page request failed: ${response.status}`);
-
-  const html = await response.text();
-  const baseUrl = new URL(route.source, window.location.origin).href;
-  const { parsed, body, scripts } = extractBody(html);
-
-  const stylesheetPromises = [...parsed.head.querySelectorAll('link[rel="stylesheet"]')]
-    .map(link => link.href)
-    .filter(Boolean)
-    .map(href => addStylesheet(href, baseUrl));
+  if (!outlet) throw new Error('Missing #spa-outlet');
 
   const page = document.createElement('section');
   page.className = `spa-page spa-page-${route.name}`;
   page.dataset.spaPath = route.path;
   page.hidden = true;
 
-  const content = body.cloneNode(true);
-  content.querySelectorAll('script').forEach(script => script.remove());
+  const sourceBody = parsed.body.cloneNode(true);
+  sourceBody.querySelectorAll('script').forEach(script => script.remove());
 
-  while (content.firstChild) page.appendChild(content.firstChild);
+  while (sourceBody.firstChild) {
+    page.appendChild(sourceBody.firstChild);
+  }
 
   outlet.appendChild(page);
   cacheView(route.path, page);
-  activateView(route.path);
 
-  await Promise.all(stylesheetPromises);
+  return page;
+}
 
-  for (const script of scripts) {
-    await runScript(script, baseUrl);
+export async function loadRoute(route, requestedUrl) {
+  if (route.path === '/') {
+    activateView('/');
+    return;
   }
 
-  page.dispatchEvent(new CustomEvent('relay:page-mounted', {
-    bubbles: true,
+  const existing = getCachedView(route.path);
+
+  if (existing) {
+    activateView(route.path);
+    return;
+  }
+
+  const response = await fetch(route.source, {
+    credentials: 'same-origin',
+    cache: 'no-cache',
+    headers: { 'X-RelayTalk-Navigation': '1' }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not load ${route.source}: HTTP ${response.status}`);
+  }
+
+  const html = await response.text();
+  const parsed = parsePage(html);
+  const baseUrl = new URL(route.source, location.origin).href;
+
+  // Mount the page before loading its controllers.
+  const page = mountBody(parsed, route);
+  activateView(route.path);
+
+  // Resolve page CSS against the page's actual URL.
+  const stylesheetTasks = [...parsed.head.querySelectorAll('link[rel="stylesheet"]')]
+    .map(link => link.getAttribute('href'))
+    .filter(Boolean)
+    .map(href => loadStylesheet(href, baseUrl));
+
+  await Promise.all(stylesheetTasks);
+
+  // Keep original script order.
+  for (const script of [...parsed.body.querySelectorAll('script')]) {
+    if (script.src) {
+      await loadExternalScript(script, baseUrl);
+    } else {
+      runInlineScript(script);
+    }
+  }
+
+  // Some original modules register DOMContentLoaded listeners.
+  // Dispatch a scoped compatibility event only after the new view is mounted.
+  document.dispatchEvent(new Event('relay:dom-ready'));
+
+  window.dispatchEvent(new CustomEvent('relay:route-mounted', {
     detail: {
       route: route.name,
       path: route.path,
-      query: requestedUrl.searchParams
+      query: requestedUrl.searchParams,
+      element: page
     }
-  }));
-
-  window.dispatchEvent(new CustomEvent('relay:route-mounted', {
-    detail: { route: route.name, path: route.path }
   }));
 }
